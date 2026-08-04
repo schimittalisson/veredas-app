@@ -78,3 +78,7 @@ ios/Flutter/Flutter.podspec
 *.g.dart
 *.freezed.dart
 lib/l10n/app_localizations*.dart
+
+# Concatenação gerada de supabase/migrations/ + seed.sql (build_apply_all.sh).
+# Não versionado: duas cópias do schema garantem que uma fique desatualizada.
+supabase/apply_all.generated.sql
