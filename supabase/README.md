@@ -231,13 +231,57 @@ falha. É o primeiro lugar a olhar quando um e-mail não chega.
 
 ---
 
+### 6.6 Rede de segurança: confirmar e-mail manualmente
+
+Se o e-mail de confirmação de algum obreiro não chegar (spam, caixa cheia,
+endereço digitado errado), **o admin confirma na mão**:
+
+**Authentication → Users** → clique no usuário → confirmar o e-mail.
+
+Para ~20 pessoas isso é perfeitamente viável, e é o que torna a exigência de
+confirmação de e-mail um risco baixo: ninguém fica travado permanentemente
+esperando uma mensagem que não vem.
+
+### 6.7 Estado atual e plano B
+
+O domínio `jocum.org.br` é **Google Workspace** e a base **não tem acesso ao
+DNS** dele. Consequência para o envio via Brevo:
+
+| Checagem | Resultado | Por quê |
+|---|---|---|
+| SPF | *softfail* | O SPF do domínio é `include:_spf.google.com ~all` — autoriza só o Google, não o Brevo |
+| DKIM | não alinhado | O Brevo assina com o domínio dele |
+| DMARC | falha, **sem punição** | A política do domínio é `p=none`, que instrui os servidores a não rejeitar nem quarentenar |
+
+Ou seja: **os e-mails são entregues**, com risco de cair no spam de vez em
+quando. Aceito conscientemente pelo solicitante (os obreiros são avisados).
+
+**Plano B, se a entrega incomodar:** enviar pelo SMTP do próprio Google, em vez
+do Brevo. O `jocum.org.br` já tem SPF **e** DKIM configurados para o Google
+(`google._domainkey` existe), então SPF, DKIM e DMARC passariam **alinhados, sem
+tocar em nenhum registro DNS**:
+
+| Campo | Valor |
+|---|---|
+| Host | `smtp.gmail.com` |
+| Port | `587` |
+| Username | `veredas@jocum.org.br` |
+| Password | uma **App Password** do Google (exige 2FA na conta) |
+
+Ressalva: se o admin do Workspace da JOCUM exigir apenas OAuth, as senhas de app
+ficam indisponíveis e este plano B não funciona — aí o Brevo permanece.
+
+---
+
 ## Passo 7 — Criar o admin
 
 O `role` não pode ser definido no cadastro (senão qualquer um se promoveria).
 O primeiro admin é promovido manualmente:
 
-1. Crie sua conta **pelo app** (ou em Authentication → Users → Add user),
-   usando o código `VEREDAS2026`.
+1. Crie sua conta em **Authentication → Users → Add user**, marcando
+   **Auto Confirm User**. Isso dispensa o e-mail de confirmação — útil para não
+   depender do SMTP estar pronto.
+   (Alternativa: cadastrar pelo app com o código `VEREDAS2026`.)
 2. No SQL Editor:
 
 ```sql

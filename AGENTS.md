@@ -341,9 +341,12 @@ para uma outbox drenada quando há conexão.
 Atualize esta seção ao concluir cada fase.
 
 - [x] Fase 0 — Ambiente e esqueleto
-- [~] Fase 1 — Backend Supabase (schema + RLS + seeds) — **SQL escrito, não
-      aplicado.** Falta criar o projeto no supabase.com e seguir
-      `supabase/README.md`. O aceite (validação de RLS) só é possível depois.
+- [x] Fase 1 — Backend Supabase (schema + RLS + seeds) — **aplicado** no projeto
+      `vwstkxemtkdlsagricsh`. 13 tabelas + view `prayer_feed` + RPCs, RLS ativo
+      (leitura anônima devolve vazio; `redeem_invite` nega `anon` com 42501).
+      Validado antes com 47 asserções em Postgres local
+      (`supabase/local_test/run.sh`). SMTP via Brevo configurado — ver
+      `supabase/README.md` §6.7 para o estado de entregabilidade e o plano B.
 - [x] Fase 2 — Fundação Flutter (tema, router, 4 tabs)
 - [ ] Fase 3 — Autenticação, convite e papéis
 - [ ] Fase 4 — Camada de dados e sincronização ⚠ crítica
