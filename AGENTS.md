@@ -392,6 +392,14 @@ Atualize esta seção ao concluir cada fase.
       Rotas de admin + guard no router (não-admin → /inicio). TODO: RPCs
       (set_approval, set_role, create_invite, revoke_invite,
       add/remove_scale_manager), BaseDataScreen.
+- [x] Fase 10 — Qualidade, iOS e lançamento — flutter_launcher_icons (logo
+      900x900), ProGuard + minify/shrink + signing config via key.properties
+      (gitignored), Info.plist (CFBundleLocalizations pt/pt-BR,
+      CFBundleURLTypes deep link, NSCameraUsageDescription,
+      NSPhotoLibraryUsageDescription), política de privacidade LGPD
+      (PRIVACIDADE.md), `flutter analyze` limpo, 69 testes passando, AAB
+      release assinado (64.6MB). iOS não compila no Linux — arquivos
+      configurados, build requer macOS + Xcode.
 - [ ] Fase 5 — Tela Início
 - [ ] Fase 6 — Tela Agenda
 - [ ] Fase 7 — Tela Escalas

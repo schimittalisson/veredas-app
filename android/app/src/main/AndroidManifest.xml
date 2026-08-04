@@ -24,8 +24,8 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
-            <!-- Deep link para recuperação de senha. O e-mail de reset do
-                 Supabase contém um link com scheme br.com.veredas.app que
+            <!-- Deep link para recuperaÃ§Ã£o de senha. O e-mail de reset do
+                 Supabase contÃ©m um link com scheme br.com.veredas.app que
                  abre o app direto na tela de login. -->
             <intent-filter android:autoVerify="false">
                 <action android:name="android.intent.action.VIEW"/>
