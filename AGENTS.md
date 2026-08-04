@@ -278,9 +278,11 @@ Herdadas do CalorieMate, com correções:
 Prioridade (do mais para o menos importante):
 
 1. **Sync e outbox** (`test/sync/`) — a lógica mais complexa e a que mais quebra.
-   drift in-memory + `SupabaseClient` mockado (`mocktail`).
-   Casos mínimos: pull insere/atualiza/remove; pull idempotente; escrita offline
-   entra na fila; fila drena; 403 reverte o cache.
+   drift in-memory + `FakeRemoteSource` (implementa `RemoteSource` com dados
+   pré-configurados — não mocka a cadeia fluent do supabase_flutter).
+   Casos cobertos: pull insere/atualiza/remove; pull idempotente; escrita offline
+   entra na fila; fila drena; 403 reverte o cache; 0-linhas reverte o cache;
+   backoff exponencial; ordem de drenagem; janela de 2min.
 2. **Mapeamento de erros** — `PostgrestException`/`AuthException` → `AppException`.
 3. **Helpers puros** — `date_utils` (semana ISO, virada de mês, DST),
    `permissions`.
@@ -300,8 +302,9 @@ E envolva a tela num `GoRouter` de teste — as telas usam `context.push`, que
 lança exceção dentro de um `MaterialApp` simples.
 
 Helpers em `test/helpers/test_helpers.dart`: `createTestDatabase()`,
-`createTestContainer({overrides})`, fábricas de modelos
-(`makeProfile()`, `makeScaleAssignment()`), `FakeAuthService`.
+`FakeRemoteSource`, `makeProfileJson()`, `makeEventJson()`,
+`makeAnnouncementJson()`, `makeScaleManagerJson()`, `enqueueOutboxEntry()`,
+`makeRlsException()`, `makeSocketException()`.
 
 ---
 
@@ -351,7 +354,11 @@ Atualize esta seção ao concluir cada fase.
       `supabase/README.md` §6.7 para o estado de entregabilidade e o plano B.
 - [x] Fase 2 — Fundação Flutter (tema, router, 4 tabs)
 - [ ] Fase 3 — Autenticação, convite e papéis
-- [ ] Fase 4 — Camada de dados e sincronização ⚠ crítica
+- [~] Fase 4 — Camada de dados e sincronização ⚠ crítica — schema do cache,
+      codegen, `AppException`/`error_mapper`, `SyncEntity`/`SyncService`/
+      `OutboxWorker`/`RemoteSource` implementados e testados (56 testes).
+      Faltam: DAOs por área, providers de infra, `syncStatusProvider`,
+      `OfflineBanner`, e a integração com `connectivity_plus`.
 - [ ] Fase 5 — Tela Início
 - [ ] Fase 6 — Tela Agenda
 - [ ] Fase 7 — Tela Escalas
@@ -518,6 +525,51 @@ acima está resolvido: não é preciso abandonar o `freezed` nem usar prerelease
 3. **Sufixo `Row` nos `@DataClassName`.** O drift geraria `Profile` para a tabela
    `ProfileRows`, colidindo com o modelo de domínio `Profile` do freezed. Todas
    as tabelas de cache usam `@DataClassName('XxxRow')`.
+
+#### Fase 4 — sync, outbox e RemoteSource (implementação)
+
+**`prayer_feed` usa `fullReplace`, não `incremental`.** A view não expõe
+`deleted_at` — ela filtra `where p.deleted_at is null` internamente. Um post
+apagado simplesmente desaparece dos resultados, e o incremental jamais
+perceberia. Com ~dezenas de posts numa base de 20 obreiros, baixar a view
+inteira a cada sync é trivial. `prayer_comments` (tabela, tem `deleted_at`)
+continua incremental.
+
+**`RemoteSource` como interface abstrata.** O `PLANO.md §2.4` prevê que "cada
+fonte remota fica atrás de uma interface abstrata". O `SyncService` e o
+`OutboxWorker` dependem de `RemoteSource`, não de `SupabaseClient` diretamente.
+Isto torna os testes viáveis sem mockar a cadeia fluent do supabase_flutter
+(`PostgrestQueryBuilder` → `PostgrestFilterBuilder` → `PostgrestTransformBuilder`
+...), que é frágil e acoplada a tipos internos do SDK. A implementação Supabase
+(`SupabaseRemoteSource`) é uma camada fina; nos testes, `FakeRemoteSource`
+retorna dados pré-configurados.
+
+**O `previousRow` da outbox é drift JSON, não Supabase JSON.** O snapshot da
+linha antes da mudança é gerado por `row.toJson()` (formato drift: camelCase,
+DateTime como int ms). O `restore` usa `RowClass.fromJson(driftJson)`, que é o
+inverso exato. O payload enviado ao servidor (`outbox.payload`) é Supabase JSON
+(snake_case, ISO strings) — construído pelo repositório no momento da escrita.
+
+**PK composta na outbox.** `scale_managers` tem PK `(scale_type_id, user_id)`.
+O `rowId` na outbox é codificado como `"scaleTypeId|userId"` (funções
+`encodeCompositeId`/`decodeCompositeId` em `sync_entity.dart`). O `remove` da
+entidade decodifica o pipe. As outras entidades usam o UUID direto.
+
+**Drift devolve `DateTime` em hora local.** O `DateTimeColumn` do drift armazena
+como Unix timestamp e lê de volta com `isUtc: false`. Testes que comparam
+`lastSyncedAt` precisam usar `.toUtc()` — senão falham em fuso != UTC.
+
+**`count().watchSingle()`, não `count().watch()`.** `count().watch()` retorna
+`Stream<List<int>>` (lista com um elemento); `watchSingle()` retorna
+`Stream<int>`. Confundir os dois é erro de tipo silencioso.
+
+**Ordem do drain: para no primeiro erro retentável.** Rede/timeout/5xx
+provavelmente afeta todas as entradas seguintes — tentar todas é desperdício.
+Erros permanentes (403/conflito/0-linhas) são independentes: o drain continua
+para a próxima entrada.
+
+**Backoff capado em 256s (~4min).** `2^attempts` segundos, limitado a
+`attempts <= 8`. Crescimento: 1s, 2s, 4s, 8s, 16s, 32s, 64s, 128s, 256s.
 
 #### ⚠ Semântica do RLS que afeta o OutboxWorker (ler antes da Fase 4)
 
