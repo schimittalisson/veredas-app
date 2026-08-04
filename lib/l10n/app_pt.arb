@@ -154,5 +154,27 @@
     }
   },
   "scales_assignee_unknown": "A definir",
-  "scales_slot_label": "Área"
+  "scales_slot_label": "Área",
+
+  "prayer_search_hint": "Buscar por título...",
+  "prayer_composer_hint": "Compartilhe um pedido de oração...",
+  "prayer_new": "Novo pedido",
+  "prayer_anonymous": "Anônimo",
+  "prayer_praying": "orando",
+  "prayer_praying_action": "Estou orando",
+  "prayer_comments": "{n, plural, =0{0 comentários} =1{1 comentário} other{{n} comentários}}",
+  "@prayer_comments": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+  "prayer_answered": "Respondido",
+  "prayer_edit": "Editar",
+  "prayer_delete": "Excluir",
+  "prayer_mark_answered": "Marcar como respondido",
+  "prayer_no_posts": "Nenhum pedido de oração ainda.",
+  "prayer_no_results": "Nenhum resultado para \"{query}\".",
+  "@prayer_no_results": {
+    "placeholders": { "query": { "type": "String" } }
+  },
+  "prayer_ver_more": "ver mais",
+  "prayer_ver_less": "ver menos"
 }

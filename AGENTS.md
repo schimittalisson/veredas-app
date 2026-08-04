@@ -379,6 +379,11 @@ Atualize esta seção ao concluir cada fase.
       destaque "Você" (primaryContainer + Chip), resumo "N× no período".
       FAB só se canEditScale. TODO: editor de atribuição, duplicar semana,
       seleção múltipla com exclusão em lote.
+- [~] Fase 8 — Mural de Oração — feed com busca por título (debounce 400ms),
+      composer inline, PrayerCard (avatar, timeago, "estou orando" toggle
+      otimista, badge "Respondido", popup Editar/Excluir/Marcar respondido),
+      texto expansível (3 linhas + ver mais). FAB novo pedido. TODO: tela
+      de detalhe, composer, outbox do toggle, paginação.
 - [ ] Fase 5 — Tela Início
 - [ ] Fase 6 — Tela Agenda
 - [ ] Fase 7 — Tela Escalas
