@@ -152,21 +152,82 @@ Isso é o que faz o link de recuperação de senha voltar para o app.
 
 ### SMTP próprio — não é opcional
 
-**Authentication → Emails → SMTP Settings.**
-
-O SMTP embutido do Supabase é limitado a **~2 e-mails por hora** e existe apenas
-para desenvolvimento. Com 20 obreiros se cadastrando, os e-mails de confirmação
-simplesmente não chegam — e o obreiro fica preso sem conseguir entrar. Este é um
+O SMTP embutido do Supabase envia **2 e-mails por hora** (valor oficial, não
+estimativa) e existe apenas para desenvolvimento. Com 20 obreiros se cadastrando,
+os e-mails de confirmação não chegam e o obreiro fica preso fora do app. É um
 bloqueio prático real, não um detalhe de polimento.
 
-Configure um provedor com free tier:
+Provedor escolhido: **Brevo** (300 e-mails/dia no free tier).
 
-- **Resend** (<https://resend.com>) — 3.000 e-mails/mês grátis. Exige verificar
-  um domínio (ou usar o domínio de teste deles em desenvolvimento).
-- **Brevo** (<https://brevo.com>) — 300 e-mails/dia grátis.
+#### 6.1 No Brevo — verificar o remetente
 
-Preencha host, porta, usuário, senha e o **sender email** com um endereço do
-domínio verificado.
+Não se pode enviar de um endereço arbitrário. Em **Settings → Senders, Domains &
+Dedicated IPs**:
+
+- **Sem domínio próprio**: aba *Senders* → *Add a sender*. Cadastre um e-mail
+  real (ex.: o Gmail da base), confirme pelo link que chega nele. Funciona, mas a
+  entrega é pior — Gmail e Outlook tendem a marcar como spam mail não
+  autenticado.
+- **Com domínio próprio** (recomendado): aba *Domains* → *Add a domain* e
+  publique os registros DKIM/DMARC no DNS. É o que mantém os e-mails fora do
+  spam. Se a base tiver um domínio, use este caminho.
+
+#### 6.2 No Brevo — pegar as credenciais SMTP
+
+**Settings → SMTP & API → aba SMTP.**
+
+| Campo | Valor |
+|---|---|
+| SMTP server | `smtp-relay.brevo.com` |
+| Port | `587` |
+| Login | o valor do campo **Login**, no formato `xxxxxxx@smtp-brevo.com` |
+| Password | uma **SMTP key** — clique em *Generate a new SMTP key* |
+
+Duas armadilhas que causam a maioria dos erros `535 Authentication failed`:
+
+1. **O login NÃO é o e-mail da sua conta Brevo.** É o endereço
+   `...@smtp-brevo.com` mostrado no campo *Login*. Também não é
+   `smtp-relay.brevo.com` — esse é o host.
+2. **A senha é a SMTP key, não a senha da conta e nem uma API key.** A key é
+   exibida **uma única vez**, na criação. Salve num gerenciador de senhas na
+   hora; se perder, gere outra.
+
+#### 6.3 No Supabase — configurar
+
+**Authentication → Emails → SMTP Settings**, habilite *Enable Custom SMTP*:
+
+| Campo | Valor |
+|---|---|
+| Sender email | o remetente verificado no passo 6.1 |
+| Sender name | `Base Veredas` |
+| Host | `smtp-relay.brevo.com` |
+| Port | `587` |
+| Username | o login `...@smtp-brevo.com` |
+| Password | a SMTP key |
+
+#### 6.4 Levantar o rate limit do Supabase (passo esquecido)
+
+Ao habilitar SMTP próprio, o Supabase **impõe automaticamente 30 e-mails/hora**
+para proteger a reputação do serviço novo. Isso é do Supabase, não do Brevo —
+configurar o Brevo sozinho não resolve.
+
+Em **Authentication → Rate Limits**, suba *Rate limit for sending emails* para
+algo como **100/hora**.
+
+Com 20 obreiros, 30/hora parece suficiente, mas não é no dia do lançamento: cada
+pessoa gera pelo menos um e-mail de confirmação, mais reenvios de quem não achou
+a mensagem, mais recuperações de senha de quem errou. Bater no limite nesse dia
+significa obreiro travado na tela de confirmação — exatamente o problema que o
+SMTP próprio existe para evitar.
+
+#### 6.5 Testar antes de confiar
+
+Crie um usuário de teste pelo painel (**Authentication → Users → Add user**, sem
+marcar *Auto Confirm*) e confirme que o e-mail chega. **Olhe também a caixa de
+spam** — se caiu lá, falta autenticar o domínio (passo 6.1).
+
+No Brevo, **Transactional → Logs** mostra cada tentativa de envio com o motivo da
+falha. É o primeiro lugar a olhar quando um e-mail não chega.
 
 ---
 
