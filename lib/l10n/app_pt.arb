@@ -96,5 +96,22 @@
   "auth_error_not_found": "Não encontrado.",
   "auth_error_server_unavailable": "Servidor indisponível. Tente novamente em instantes.",
   "auth_error_timeout": "A operação demorou demais. Tente novamente.",
-  "auth_error_unknown": "Ocorreu um erro inesperado. Tente novamente."
+  "auth_error_unknown": "Ocorreu um erro inesperado. Tente novamente.",
+
+  "home_pinned_section": "Aviso em destaque",
+  "home_social_section": "Redes sociais",
+  "home_base_info_section": "Dados da Base",
+  "home_announcements_section": "Avisos anteriores",
+  "home_no_announcements": "Nenhum aviso no momento.",
+  "home_no_base_info": "Nenhum dado da base cadastrado.",
+  "home_no_social_links": "Nenhuma rede social cadastrada.",
+  "home_announcement_edit": "Editar",
+  "home_announcement_delete": "Excluir",
+  "home_announcement_delete_confirm": "Excluir este aviso?",
+  "home_announcement_new": "Novo aviso",
+  "home_base_info_edit": "Editar",
+  "home_base_info_edit_title": "Editar dado da base",
+  "home_base_info_value_label": "Valor",
+  "home_link_open_error": "Não foi possível abrir o link.",
+  "home_loading": "Carregando…"
 }

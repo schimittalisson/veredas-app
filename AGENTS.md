@@ -368,6 +368,9 @@ Atualize esta seção ao concluir cada fase.
       providers de infra, `syncStatusProvider`, `OfflineBanner`,
       `connectivity_plus`. 56 testes (sync, outbox, error_mapper, schema).
       Os 5 aceites do plano + o caso 0-linhas cobertos.
+- [~] Fase 5 — Tela Início — aviso fixado, redes sociais, dados da base,
+      avisos anteriores. FAB só admin. TODO: editores (aviso, base_info),
+      lista completa de avisos, nome do autor no aviso.
 - [ ] Fase 5 — Tela Início
 - [ ] Fase 6 — Tela Agenda
 - [ ] Fase 7 — Tela Escalas
