@@ -371,6 +371,9 @@ Atualize esta seção ao concluir cada fase.
 - [~] Fase 5 — Tela Início — aviso fixado, redes sociais, dados da base,
       avisos anteriores. FAB só admin. TODO: editores (aviso, base_info),
       lista completa de avisos, nome do autor no aviso.
+- [~] Fase 6 — Tela Agenda — abas Eventos (TableCalendar + lista do dia +
+      próximos) e Cronograma (grade semanal + lista por dia). FAB só admin.
+      TODO: editores (evento, slot), detalhe do evento, cached_network_image.
 - [ ] Fase 5 — Tela Início
 - [ ] Fase 6 — Tela Agenda
 - [ ] Fase 7 — Tela Escalas

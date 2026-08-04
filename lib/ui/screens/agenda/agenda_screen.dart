@@ -2,25 +2,71 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:veredas/l10n/app_localizations.dart';
-import 'package:veredas/ui/widgets/empty_state.dart';
+import 'package:veredas/providers/auth_providers.dart';
+import 'package:veredas/ui/screens/agenda/events_tab.dart';
+import 'package:veredas/ui/screens/agenda/schedule_tab.dart';
 
-/// Tela Agenda — skeleton da Fase 2.
+/// Tela Agenda — segunda tab.
 ///
-/// Conteúdo real na Fase 6 (`TELAS.md` §2): abas Eventos (com `TableCalendar`)
-/// e Cronograma (a grade semanal em formato de planilha).
-class AgendaScreen extends ConsumerWidget {
+/// `TabBar` de 2 abas no `AppBar` (`bottom`): **Eventos** | **Cronograma**
+/// (`TELAS.md` §2). FAB só para admin, criando na aba ativa.
+class AgendaScreen extends ConsumerStatefulWidget {
   const AgendaScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AgendaScreen> createState() => _AgendaScreenState();
+}
+
+class _AgendaScreenState extends ConsumerState<AgendaScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final isAdmin = ref.watch(isAdminProvider);
 
     return Scaffold(
-      appBar: AppBar(title: Text(l.tab_agenda)),
-      body: EmptyState(
-        title: l.tab_agenda,
-        message: l.empty_default_message,
-        icon: Icons.calendar_month_outlined,
+      appBar: AppBar(
+        title: Text(l.tab_agenda),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(text: l.agenda_tab_events),
+            Tab(text: l.agenda_tab_schedule),
+          ],
+        ),
+      ),
+      floatingActionButton: isAdmin
+          ? FloatingActionButton(
+              onPressed: () {
+                // TODO: navegar para /evento/novo ou /cronograma/novo
+                // conforme a aba ativa.
+              },
+              tooltip: _tabController.index == 0
+                  ? l.agenda_new_event
+                  : l.agenda_new_slot,
+              child: const Icon(Icons.add),
+            )
+          : null,
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          const EventsTab(),
+          const ScheduleTab(),
+        ],
       ),
     );
   }
