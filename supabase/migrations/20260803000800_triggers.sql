@@ -55,6 +55,23 @@ begin
     return new;
   end if;
 
+  -- Sem auth.uid() não existe usuário final na requisição: é acesso direto ao
+  -- banco (SQL Editor, psql, migration) ou uma chamada com service_role.
+  --
+  -- Esta exceção é OBRIGATÓRIA para bootstrapar a base. O primeiro admin é
+  -- promovido por um UPDATE manual no SQL Editor (supabase/README.md passo 7),
+  -- onde auth.uid() é NULL — sem esta cláusula o trigger derruba esse UPDATE
+  -- com FORBIDDEN_PRIVILEGE_CHANGE e NÃO EXISTE forma de criar o primeiro
+  -- admin. Verificado num Postgres 17 local antes de aplicar.
+  --
+  -- Não abre brecha pela API: as policies de profiles são `to authenticated` e
+  -- exigem `id = auth.uid()`, então uma requisição anônima não alcança linha
+  -- alguma para atualizar. Quem tem acesso direto ao banco ou a service_role
+  -- já é privilegiado por definição.
+  if auth.uid() is null then
+    return new;
+  end if;
+
   if public.is_admin() then
     return new;
   end if;

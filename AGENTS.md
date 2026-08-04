@@ -466,10 +466,74 @@ detalhes nas cores":
   (dessaturado, para fundos). **Nunca escreva texto sobre `accent` puro**: o
   amarelo e o laranja da logo reprovam em WCAG AA como fundo.
 
+#### Fase 1 — validação local e bugs encontrados
+
+Antes de aplicar no Supabase, todas as migrations, o seed e as policies foram
+rodados num Postgres 17 local (Docker) com 47 asserções de RLS. Harness em
+`supabase/local_test/`, reexecutável com `./supabase/local_test/run.sh`.
+**Rode isso depois de qualquer alteração em `supabase/migrations/`.**
+
+Três bugs reais foram encontrados e corrigidos:
+
+1. **`manages_scale` na ordem errada** (já descrito acima) — confirmado
+   empiricamente, não era teoria.
+2. **Era impossível criar o primeiro admin.** O trigger
+   `protect_profile_privileges` avalia `is_admin()`, que é `false` no SQL Editor
+   porque ali `auth.uid()` é `NULL`. O `UPDATE` de promoção que o `SCHEMA.md` §9
+   e o `supabase/README.md` passo 7 mandam rodar morria com
+   `FORBIDDEN_PRIVILEGE_CHANGE`, **sem nenhuma saída** — a base não poderia ser
+   bootstrapada. Corrigido com uma exceção para `auth.uid() is null` na
+   migration `0800`, documentada no próprio arquivo. Não abre brecha: as policies
+   de `profiles` são `to authenticated` e exigem `id = auth.uid()`, então uma
+   requisição anônima não alcança linha alguma.
+3. **`authenticated` sem `USAGE` no schema `extensions`.** `norm_text()` não pode
+   ser `security definer` (precisa ser `immutable` para servir de índice de
+   expressão), então executa com os privilégios de quem chama. A busca do mural
+   falhava com `permission denied for schema extensions`. Grant explícito
+   adicionado na migration `0100`.
+
+#### ⚠ Semântica do RLS que afeta o OutboxWorker (ler antes da Fase 4)
+
+Descoberta ao escrever as asserções, e **não** está no `PLANO.md`:
+
+| Operação | RLS reprova em | Resultado |
+|---|---|---|
+| `INSERT` | `WITH CHECK` | **erro** `42501 insufficient_privilege` |
+| `UPDATE` que gera linha proibida | `WITH CHECK` | **erro** `42501` |
+| `UPDATE` / `DELETE` de linha invisível | `USING` | **0 linhas, SEM erro** |
+
+O `PLANO.md` §2.5 diz que o `OutboxWorker` deve tratar "`PostgrestException`
+401/403 (RLS negou) → remove da fila, reverte o cache". **Isso cobre só metade
+dos casos.** Um `UPDATE` ou `DELETE` negado pelo `USING` volta **HTTP 200 com
+lista vazia**, não 403. Se o worker tratar 200 como sucesso, ele marca o item
+como enviado, o cache local mantém a escrita otimista e o dispositivo divergirá
+do servidor **para sempre**, sem nenhum erro visível.
+
+Concretamente, na Fase 4 o `OutboxWorker` precisa:
+
+1. usar `.select()` nos `update`/`delete` do Supabase, para que a resposta traga
+   as linhas afetadas;
+2. tratar **0 linhas afetadas** em `update`/`delete` como **negação**, com o
+   mesmo caminho de um 403: remover da fila, reverter o cache e forçar
+   `pull(entity)` daquela entidade;
+3. cobrir isso com teste — é o caso que não dá erro e por isso passa batido.
+
+Cuidado com um falso positivo: 0 linhas também acontece legitimamente quando a
+linha foi **removida por outra pessoa** (soft delete) desde a escrita local.
+O tratamento é o mesmo (reverter e sincronizar), então não é preciso
+distinguir — mas a mensagem ao usuário deve ser "este item foi alterado ou
+removido", não "você não tem permissão".
+
 **Pendências que dependem do solicitante**
 
-- Salvar a logo em `assets/images/logo.png` (splash, launcher icon, tela de
-  login). Hoje não há asset de imagem.
-- Criar o projeto Supabase e aplicar `supabase/README.md`.
-- Substituir os `TODO` de `base_info` e `social_links` pelos dados reais.
-- Cronograma semanal real da base (o seed tem 3 slots de exemplo).
+- ~~Salvar a logo~~ — feito: `assets/images/logo.jpg`. As cores do tema foram
+  amostradas dele. Falta gerar o launcher icon (`flutter_launcher_icons`) e usar
+  na splash/login.
+- **Aplicar as migrations no projeto Supabase** (`vwstkxemtkdlsagricsh`). O
+  projeto existe e o Auth responde, mas as tabelas ainda não foram criadas.
+- ~~Dados de `base_info` e `social_links`~~ — feito pelo solicitante no
+  `seed.sql`.
+- **Cronograma semanal**: o seed tem um MODELO de 40 slots baseado no ritmo
+  típico de uma base JOCUM, por decisão do solicitante ("criar um cronograma
+  padrão e depois os adms editam pelo app"). **Não é o cronograma real da base**
+  — os admins ajustam pela tela `/cronograma/:id/editar` na Fase 6.

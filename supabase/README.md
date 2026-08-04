@@ -197,9 +197,19 @@ A partir daí, novos admins são promovidos pela tela `/admin/membros` do app.
 
 ## Passo 8 — Validar o RLS (o passo que não pode ser pulado)
 
-Este é o aceite da Fase 1. Abra `validacao_rls.sql` e siga as instruções no
-topo do arquivo: crie 3 contas de teste, substitua os UUIDs e execute os 6
-blocos.
+> **O schema já foi pré-validado.** Antes de você aplicar qualquer coisa, todas
+> as migrations, o seed e o modelo de permissões foram rodados num Postgres 17
+> local com 47 asserções — todas passando. Ver `local_test/README.md`; para
+> reverificar depois de mudar uma policy:
+> ```bash
+> ./supabase/local_test/run.sh
+> ```
+> Isso já pegou três bugs que travariam o projeto, incluindo um que tornava
+> **impossível criar o primeiro admin**.
+
+Ainda assim, vale validar no banco real — o harness não cobre o que só existe no
+Supabase gerenciado. Abra `validacao_rls.sql` e siga as instruções no topo do
+arquivo: crie 3 contas de teste, substitua os UUIDs e execute os blocos.
 
 Resumo do que cada bloco prova:
 
