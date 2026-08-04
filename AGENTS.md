@@ -54,8 +54,10 @@ flutter test test/sync/                     # suíte específica
 flutter run --dart-define-from-file=env/dev.json
 
 # Codegen (drift, freezed, json_serializable)
-dart run build_runner build --delete-conflicting-outputs
-dart run build_runner watch --delete-conflicting-outputs   # durante o desenvolvimento
+# NÃO passe --delete-conflicting-outputs: a flag foi REMOVIDA no build_runner
+# 2.15 e o comando avisa "These options have been removed and were ignored".
+dart run build_runner build
+dart run build_runner watch          # durante o desenvolvimento
 
 # Localizações
 flutter gen-l10n
@@ -494,6 +496,28 @@ Três bugs reais foram encontrados e corrigidos:
    expressão), então executa com os privilégios de quem chama. A busca do mural
    falhava com `permission denied for schema extensions`. Grant explícito
    adicionado na migration `0100`.
+
+#### Fase 4 — codegen validado, e duas armadilhas
+
+**O codegen funciona** com as versões rebaixadas (`freezed 3.2.5` +
+`drift_dev 2.34.0` + `json_serializable` + `analyzer 10.2.0`). O risco levantado
+acima está resolvido: não é preciso abandonar o `freezed` nem usar prerelease.
+
+1. **`flutter analyze` NÃO detecta erros de codegen.** O `analysis_options.yaml`
+   exclui `**/*.g.dart` e `**/*.freezed.dart`, então o analyzer nunca olha o
+   código gerado. Um caso real: o `app_database.g.dart` não resolvia `AppRole` e
+   `StringListConverter`, o `analyze` dizia "No issues found!", e só o
+   `flutter test` acusou.
+   **Depois de mexer em tabelas/modelos, rode `flutter test`, não só `analyze`.**
+
+2. **O arquivo dono do `part` precisa importar tudo que o gerado usa.** Um part
+   file herda os imports da biblioteca dona. O `app_database.dart` importa
+   `converters.dart` e `app_role.dart` **apesar de não os usar diretamente** —
+   são para o `.g.dart`. Não remova esses imports "não usados".
+
+3. **Sufixo `Row` nos `@DataClassName`.** O drift geraria `Profile` para a tabela
+   `ProfileRows`, colidindo com o modelo de domínio `Profile` do freezed. Todas
+   as tabelas de cache usam `@DataClassName('XxxRow')`.
 
 #### ⚠ Semântica do RLS que afeta o OutboxWorker (ler antes da Fase 4)
 
