@@ -38,5 +38,63 @@
     "placeholders": {
       "n": { "type": "int" }
     }
-  }
+  },
+
+  "auth_login_title": "Entrar",
+  "auth_login_subtitle": "Base Missionária Veredas",
+  "auth_email_label": "E-mail",
+  "auth_password_label": "Senha",
+  "auth_login_button": "Entrar",
+  "auth_forgot_password": "Esqueci minha senha",
+  "auth_have_invite": "Tenho um convite — criar conta",
+  "auth_signing_in": "Entrando…",
+
+  "auth_signup_title": "Criar conta",
+  "auth_signup_subtitle": "Use o código de convite que você recebeu da liderança",
+  "auth_full_name_label": "Nome completo",
+  "auth_phone_label": "Telefone (opcional)",
+  "auth_invite_code_label": "Código de convite",
+  "auth_confirm_password_label": "Confirmar senha",
+  "auth_signup_button": "Criar conta",
+  "auth_signing_up": "Criando conta…",
+  "auth_already_have_account": "Já tenho conta — entrar",
+  "auth_email_confirmation_required": "Confirme seu e-mail para continuar. Verifique sua caixa de entrada (e o spam).",
+  "auth_signup_success": "Conta criada! Você já pode entrar.",
+
+  "auth_forgot_password_title": "Recuperar senha",
+  "auth_forgot_password_subtitle": "Enviaremos um link de recuperação para o seu e-mail.",
+  "auth_send_reset_link": "Enviar link",
+  "auth_reset_email_sent": "Verifique seu e-mail para o link de recuperação.",
+  "auth_sending": "Enviando…",
+
+  "auth_pending_title": "Aguardando aprovação",
+  "auth_pending_message": "Sua conta está aguardando aprovação da liderança.",
+  "auth_pending_check_again": "Verificar novamente",
+  "auth_pending_have_invite": "Tenho um código de convite",
+  "auth_pending_sign_out": "Sair",
+  "auth_pending_redeem_title": "Resgatar convite",
+  "auth_pending_redeem_success": "Convite resgatado! Você já pode acessar o app.",
+
+  "auth_sign_out_confirm": "Tem certeza que deseja sair?",
+
+  "auth_error_invalid_credentials": "E-mail ou senha incorretos.",
+  "auth_error_email_not_confirmed": "Seu e-mail ainda não foi confirmado.",
+  "auth_error_email_not_confirmed_resend": "Reenviar confirmação",
+  "auth_error_email_already_registered": "Este e-mail já está cadastrado.",
+  "auth_error_weak_password": "A senha é muito fraca. Use pelo menos 8 caracteres.",
+  "auth_error_session_expired": "Sua sessão expirou. Entre novamente.",
+  "auth_error_not_authenticated": "Você precisa estar logado.",
+  "auth_error_not_approved": "Sua conta ainda não foi aprovada.",
+  "auth_error_invite_not_found": "Código de convite não encontrado. Confira com a liderança.",
+  "auth_error_invite_expired": "Este convite expirou.",
+  "auth_error_invite_exhausted": "Este convite já foi utilizado o número máximo de vezes.",
+  "auth_error_invite_revoked": "Este convite foi cancelado.",
+  "auth_error_permission_denied": "Você não tem permissão para esta ação.",
+  "auth_error_permission_denied_or_stale": "Este item foi alterado ou removido por outra pessoa.",
+  "auth_error_conflict": "Conflito: o dado já existe ou foi alterado.",
+  "auth_error_validation": "Dados inválidos. Verifique os campos.",
+  "auth_error_not_found": "Não encontrado.",
+  "auth_error_server_unavailable": "Servidor indisponível. Tente novamente em instantes.",
+  "auth_error_timeout": "A operação demorou demais. Tente novamente.",
+  "auth_error_unknown": "Ocorreu um erro inesperado. Tente novamente."
 }

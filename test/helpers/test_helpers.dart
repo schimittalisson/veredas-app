@@ -1,11 +1,15 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
+import 'package:veredas/core/error/app_exception.dart';
 import 'package:veredas/data/local/app_database.dart';
+import 'package:veredas/data/models/app_role.dart';
+import 'package:veredas/data/remote/auth_service.dart';
 import 'package:veredas/data/sync/remote_source.dart';
 
 /// Banco drift em memória, isolado por teste.
@@ -276,4 +280,194 @@ PostgrestException makeRlsException({String? code = '42501'}) {
 /// Cria uma SocketException simulando falta de rede.
 SocketException makeSocketException() {
   return const SocketException('Failed host lookup');
+}
+
+// ---------------------------------------------------------------------------
+// FakeAuthService — auth controlado para testes.
+//
+// Implementa AuthService com um stream controlado por um StreamController.
+// Cada método retorna dados pré-configurados ou lança a exceção programada.
+// ---------------------------------------------------------------------------
+
+class FakeAuthService implements AuthService {
+  FakeAuthService();
+
+  // Broadcast sync: emite imediatamente. O authStateChanges abaixo
+  // precede o stream com o estado atual, então o StreamProvider sempre
+  // resolve (não fica em loading).
+  final StreamController<AuthState> _controller =
+      StreamController<AuthState>.broadcast(sync: true);
+
+  /// Estado atual (o que get currentSession devolve).
+  AuthState _currentState = AuthState.unauthenticated;
+
+  /// Código de convite pendente guardado (simula secure storage).
+  String? _pendingInviteCode;
+
+  /// Exceção a lançar no próximo signIn.
+  dynamic signInError;
+
+  /// Exceção a lançar no próximo signUpWithInvite.
+  dynamic signUpError;
+
+  /// Exceção a lançar no próximo redeemPendingInvite.
+  dynamic redeemError;
+
+  /// Papel devolvido pelo redeem. Default: obreiro.
+  AppRole redeemResult = AppRole.obreiro;
+
+  /// Se o signUp devolve sessão (email confirmation desativado) ou não.
+  bool signUpReturnsSession = true;
+
+  /// Histórico de chamadas.
+  final List<String> calls = [];
+
+  /// Payloads recebidos em signUpWithInvite.
+  Map<String, dynamic>? lastSignUpPayload;
+
+  @override
+  Stream<AuthState> get authStateChanges {
+    // Cria um stream que emite o estado atual quando o primeiro listener
+    // inscreve (onListen), e depois repassa os eventos do controller.
+    // Isto imita o comportamento do Supabase, que emite o estado atual ao
+    // inscrever.
+    late StreamController<AuthState> sc;
+    sc = StreamController<AuthState>.broadcast(
+      sync: true,
+      onListen: () => sc.add(_currentState),
+    );
+    _controller.stream.listen((s) => sc.add(s));
+    return sc.stream;
+  }
+
+  @override
+  Session? get currentSession => _currentState.session;
+
+  /// Simula um login bem-sucedido.
+  void simulateAuthenticated({String userId = 'test-user-id'}) {
+    // Cria um User fake. O construtor de User do gotrue é interno, então
+    // usamos o estado diretamente.
+    _currentState = AuthState(
+      session: null,
+      user: _FakeUser(id: userId),
+    );
+    _controller.add(_currentState);
+  }
+
+  /// Simula logout.
+  void simulateUnauthenticated() {
+    _currentState = AuthState.unauthenticated;
+    _controller.add(_currentState);
+  }
+
+  @override
+  Future<void> signIn({required String email, required String password}) async {
+    calls.add('signIn:$email');
+    if (signInError != null) {
+      final e = signInError;
+      signInError = null;
+      throw e;
+    }
+    simulateAuthenticated();
+  }
+
+  @override
+  Future<void> signUpWithInvite({
+    required String fullName,
+    required String email,
+    required String password,
+    required String inviteCode,
+    String? phone,
+  }) async {
+    calls.add('signUp:$email:$inviteCode');
+    lastSignUpPayload = {
+      'fullName': fullName,
+      'email': email,
+      'inviteCode': inviteCode,
+      'phone': phone,
+    };
+    if (signUpError != null) {
+      final e = signUpError;
+      signUpError = null;
+      throw e;
+    }
+    if (signUpReturnsSession) {
+      simulateAuthenticated();
+      // redeem é chamado internamente
+      await _callRedeem(inviteCode);
+    } else {
+      // Guarda o código para resgate posterior
+      _pendingInviteCode = inviteCode;
+    }
+  }
+
+  @override
+  Future<AppRole?> redeemPendingInvite(String inviteCode) async {
+    return _callRedeem(inviteCode);
+  }
+
+  Future<AppRole?> _callRedeem(String code) async {
+    calls.add('redeem:$code');
+    if (redeemError != null) {
+      final e = redeemError;
+      redeemError = null;
+      throw e;
+    }
+    return redeemResult;
+  }
+
+  @override
+  Future<String?> getPendingInviteCode() async => _pendingInviteCode;
+
+  @override
+  Future<void> clearPendingInvite() async {
+    _pendingInviteCode = null;
+  }
+
+  @override
+  Future<void> signOut() async {
+    calls.add('signOut');
+    simulateUnauthenticated();
+  }
+
+  @override
+  Future<void> resetPassword(String email) async {
+    calls.add('resetPassword:$email');
+  }
+
+  @override
+  Future<void> resendEmailConfirmation(String email) async {
+    calls.add('resendConfirmation:$email');
+  }
+
+  @override
+  Future<void> updateProfile({
+    String? fullName,
+    String? phone,
+    String? bio,
+    String? avatarUrl,
+  }) async {
+    calls.add('updateProfile');
+  }
+
+  void dispose() {
+    _controller.close();
+  }
+}
+
+/// User fake para testes. O `User` do gotrue tem construtor interno, então
+/// criamos uma classe mínima que satisfaz o tipo.
+class _FakeUser implements User {
+  _FakeUser({required this.id});
+
+  @override
+  final String id;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Cria uma AppException para usar nos testes de auth.
+AppException makeAuthException(AppErrorCode code) {
+  return AppException(code);
 }

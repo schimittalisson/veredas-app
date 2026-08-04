@@ -353,7 +353,15 @@ Atualize esta seção ao concluir cada fase.
       (`supabase/local_test/run.sh`). SMTP via Brevo configurado — ver
       `supabase/README.md` §6.7 para o estado de entregabilidade e o plano B.
 - [x] Fase 2 — Fundação Flutter (tema, router, 4 tabs)
-- [ ] Fase 3 — Autenticação, convite e papéis
+- [x] Fase 3 — Autenticação, convite e papéis — `AuthService` (interface) +
+      `SupabaseAuthService` (signUp com convite, signIn, signOut,
+      resetPassword, resendEmailConfirmation, updateProfile), providers de
+      auth (`authStateProvider`, `currentProfileProvider`, `authActionsProvider`,
+      `isAdminProvider`), guard no router (redirect: sem sessão → /login,
+      não aprovado → /aguardando, aprovado em rota de auth → /inicio),
+      telas (splash, login, cadastro, aguardando, esqueci senha),
+      `flutter_secure_storage` para convite pendente, deep link Android
+      (`br.com.veredas.app://login-callback/`). 13 testes de auth.
 - [x] Fase 4 — Camada de dados e sincronização ⚠ crítica — schema do cache,
       codegen, `AppException`/`error_mapper`, `SyncEntity`/`SyncService`/
       `OutboxWorker`/`RemoteSource`, DAOs por área, `OutboxHelper`,
@@ -601,6 +609,41 @@ permite expor métodos. O `Notifier` observa os providers de infra via
 **`OfflineBanner` usa `MaterialBanner`, não `SnackBar`.** O banner precisa ser
 persistente (visível enquanto offline) e não descartável por swipe — uma
 `SnackBar` some sozinha e o usuário perde a informação de que está offline.
+
+#### Fase 3 — Auth, convite e guard (implementação)
+
+**`AuthState` colide com o gotrue.** O `supabase_flutter` exporta `AuthState`
+do gotrue. O nosso `AuthState` (em `auth_service.dart`) tem o mesmo nome.
+Solução: `import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState`
+nos arquivos que usam o nosso tipo.
+
+**`updateProfile` é escrita direta, não passa pela outbox.** O profile é do
+próprio usuário, o conflito é impossível (só ele edita seus dados), e cachear
+otimistamente o próprio profile adiciona complexidade sem benefício. A exceção
+ao "toda escrita passa pelo outbox" (§6 regra 8) está comentada no código.
+
+**Guard via `refreshListenable`, não `ref.watch`.** O `routerProvider` usa um
+`_RouterRefreshNotifier` (ChangeNotifier) que é disparado por `ref.listen` no
+`authStateProvider` e `currentProfileProvider`. Recriar o GoRouter a cada
+mudança de auth descartaria o histórico de navegação. O `redirect` lê o estado
+via `ref.read` — decisão pontual, não reativa.
+
+**Perfil null mesmo com sessão.** O `currentProfileProvider` pode emitir null
+mesmo com sessão ativa — o perfil ainda não foi sincronizado do Supabase. O
+redirect trata null como "não aprovado" → manda para `/aguardando`, que tem
+"verificar novamente" (força um pull). Isto é aceitável: a aprovação é feita
+por um admin, e o usuário descobre no próximo sync.
+
+**`FakeAuthService.authStateChanges` usa `onListen` para emitir o estado
+inicial.** O `StreamProvider` precisa receber pelo menos um evento para
+resolver. O `async*` generator faz o primeiro `yield` em microtask, e o
+`StreamProvider.future` pode ficar pendurado. Solução: `StreamController.broadcast`
+com `onListen: () => sc.add(_currentState)` — emite síncrono na inscrição.
+
+**`StreamProvider.future` retorna o valor atual, não a próxima emissão.** Nos
+testes, usar `.future` após uma ação não espera a próxima emissão — retorna o
+valor atual. Solução: helper `waitForAuthState` que usa `container.listen` +
+`Completer` para aguardar uma emissão que satisfaz um predicado.
 
 #### ⚠ Semântica do RLS que afeta o OutboxWorker (ler antes da Fase 4)
 
