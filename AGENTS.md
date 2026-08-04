@@ -384,6 +384,14 @@ Atualize esta seção ao concluir cada fase.
       otimista, badge "Respondido", popup Editar/Excluir/Marcar respondido),
       texto expansível (3 linhas + ver mais). FAB novo pedido. TODO: tela
       de detalhe, composer, outbox do toggle, paginação.
+- [~] Fase 9 — Administração — AdminScreen (menu), MembrosScreen (lista com
+      busca, pendentes no topo, popup Aprovar/Revogar/Promover/Rebaixar/
+      Remover, proteção auto-rebaixamento), ConvitesScreen (lista + FAB criar
+      diálogo com código gerado sem 0/O/1/I, copiar, revogar),
+      ResponsaveisScreen (ExpansionTile por scale_type, adicionar/remover).
+      Rotas de admin + guard no router (não-admin → /inicio). TODO: RPCs
+      (set_approval, set_role, create_invite, revoke_invite,
+      add/remove_scale_manager), BaseDataScreen.
 - [ ] Fase 5 — Tela Início
 - [ ] Fase 6 — Tela Agenda
 - [ ] Fase 7 — Tela Escalas

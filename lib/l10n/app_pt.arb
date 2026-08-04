@@ -176,5 +176,61 @@
     "placeholders": { "query": { "type": "String" } }
   },
   "prayer_ver_more": "ver mais",
-  "prayer_ver_less": "ver menos"
+  "prayer_ver_less": "ver menos",
+
+  "admin_title": "Administração",
+  "admin_members": "Membros",
+  "admin_members_desc": "Aprovar, revogar, promover ou remover obreiros",
+  "admin_invites": "Convites",
+  "admin_invites_desc": "Gerar e revogar códigos de convite",
+  "admin_scale_managers": "Responsáveis por escala",
+  "admin_scale_managers_desc": "Definir quem pode editar cada escala",
+  "admin_base_data": "Dados da base",
+  "admin_base_data_desc": "Editar informações, redes sociais e tipos de escala",
+
+  "admin_members_search": "Buscar por nome...",
+  "admin_pending_section": "Pendentes de aprovação",
+  "admin_no_members": "Nenhum membro cadastrado.",
+  "admin_no_pending": "Nenhum membro pendente.",
+  "admin_role_admin": "Admin",
+  "admin_role_obreiro": "Obreiro",
+  "admin_pending_badge": "Pendente",
+  "admin_action_approve": "Aprovar",
+  "admin_action_revoke": "Revogar acesso",
+  "admin_action_promote": "Promover a admin",
+  "admin_action_demote": "Rebaixar a obreiro",
+  "admin_action_remove": "Remover",
+  "admin_action_self_protection": "Você não pode revogar ou rebaixar a si mesmo se for o único admin.",
+
+  "admin_invites_new": "Novo convite",
+  "admin_no_invites": "Nenhum convite cadastrado.",
+  "admin_invite_code": "Código",
+  "admin_invite_role": "Papel",
+  "admin_invite_uses": "Usos",
+  "admin_invite_uses_format": "{uses}/{max}",
+  "@admin_invite_uses_format": {
+    "placeholders": {
+      "uses": { "type": "int" },
+      "max": { "type": "int" }
+    }
+  },
+  "admin_invite_expires": "Validade",
+  "admin_invite_no_expiry": "Sem validade",
+  "admin_invite_status_active": "Ativo",
+  "admin_invite_status_expired": "Expirado",
+  "admin_invite_status_exhausted": "Esgotado",
+  "admin_invite_status_revoked": "Revogado",
+  "admin_invite_create_title": "Criar convite",
+  "admin_invite_note": "Observação",
+  "admin_invite_max_uses": "Número de usos",
+  "admin_invite_expiry_date": "Data de validade (opcional)",
+  "admin_invite_copy": "Copiar código",
+  "admin_invite_revoke": "Revogar",
+  "admin_invite_copied": "Código copiado",
+
+  "admin_managers_no_types": "Nenhum tipo de escala cadastrado.",
+  "admin_managers_add": "Adicionar responsável",
+  "admin_managers_remove": "Remover",
+  "admin_managers_none": "Nenhum responsável",
+  "admin_managers_select": "Selecione um obreiro"
 }

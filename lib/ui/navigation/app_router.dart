@@ -5,6 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:veredas/data/models/profile.dart';
 import 'package:veredas/data/remote/auth_service.dart';
 import 'package:veredas/providers/auth_providers.dart';
+import 'package:veredas/ui/screens/admin/admin_screen.dart';
+import 'package:veredas/ui/screens/admin/convites_screen.dart';
+import 'package:veredas/ui/screens/admin/membros_screen.dart';
+import 'package:veredas/ui/screens/admin/responsaveis_screen.dart';
 import 'package:veredas/ui/screens/agenda/agenda_screen.dart';
 import 'package:veredas/ui/screens/auth/aguardando_screen.dart';
 import 'package:veredas/ui/screens/auth/cadastro_screen.dart';
@@ -31,6 +35,13 @@ class Routes {
   static const String cadastro = '/cadastro';
   static const String esqueciSenha = '/esqueci-senha';
   static const String aguardando = '/aguardando';
+
+  // Rotas de administração.
+  static const String admin = '/admin';
+  static const String adminMembros = '/admin/membros';
+  static const String adminConvites = '/admin/convites';
+  static const String adminResponsaveis = '/admin/responsaveis';
+  static const String adminBase = '/admin/base';
 
   /// Rotas onde um usuário sem sessão pode estar. O `redirect` usa esta lista
   /// para não entrar em loop de redirecionamento.
@@ -116,6 +127,27 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.aguardando,
         builder: (context, state) => const AguardandoScreen(),
       ),
+      // Rotas de administração — guard no redirect verifica isAdmin.
+      GoRoute(
+        path: Routes.admin,
+        builder: (context, state) => const AdminScreen(),
+      ),
+      GoRoute(
+        path: Routes.adminMembros,
+        builder: (context, state) => const MembrosScreen(),
+      ),
+      GoRoute(
+        path: Routes.adminConvites,
+        builder: (context, state) => const ConvitesScreen(),
+      ),
+      GoRoute(
+        path: Routes.adminResponsaveis,
+        builder: (context, state) => const ResponsaveisScreen(),
+      ),
+      GoRoute(
+        path: Routes.adminBase,
+        builder: (context, state) => const AdminScreen(), // TODO: BaseDataScreen
+      ),
       StatefulShellRoute.indexedStack(
         // indexedStack mantém as 4 tabs vivas simultaneamente. Isso interage
         // com o Riverpod 3: providers fora de tela são pausados, mas as tabs
@@ -199,7 +231,12 @@ String? _redirect(Ref ref, String location) {
     return Routes.inicio;
   }
 
-  // 4. Tudo certo.
+  // 4. Rota de admin sem ser admin → manda para /inicio.
+  if (location.startsWith('/admin') && !(profile?.isAdmin ?? false)) {
+    return Routes.inicio;
+  }
+
+  // 5. Tudo certo.
   return null;
 }
 
