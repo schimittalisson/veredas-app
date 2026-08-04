@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:veredas/l10n/app_localizations.dart';
+import 'package:veredas/ui/widgets/offline_banner.dart';
 
 /// Casca das 4 tabs, com a `NavigationBar` do Material 3.
 ///
 /// O `StatefulNavigationShell` do go_router mantém um `Navigator` por branch,
 /// então o estado de cada tab (posição de scroll, semana selecionada nas
 /// escalas, texto na busca do mural) sobrevive à troca de tab.
-class RootScaffold extends StatelessWidget {
+class RootScaffold extends ConsumerWidget {
   const RootScaffold({required this.navigationShell, super.key});
 
   final StatefulNavigationShell navigationShell;
@@ -24,11 +26,18 @@ class RootScaffold extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
 
     return Scaffold(
-      body: navigationShell,
+      body: Column(
+        children: [
+          // O banner fica acima do conteúdo da tab. `MaterialBanner` tem
+          // elevation 0 por padrão, então não cria sombra indesejada.
+          const OfflineBanner(),
+          Expanded(child: navigationShell),
+        ],
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: _onDestinationSelected,

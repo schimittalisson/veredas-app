@@ -354,11 +354,12 @@ Atualize esta seção ao concluir cada fase.
       `supabase/README.md` §6.7 para o estado de entregabilidade e o plano B.
 - [x] Fase 2 — Fundação Flutter (tema, router, 4 tabs)
 - [ ] Fase 3 — Autenticação, convite e papéis
-- [~] Fase 4 — Camada de dados e sincronização ⚠ crítica — schema do cache,
+- [x] Fase 4 — Camada de dados e sincronização ⚠ crítica — schema do cache,
       codegen, `AppException`/`error_mapper`, `SyncEntity`/`SyncService`/
-      `OutboxWorker`/`RemoteSource` implementados e testados (56 testes).
-      Faltam: DAOs por área, providers de infra, `syncStatusProvider`,
-      `OfflineBanner`, e a integração com `connectivity_plus`.
+      `OutboxWorker`/`RemoteSource`, DAOs por área, `OutboxHelper`,
+      providers de infra, `syncStatusProvider`, `OfflineBanner`,
+      `connectivity_plus`. 56 testes (sync, outbox, error_mapper, schema).
+      Os 5 aceites do plano + o caso 0-linhas cobertos.
 - [ ] Fase 5 — Tela Início
 - [ ] Fase 6 — Tela Agenda
 - [ ] Fase 7 — Tela Escalas
@@ -570,6 +571,36 @@ para a próxima entrada.
 
 **Backoff capado em 256s (~4min).** `2^attempts` segundos, limitado a
 `attempts <= 8`. Crescimento: 1s, 2s, 4s, 8s, 16s, 32s, 64s, 128s, 256s.
+
+#### Fase 4 — DAOs, providers e OfflineBanner (implementação)
+
+**DAOs sem `@DriftAccessor`.** O CalorieMate usa `@DriftAccessor` (gera
+`*.dao.g.dart` e exige registrar os DAOs no `@DriftDatabase`). O Veredas usa
+classes simples que recebem `AppDatabase` no construtor — menos codegen, menos
+arquivos gerados, e o `AppDatabase` já expõe todas as tabelas via getters.
+O padrão é igual em funcionalidade: `Stream` para leitura, `Future` para
+escrita local.
+
+**`OutboxHelper` centraliza a transação otimista+outbox.** Toda escrita do
+app passa por `OutboxHelper.write()` (ou os atalhos `insert`/`update`/`delete`),
+que numa única transação drift: (1) captura o snapshot anterior, (2) aplica a
+mudança no cache, (3) insere na outbox. Sem isto, um crash entre (2) e (3)
+deixaria a UI mostrando um dado que nunca chegaria ao servidor.
+
+**`Riverpod 3`: `.value` é nullable, não `.valueOrNull`.** O `AsyncValue<T>`
+do Riverpod 3 tem `.value` que retorna `T?` (null se loading/error). O
+`valueOrNull` não existe — é uma extensão do Riverpod 2 que foi incorporada
+como getter nativo com nome diferente.
+
+**`syncStatusProvider` é um `Notifier`, não um `StreamProvider`.** O estado de
+sync é derivado de múltiplas fontes (conectividade, outbox pendente, erro do
+último pull), e `pullAll()` é uma ação imperativa. Um `StreamProvider` não
+permite expor métodos. O `Notifier` observa os providers de infra via
+`ref.watch` no `build()` e expõe `pullAll()` e `clearError()`.
+
+**`OfflineBanner` usa `MaterialBanner`, não `SnackBar`.** O banner precisa ser
+persistente (visível enquanto offline) e não descartável por swipe — uma
+`SnackBar` some sozinha e o usuário perde a informação de que está offline.
 
 #### ⚠ Semântica do RLS que afeta o OutboxWorker (ler antes da Fase 4)
 
