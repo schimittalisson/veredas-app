@@ -134,5 +134,25 @@
   "agenda_new_event": "Novo evento",
   "agenda_new_slot": "Novo slot",
   "agenda_slot_details": "Detalhes do slot",
-  "agenda_no_location": "Sem local definido"
+  "agenda_no_location": "Sem local definido",
+
+  "scales_no_types": "Nenhuma escala cadastrada.",
+  "scales_no_assignments": "Escala deste período ainda não foi montada.",
+  "scales_mount": "Montar escala",
+  "scales_new_assignment": "Nova atribuição",
+  "scales_you": "Você",
+  "scales_you_count": "{n, plural, =0{Você não está escalado neste período} =1{Você está escalado 1× neste período} other{Você está escalado {n}× neste período}}",
+  "@scales_you_count": {
+    "placeholders": { "n": { "type": "int" } }
+  },
+  "scales_today": "Hoje",
+  "scales_week_of": "{start} – {end}",
+  "@scales_week_of": {
+    "placeholders": {
+      "start": { "type": "String" },
+      "end": { "type": "String" }
+    }
+  },
+  "scales_assignee_unknown": "A definir",
+  "scales_slot_label": "Área"
 }

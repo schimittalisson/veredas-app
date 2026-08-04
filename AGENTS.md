@@ -374,6 +374,11 @@ Atualize esta seção ao concluir cada fase.
 - [~] Fase 6 — Tela Agenda — abas Eventos (TableCalendar + lista do dia +
       próximos) e Cronograma (grade semanal + lista por dia). FAB só admin.
       TODO: editores (evento, slot), detalhe do evento, cached_network_image.
+- [~] Fase 7 — Tela Escalas — TabBar dinâmica de scale_types, seletor de
+      período (weekly/monthly/adhoc), tabela com slots / lista sem slots,
+      destaque "Você" (primaryContainer + Chip), resumo "N× no período".
+      FAB só se canEditScale. TODO: editor de atribuição, duplicar semana,
+      seleção múltipla com exclusão em lote.
 - [ ] Fase 5 — Tela Início
 - [ ] Fase 6 — Tela Agenda
 - [ ] Fase 7 — Tela Escalas
