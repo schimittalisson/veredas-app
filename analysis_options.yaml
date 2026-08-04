@@ -1,0 +1,19 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.freezed.dart"
+    - "lib/l10n/**"
+  errors:
+    # Ruído do freezed/json_serializable: as anotações são aplicadas ao
+    # construtor factory, que o analyzer considera alvo inválido. É a única
+    # regra silenciada no projeto — o resto deve ser corrigido, não ignorado.
+    invalid_annotation_target: ignore
+
+linter:
+  rules:
+    - always_declare_return_types
+    - avoid_print
+    - prefer_final_locals
+    - unawaited_futures

@@ -1,0 +1,7 @@
+arb-dir: lib/l10n
+template-arb-file: app_pt.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+# pt-BR é o único idioma da v1, mas a infra de l10n fica montada: nenhuma
+# string vive hardcoded na UI, então adicionar um idioma é só um novo .arb.
+nullable-getter: false

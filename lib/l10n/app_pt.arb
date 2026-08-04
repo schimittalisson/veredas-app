@@ -1,0 +1,42 @@
+{
+  "@@locale": "pt",
+
+  "app_title": "Veredas",
+  "@app_title": {
+    "description": "Nome do app, exibido no launcher e no task switcher."
+  },
+
+  "tab_inicio": "Início",
+  "tab_agenda": "Agenda",
+  "tab_escalas": "Escalas",
+  "tab_oracao": "Oração",
+
+  "empty_default_title": "Nada por aqui",
+  "@empty_default_title": {
+    "description": "Título genérico do EmptyState quando a tela não passa um."
+  },
+  "empty_default_message": "Não há nada para mostrar neste momento.",
+
+  "error_default_title": "Algo deu errado",
+  "error_generic": "Não foi possível completar a ação. Tente novamente.",
+  "error_no_connection": "Sem conexão com a internet.",
+  "action_retry": "Tentar novamente",
+  "action_cancel": "Cancelar",
+  "action_confirm": "Confirmar",
+  "action_save": "Salvar",
+  "action_delete": "Excluir",
+  "action_edit": "Editar",
+  "action_see_all": "Ver tudo",
+
+  "offline_showing_cached": "Sem conexão — mostrando dados salvos",
+  "@offline_showing_cached": {
+    "description": "Banner no topo do body quando o dispositivo está offline."
+  },
+  "offline_pending_changes": "{n, plural, =1{1 alteração aguardando envio} other{{n} alterações aguardando envio}}",
+  "@offline_pending_changes": {
+    "description": "Banner quando há itens na outbox esperando sincronizar.",
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  }
+}

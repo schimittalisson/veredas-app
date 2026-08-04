@@ -1,0 +1,75 @@
+name: veredas
+description: "App de gerenciamento da Base Missionária Veredas."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  # `any` é intencional: deixa o flutter_localizations fixar a versão do intl.
+  intl: any
+
+  cupertino_icons: ^1.0.8
+
+  # Backend
+  supabase_flutter: ^2.16.0
+
+  # Estado
+  flutter_riverpod: ^3.4.2
+
+  # Navegação
+  go_router: ^17.3.0
+
+  # Cache local (offline).
+  # NÃO adicionar sqlite3_flutter_libs: está descontinuado (0.6.0+eol). O
+  # sqlite3 3.x carrega a biblioteca nativa via build hooks.
+  drift: ^2.34.3
+  drift_flutter: ^0.3.1
+  path_provider: ^2.1.6
+  path: ^1.9.1
+
+  # Infra
+  connectivity_plus: ^7.3.1
+  flutter_secure_storage: ^10.3.1
+  package_info_plus: ^10.2.1
+
+  # UI
+  table_calendar: ^3.2.0
+  cached_network_image: ^3.4.1
+  url_launcher: ^6.3.2
+  image_picker: ^1.2.3
+  timeago: ^3.7.1
+
+  # Modelos
+  freezed_annotation: ^3.1.0
+  json_annotation: ^4.12.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  # NÃO subir para ^2.16.0 (o valor do PLANO.md §3): build_runner >=2.15.2
+  # exige meta ^1.18.3, e o flutter_test do SDK 3.44.8 fixa meta 1.18.0.
+  # A resolução falha com "version solving failed". Manter em ^2.14.0 deixa o
+  # pub escolher 2.15.1, a maior compatível.
+  build_runner: ^2.14.0
+  # NÃO subir para ^2.34.5 (o valor do PLANO.md §3): drift_dev >=2.34.1 exige
+  # analyzer ^13, e o freezed estável (3.2.5) exige analyzer <11. Não há
+  # sobreposição — só as prereleases freezed 4.0.0-dev.* suportam analyzer 13.
+  # drift_dev 2.34.0 aceita analyzer >=10 <13, que sobrepõe com o freezed.
+  drift_dev: ^2.34.0
+  freezed: ^3.2.5
+  json_serializable: ^6.14.1
+  flutter_launcher_icons: ^0.14.4
+  mocktail: ^1.0.5
+
+flutter:
+  uses-material-design: true
+  generate: true
+  assets:
+    - assets/images/
