@@ -62,8 +62,11 @@ class Routes {
 
   /// Rotas onde um usuário sem sessão pode estar. O `redirect` usa esta lista
   /// para não entrar em loop de redirecionamento.
+  ///
+  /// **A splash não entra aqui.** Ela é o estado "auth carregando", tratado
+  /// antes de tudo no `_redirect`. Se estivesse nesta lista, um usuário sem
+  /// sessão ficaria preso nela: a regra 1 devolveria null e nada o tiraria de lá.
   static const Set<String> unauthenticated = {
-    splash,
     login,
     cadastro,
     esqueciSenha,
@@ -278,8 +281,17 @@ final routerProvider = Provider<GoRouter>((ref) {
 /// caso, trata como "não aprovado" — o `/aguardando` tem um botão "verificar
 /// novamente" que refaz o fetch.
 String? _redirect(Ref ref, String location) {
-  final authState = ref.read(authStateProvider).value;
-  final isAuthenticated = authState?.isAuthenticated ?? false;
+  final authAsync = ref.read(authStateProvider);
+
+  // 0. Auth ainda não resolveu: a splash é o "carregando" do app inteiro.
+  //    Só ficamos nela enquanto isLoading — sem esta guarda, a splash não
+  //    tem saída, porque ela está em `unauthenticated` e a regra 1 devolveria
+  //    null para sempre.
+  if (authAsync.isLoading) {
+    return location == Routes.splash ? null : Routes.splash;
+  }
+
+  final isAuthenticated = authAsync.value?.isAuthenticated ?? false;
 
   // 1. Sem sessão.
   if (!isAuthenticated) {
@@ -288,7 +300,17 @@ String? _redirect(Ref ref, String location) {
   }
 
   // 2. Com sessão — verifica aprovação.
-  final profile = ref.read(currentProfileProvider).value;
+  //
+  //    O perfil vem de um StreamProvider sobre o cache. Enquanto ele não
+  //    emite, `value` é null. Tratar isso como "não aprovado" mandaria um
+  //    usuário aprovado para /aguardando por uma fração de segundo, até o
+  //    stream emitir. Então: perfil ainda carregando = fica na splash.
+  final profileAsync = ref.read(currentProfileProvider);
+  if (profileAsync.isLoading) {
+    return location == Routes.splash ? null : Routes.splash;
+  }
+
+  final profile = profileAsync.value;
   final isApproved = profile?.isApproved ?? false;
 
   if (!isApproved) {
@@ -298,6 +320,7 @@ String? _redirect(Ref ref, String location) {
 
   // 3. Aprovado em rota de auth/splash/aguardando → manda para /inicio.
   if (Routes.unauthenticated.contains(location) ||
+      location == Routes.splash ||
       location == Routes.aguardando) {
     return Routes.inicio;
   }
