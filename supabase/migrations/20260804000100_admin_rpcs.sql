@@ -186,15 +186,17 @@ begin
   end if;
 
   -- Se o código não foi fornecido, gera um aleatório sem 0/O/1/I.
+  -- string_agg é agregação (não janela), então vai num subselect com
+  -- generate_series como fonte de linhas.
   v_code := coalesce(
     upper(trim(p_code)),
-    -- 6 caracteres de ABCDEFGHJKLMNPQRSTUVWXYZ23456789
-    substring(
-      string_agg(
-        substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789',
-               1 + floor(random() * 31)::int, 1),
-        ''
-      ) over (generate_series(1, 6))
+    (
+      select string_agg(
+               substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789',
+                      1 + floor(random() * 31)::int, 1),
+               ''
+             )
+        from generate_series(1, 6)
     )
   );
 
