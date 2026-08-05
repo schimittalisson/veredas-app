@@ -3,23 +3,27 @@ import 'package:flutter/material.dart';
 import 'package:veredas/core/theme/app_colors.dart';
 import 'package:veredas/core/theme/app_typography.dart';
 
-/// **Andaime temporário da migração para Cupertino. Apagar na Fase 11.**
+/// Ilha de Material dentro do app Cupertino.
 ///
-/// Sob `CupertinoApp` não existe ancestral `Material`, e boa parte dos widgets
-/// do Material (`Card`, `ListTile`, `TextFormField`, `InkWell`…) lança
-/// "No Material widget found" sem ele. Como as 29 telas migram em fases, elas
-/// precisam continuar funcionando enquanto ainda usam Material.
+/// O app roda sobre `CupertinoApp`, onde não existe ancestral `Material`.
+/// Um único widget ainda precisa dele: o `TableCalendar` do pacote
+/// `table_calendar`, que usa `InkWell` internamente e não tem equivalente
+/// Cupertino. Sem um `Material` acima, ele lança "No Material widget found".
 ///
-/// Este widget fornece o que falta:
-/// - um `Theme` derivado da nossa paleta, para que os `Theme.of(context)` que
-///   ainda existem devolvam cores coerentes em vez do `ThemeData.fallback()`
-///   (que é azul e ignora o tema escuro);
+/// Durante a migração este widget era aplicado globalmente, no `builder` do
+/// `CupertinoApp`, para que as telas ainda não convertidas continuassem
+/// funcionando. Agora que todas migraram, ele foi reduzido ao seu escopo real:
+/// envolve só o calendário. O resto da árvore é Cupertino puro.
+///
+/// Fornece duas coisas:
 /// - um `Material` transparente, que satisfaz o requisito de ancestral sem
-///   pintar nada por cima do fundo do `CupertinoPageScaffold`.
+///   pintar nada por cima do fundo do `CupertinoPageScaffold`;
+/// - um `Theme` derivado da nossa paleta, porque o `TableCalendar` chama
+///   `Theme.of` — sem ele, cairia no `ThemeData.fallback()`, que é azul e
+///   ignora o tema escuro.
 ///
-/// Quando a última tela deixar de importar `material.dart`, este arquivo sai
-/// junto com a dependência — é justamente por isso que ele mora sozinho aqui,
-/// e não escondido dentro do `app.dart`.
+/// Some junto com a dependência, no dia em que houver um calendário Cupertino
+/// ou um construído em casa.
 class MaterialCompat extends StatelessWidget {
   const MaterialCompat({
     required this.colors,
@@ -36,8 +40,6 @@ class MaterialCompat extends StatelessWidget {
   Widget build(BuildContext context) {
     return Theme(
       data: _themeData(),
-      // `type: transparency` evita que este Material pinte um fundo opaco:
-      // quem manda no fundo é o CupertinoPageScaffold de cada tela.
       child: Material(
         type: MaterialType.transparency,
         child: child,
@@ -58,7 +60,7 @@ class MaterialCompat extends StatelessWidget {
       onSecondaryContainer: colors.onTintContainer,
       error: colors.destructive,
       onError: colors.onDestructive,
-      surface: colors.groupedBackground,
+      surface: colors.surface,
       onSurface: colors.label,
       onSurfaceVariant: colors.secondaryLabel,
       outline: colors.separator,
@@ -68,24 +70,12 @@ class MaterialCompat extends StatelessWidget {
     final base = ThemeData(colorScheme: scheme, useMaterial3: true);
 
     return base.copyWith(
-      scaffoldBackgroundColor: colors.groupedBackground,
-      // Alinha os poucos estilos que destoariam demais do Cupertino enquanto
-      // a tela ainda não migrou. Não vale detalhar mais: é código com data
-      // de validade.
       textTheme: base.textTheme.copyWith(
         titleLarge: AppTypography.title.copyWith(color: colors.label),
         titleMedium: AppTypography.headline.copyWith(color: colors.label),
-        titleSmall: AppTypography.subheadlineEmphasis.copyWith(color: colors.label),
         bodyLarge: AppTypography.body.copyWith(color: colors.label),
         bodyMedium: AppTypography.subheadline.copyWith(color: colors.label),
         bodySmall: AppTypography.footnote.copyWith(color: colors.secondaryLabel),
-        labelMedium: AppTypography.footnoteEmphasis.copyWith(color: colors.label),
-        labelSmall: AppTypography.caption.copyWith(color: colors.secondaryLabel),
-      ),
-      dividerTheme: DividerThemeData(
-        color: colors.separator,
-        thickness: 0.5,
-        space: 0.5,
       ),
     );
   }

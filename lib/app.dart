@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:veredas/core/theme/app_colors.dart';
 import 'package:veredas/core/theme/app_theme.dart';
-import 'package:veredas/core/theme/material_compat.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/ui/navigation/app_router.dart';
 
@@ -23,8 +22,9 @@ class VeredasApp extends ConsumerWidget {
       // `MaterialApp` — a alternância claro/escuro é responsabilidade nossa.
       localizationsDelegates: const [
         AppLocalizations.delegate,
-        // GlobalMaterialLocalizations continua necessário: os widgets Material
-        // que ainda restam (e o table_calendar) o exigem. Sai na Fase 11.
+        // GlobalMaterialLocalizations continua na lista por causa do
+        // table_calendar, único widget Material que sobrou (ver
+        // material_compat.dart). Os outros dois são exigidos pelo Cupertino.
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -40,12 +40,7 @@ class VeredasApp extends ConsumerWidget {
           data: cupertinoThemeFor(colors, brightness),
           child: AppTheme(
             colors: colors,
-            // Andaime da migração — ver material_compat.dart. Sai na Fase 11.
-            child: MaterialCompat(
-              colors: colors,
-              brightness: brightness,
-              child: child ?? const SizedBox.shrink(),
-            ),
+            child: child ?? const SizedBox.shrink(),
           ),
         );
       },

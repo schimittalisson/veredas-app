@@ -504,12 +504,12 @@ O mockup usava o roxo padrão do construtor no-code. A logo real da base (o
 vitral) definiu a paleta, com a orientação do solicitante de "branco e preto com
 detalhes nas cores":
 
-- **Semente do `ColorScheme`**: marrom `#6E5849` (traço e tipografia da logo).
-- **`surface` no tema claro**: creme `#F2EDE6` (fundo do vitral), em vez de
+- **Cor de marca (`tint`)**: marrom `#62503F` (traço e tipografia da logo).
+- **Fundo no tema claro**: creme `#F5EEE6` (fundo do vitral), em vez de
   branco puro.
-- **5 acentos do vitral** em `ThemeExtension<AppColors>`: verde-água, azul,
-  laranja, amarelo, roxo. São **semânticos**, não decorativos: identificam tipo
-  de escala e categoria de evento.
+- **5 acentos do vitral** em `AppColors`: verde-água, azul, laranja, amarelo,
+  roxo. São **semânticos**, não decorativos: identificam tipo de escala e
+  categoria de evento.
 - `AppColors.accentFor(key)` deriva a cor de uma **string** (o `slug` do tipo de
   escala), não do índice da lista — assim inserir um tipo novo no meio não muda
   a cor dos existentes, e não é preciso uma coluna de cor no banco. A soma de
@@ -518,6 +518,70 @@ detalhes nas cores":
 - Cada acento tem par `accent` (vivo, para bordas/ícones) e `accentContainer`
   (dessaturado, para fundos). **Nunca escreva texto sobre `accent` puro**: o
   amarelo e o laranja da logo reprovam em WCAG AA como fundo.
+
+**A UI é Cupertino, não Material (decisão do solicitante)**
+
+O app foi construído em Material e depois migrado inteiro para Cupertino, a
+pedido do solicitante, buscando estética Apple e aderência ao iOS. Fica
+registrado o custo aceito: no Android, Cupertino **viola** as convenções da
+plataforma (sem ripple, gesto de voltar diferente, tipografia fora do sistema),
+e a maioria dos usuários da base está no Android.
+
+Regras ao escrever UI nova:
+
+1. **Importe `package:flutter/cupertino.dart`**, nunca `material.dart`.
+2. **Cores vêm de `context.colors`** (`AppTheme` → `AppColors`), nunca de
+   `Theme.of(context).colorScheme`. Os nomes seguem o iOS: `label`,
+   `secondaryLabel`, `separator`, `groupedBackground`, `surface`, `fill`,
+   `tint`, `destructive`.
+3. **Texto vem de `AppTypography`** (escala do HIG: `body` 17, `footnote` 13,
+   `caption2` 11), nunca de `textTheme`. Os estilos não trazem cor — aplique
+   `.copyWith(color: ...)`.
+4. **`fontFamily` é sempre nulo** nos estilos. O `Text` faz merge sobre o
+   `DefaultTextStyle`, então a família vem do `CupertinoTheme` (SF Pro no iOS,
+   fonte do sistema no Android). Fixar a família quebra esse fallback.
+5. **Não existe `FloatingActionButton` no iOS.** Ações de criação vão no
+   `trailing` da `CupertinoNavigationBar`.
+6. **Não existe `SnackBar`.** Use `showAppToast(context, msg, isError: bool)`.
+   Se a mensagem exige decisão do usuário, use `CupertinoAlertDialog` — um
+   toast some em 3 segundos.
+7. **Menus de contexto** são `showCupertinoModalPopup` + `CupertinoActionSheet`,
+   com `isDestructiveAction` nas exclusões. Faça a folha **retornar** o valor e
+   trate depois do `await`, senão o callback roda com o contexto já desmontado.
+8. **Seleção de valor** é `CupertinoPicker` (roda) em modal popup, não menu
+   suspenso. Aplique o valor só na confirmação: a roda dispara `onChanged` a
+   cada giro, e sem botão um toque acidental muda o dado sem como desistir.
+9. **Formulários** usam `CupertinoFormSection.insetGrouped` +
+   `CupertinoTextFormFieldRow`. `Form`/`FormState` continuam valendo — vivem em
+   `widgets.dart`, não no Material. Referência: `ui/screens/auth/login_screen.dart`.
+10. **Botão de salvar** de editor fica no `trailing` da navigation bar, não no
+    fim do formulário.
+
+**O que ainda é Material, e por quê**
+
+- `table_calendar` usa `InkWell` internamente e não tem equivalente Cupertino.
+  Ele é o único motivo de `core/theme/material_compat.dart` existir: uma ilha
+  de `Material` + `Theme` envolvendo **só** o calendário em `events_tab.dart`.
+  Não reintroduza esse wrapper globalmente.
+- `TabController`/`TabBarView` em `agenda_screen.dart` e `scales_screen.dart`,
+  importados com `show` restrito. São mecânica de paginação e não exigem
+  ancestral `Material`. Trocá-los por `PageController` é possível, mas mexe no
+  estado das telas.
+- `GlobalMaterialLocalizations` segue registrado por causa do `table_calendar`.
+
+**Armadilhas encontradas na migração**
+
+- `TimeOfDay` é do Material e `TimeOfDay.format(context)` exige
+  `MaterialLocalizations`. Onde havia horário, o estado passou a `int` de
+  minutos — que é o formato que o DAO já usava.
+- Widgets sem equivalente que tiveram de ser reconstruídos à mão:
+  `ExpansionTile`, `MaterialBanner`, `CircleAvatar`, `Chip`, `Divider`,
+  `SelectableText`, `Tooltip` (virou `Semantics`), `FilledButton.icon`
+  (o `CupertinoButton` não tem slot de ícone).
+- Ao passar `BuildContext` como parâmetro para um método de `State`, ele
+  **sombreia** o `State.context` e o `if (!mounted)` deixa de proteger o
+  contexto realmente usado — o lint `use_build_context_synchronously` acusa.
+  Em `State`, não receba `context` por parâmetro.
 
 #### Fase 1 — validação local e bugs encontrados
 
@@ -638,9 +702,11 @@ sync é derivado de múltiplas fontes (conectividade, outbox pendente, erro do
 permite expor métodos. O `Notifier` observa os providers de infra via
 `ref.watch` no `build()` e expõe `pullAll()` e `clearError()`.
 
-**`OfflineBanner` usa `MaterialBanner`, não `SnackBar`.** O banner precisa ser
-persistente (visível enquanto offline) e não descartável por swipe — uma
-`SnackBar` some sozinha e o usuário perde a informação de que está offline.
+**`OfflineBanner` é uma faixa persistente, não um toast.** O banner precisa
+ficar visível enquanto durar o estado e não ser descartável — um toast some
+sozinho e o usuário perde a informação de que está offline. Era um
+`MaterialBanner`; na migração para Cupertino virou uma faixa fina própria
+(`MaterialBanner` não tem equivalente).
 
 #### Fase 3 — Auth, convite e guard (implementação)
 

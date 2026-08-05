@@ -16,6 +16,7 @@ import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/material_compat.dart';
 import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/l10n/app_localizations.dart';
@@ -56,91 +57,98 @@ class _EventsTabState extends ConsumerState<EventsTab> {
 
     return ListView(
       children: [
-        TableCalendar<EventRow>(
-          firstDay: DateTime.utc(2020),
-          lastDay: DateTime.utc(2030),
-          focusedDay: _focusedDay,
-          locale: 'pt_BR',
-          selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-          onDaySelected: (selected, focused) {
-            setState(() {
-              _selectedDay = selected;
-              _focusedDay = focused;
-            });
-          },
-          calendarFormat: _calendarFormat,
-          onFormatChanged: (format) {
-            setState(() => _calendarFormat = format);
-          },
-          // TODO l10n: agenda_calendar_format_month / agenda_calendar_format_week
-          availableCalendarFormats: const {
-            CalendarFormat.month: 'Mês',
-            CalendarFormat.week: 'Semana',
-          },
-          eventLoader: (day) {
-            final normalized = _normalize(day);
-            // O eventLoader recebe um DateTime; filtramos os eventos cujo
-            // startsAt cai neste dia. O daysWithEventsProvider já tem o
-            // conjunto de dias; aqui usamos o allEventsProvider para obter
-            // os eventos completos.
-            if (!daysWithEvents.contains(normalized)) return const [];
-            final events = ref.read(allEventsProvider).value ?? const [];
-            return events.where((e) {
-              final s = e.startsAt;
-              return s.year == day.year &&
-                  s.month == day.month &&
-                  s.day == day.day;
-            }).toList();
-          },
-          headerStyle: HeaderStyle(
-            titleCentered: true,
-            titleTextStyle: AppTypography.headline.copyWith(color: colors.label),
-            formatButtonTextStyle:
-                AppTypography.footnoteEmphasis.copyWith(color: colors.tint),
-            formatButtonDecoration: BoxDecoration(
-              color: colors.fill,
-              borderRadius: BorderRadius.circular(8),
+        // O TableCalendar usa InkWell internamente e exige um ancestral
+        // Material, que não existe sob CupertinoApp. A ilha de Material
+        // fica restrita a ele — ver material_compat.dart.
+        MaterialCompat(
+          colors: colors,
+          brightness: CupertinoTheme.brightnessOf(context),
+          child: TableCalendar<EventRow>(
+            firstDay: DateTime.utc(2020),
+            lastDay: DateTime.utc(2030),
+            focusedDay: _focusedDay,
+            locale: 'pt_BR',
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+            onDaySelected: (selected, focused) {
+              setState(() {
+                _selectedDay = selected;
+                _focusedDay = focused;
+              });
+            },
+            calendarFormat: _calendarFormat,
+            onFormatChanged: (format) {
+              setState(() => _calendarFormat = format);
+            },
+            // TODO l10n: agenda_calendar_format_month / agenda_calendar_format_week
+            availableCalendarFormats: const {
+              CalendarFormat.month: 'Mês',
+              CalendarFormat.week: 'Semana',
+            },
+            eventLoader: (day) {
+              final normalized = _normalize(day);
+              // O eventLoader recebe um DateTime; filtramos os eventos cujo
+              // startsAt cai neste dia. O daysWithEventsProvider já tem o
+              // conjunto de dias; aqui usamos o allEventsProvider para obter
+              // os eventos completos.
+              if (!daysWithEvents.contains(normalized)) return const [];
+              final events = ref.read(allEventsProvider).value ?? const [];
+              return events.where((e) {
+                final s = e.startsAt;
+                return s.year == day.year &&
+                    s.month == day.month &&
+                    s.day == day.day;
+              }).toList();
+            },
+            headerStyle: HeaderStyle(
+              titleCentered: true,
+              titleTextStyle: AppTypography.headline.copyWith(color: colors.label),
+              formatButtonTextStyle:
+                  AppTypography.footnoteEmphasis.copyWith(color: colors.tint),
+              formatButtonDecoration: BoxDecoration(
+                color: colors.fill,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              formatButtonPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              // Chevrons do iOS no lugar das setas do Material.
+              leftChevronIcon: Icon(CupertinoIcons.chevron_left,
+                  size: 20, color: colors.tint),
+              rightChevronIcon: Icon(CupertinoIcons.chevron_right,
+                  size: 20, color: colors.tint),
             ),
-            formatButtonPadding:
-                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            // Chevrons do iOS no lugar das setas do Material.
-            leftChevronIcon: Icon(CupertinoIcons.chevron_left,
-                size: 20, color: colors.tint),
-            rightChevronIcon: Icon(CupertinoIcons.chevron_right,
-                size: 20, color: colors.tint),
-          ),
-          daysOfWeekStyle: DaysOfWeekStyle(
-            weekdayStyle:
-                AppTypography.caption.copyWith(color: colors.secondaryLabel),
-            weekendStyle:
-                AppTypography.caption.copyWith(color: colors.tertiaryLabel),
-          ),
-          calendarStyle: CalendarStyle(
-            // Toda cor sai de context.colors — nada hardcodado, e o tema
-            // escuro passa a valer também dentro do calendário.
-            defaultTextStyle:
-                AppTypography.subheadline.copyWith(color: colors.label),
-            weekendTextStyle:
-                AppTypography.subheadline.copyWith(color: colors.secondaryLabel),
-            outsideTextStyle:
-                AppTypography.subheadline.copyWith(color: colors.tertiaryLabel),
-            disabledTextStyle:
-                AppTypography.subheadline.copyWith(color: colors.tertiaryLabel),
-            todayTextStyle:
-                AppTypography.subheadlineEmphasis.copyWith(color: colors.tint),
-            todayDecoration: BoxDecoration(
-              color: colors.tintContainer,
-              shape: BoxShape.circle,
+            daysOfWeekStyle: DaysOfWeekStyle(
+              weekdayStyle:
+                  AppTypography.caption.copyWith(color: colors.secondaryLabel),
+              weekendStyle:
+                  AppTypography.caption.copyWith(color: colors.tertiaryLabel),
             ),
-            selectedTextStyle:
-                AppTypography.subheadlineEmphasis.copyWith(color: colors.onTint),
-            selectedDecoration: BoxDecoration(
-              color: colors.tint,
-              shape: BoxShape.circle,
-            ),
-            markerDecoration: BoxDecoration(
-              color: colors.tint,
-              shape: BoxShape.circle,
+            calendarStyle: CalendarStyle(
+              // Toda cor sai de context.colors — nada hardcodado, e o tema
+              // escuro passa a valer também dentro do calendário.
+              defaultTextStyle:
+                  AppTypography.subheadline.copyWith(color: colors.label),
+              weekendTextStyle:
+                  AppTypography.subheadline.copyWith(color: colors.secondaryLabel),
+              outsideTextStyle:
+                  AppTypography.subheadline.copyWith(color: colors.tertiaryLabel),
+              disabledTextStyle:
+                  AppTypography.subheadline.copyWith(color: colors.tertiaryLabel),
+              todayTextStyle:
+                  AppTypography.subheadlineEmphasis.copyWith(color: colors.tint),
+              todayDecoration: BoxDecoration(
+                color: colors.tintContainer,
+                shape: BoxShape.circle,
+              ),
+              selectedTextStyle:
+                  AppTypography.subheadlineEmphasis.copyWith(color: colors.onTint),
+              selectedDecoration: BoxDecoration(
+                color: colors.tint,
+                shape: BoxShape.circle,
+              ),
+              markerDecoration: BoxDecoration(
+                color: colors.tint,
+                shape: BoxShape.circle,
+              ),
             ),
           ),
         ),
