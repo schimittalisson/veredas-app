@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:veredas/core/theme/app_colors.dart';
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/data/local/app_database.dart';
@@ -20,64 +21,238 @@ import 'package:veredas/ui/widgets/section_header.dart';
 
 /// Tela Início — a primeira tab.
 ///
-/// `ListView` com as seções na ordem do mockup (`TELAS.md` §1):
-/// 1. Aviso fixado (cartão em destaque)
-/// 2. Redes sociais (Row de botões circulares)
-/// 3. Dados da Base (linhas expansíveis)
-/// 4. Avisos anteriores (lista + "Ver tudo")
+/// Ordem das seções:
+/// 1. Cumprimento ao usuário (faz as vezes de cabeçalho)
+/// 2. Imagem da equipe, com o texto sobreposto
+/// 3. Aviso fixado, no formato de faixa de destaque
+/// 4. Perguntas Frequentes — é onde vivem os dados da base
+/// 5. Redes sociais
+/// 6. Avisos anteriores
 ///
-/// A ação "Novo aviso" só aparece para admin. No iOS ela mora no `trailing` da
-/// barra de navegação: o FAB é um padrão do Material Design e não tem
-/// equivalente na plataforma — a Apple põe a ação primária de uma lista no
-/// canto superior direito.
+/// **Não tem `CupertinoNavigationBar`.** O cumprimento é o cabeçalho, e ele
+/// rola junto com o conteúdo — uma barra fixa por cima repetiria a informação
+/// e comeria altura numa tela que já é toda editorial. Por isso a ação "Novo
+/// aviso" (só admin) fica ao lado do cumprimento, e não no canto de uma barra.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final colors = context.colors;
+
+    return CupertinoPageScaffold(
+      backgroundColor: colors.groupedBackground,
+      child: SafeArea(
+        bottom: false,
+        child: ListView(
+          // O padding inferior vem do `RootScaffold`, que soma o espaço da
+          // barra flutuante ao `MediaQuery`. Assim o conteúdo passa por baixo
+          // da pílula ao rolar, mas o último item continua alcançável.
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.paddingOf(context).bottom,
+          ),
+          children: const [
+            _Greeting(),
+            _HeroCard(),
+            _PinnedAnnouncement(),
+            _BaseInfoSection(),
+            _SocialLinks(),
+            _RecentAnnouncements(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 1. Cumprimento
+// ---------------------------------------------------------------------------
+
+class _Greeting extends ConsumerWidget {
+  const _Greeting();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final colors = context.colors;
     final isAdmin = ref.watch(isAdminProvider);
+    final profile = ref.watch(currentProfileProvider).value;
 
-    return CupertinoPageScaffold(
-      backgroundColor: colors.groupedBackground,
-      navigationBar: CupertinoNavigationBar(
-        middle: Text(l.tab_inicio),
-        backgroundColor: colors.elevatedSurface,
-        // Sem `heroTag`: aquilo existia só para desambiguar os 4 FABs que
-        // coexistiam na árvore do StatefulShellRoute. Um botão de barra não
-        // participa de transição hero, então o problema deixa de existir.
-        trailing: isAdmin
-            ? Semantics(
-                // CupertinoButton não tem `tooltip`; a dica de acessibilidade
-                // vira label semântico, que é o que o VoiceOver lê.
-                label: l.home_announcement_new,
-                button: true,
-                child: CupertinoButton(
-                  padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
-                  onPressed: () => context.push(Routes.avisoNovo),
-                  child: const Icon(CupertinoIcons.add),
+    // Só o primeiro nome: "Olá, Maria!" soa como conversa; o nome completo
+    // soa como cadastro. Sem perfil carregado, cai num tratamento genérico.
+    //
+    // A inicial é forçada em maiúscula porque o nome vem como o usuário digitou
+    // no cadastro, e "Olá, maria!" num título grande parece defeito. É só
+    // apresentação — o dado no banco não muda.
+    final rawName = profile?.fullName.trim().split(RegExp(r'\s+')).first;
+    final firstName = (rawName == null || rawName.isEmpty)
+        ? l.home_greeting_fallback
+        : rawName[0].toUpperCase() + rawName.substring(1);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l.home_greeting(firstName),
+                  style: AppTypography.largeTitle.copyWith(color: colors.label),
                 ),
-              )
-            : null,
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: ListView(
-          children: const [
-            // 1. Aviso fixado
-            _PinnedAnnouncement(),
-            // 2. Redes sociais
-            _SocialLinks(),
-            // 3. Dados da Base
-            _BaseInfoSection(),
-            // 4. Avisos anteriores
-            _RecentAnnouncements(),
-            // Espaço para a tab bar não cobrir o último item.
-            SizedBox(height: 80),
+                const SizedBox(height: 2),
+                Text(
+                  l.home_greeting_subtitle,
+                  style: AppTypography.subheadline
+                      .copyWith(color: colors.secondaryLabel),
+                ),
+              ],
+            ),
+          ),
+          if (isAdmin) ...[
+            const SizedBox(width: 12),
+            Semantics(
+              // CupertinoButton não tem `tooltip`; a dica de acessibilidade
+              // vira label semântico, que é o que o VoiceOver lê.
+              label: l.home_announcement_new,
+              button: true,
+              child: CupertinoButton(
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                onPressed: () => context.push(Routes.avisoNovo),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: colors.tintContainer,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    CupertinoIcons.add,
+                    size: 20,
+                    color: colors.onTintContainer,
+                  ),
+                ),
+              ),
+            ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 2. Imagem da equipe
+// ---------------------------------------------------------------------------
+
+/// Cartão de destaque com a foto da equipe e o texto sobreposto.
+///
+/// A imagem ainda não existe: o arquivo será colocado em
+/// `assets/images/equipe.jpg`. Até lá o `errorBuilder` mostra um espaço
+/// reservado — assim a tela já tem o formato final e basta soltar o arquivo na
+/// pasta para a foto aparecer, sem tocar em código.
+class _HeroCard extends StatelessWidget {
+  const _HeroCard();
+
+  static const String _asset = 'assets/images/equipe.jpg';
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final colors = context.colors;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(14),
+        child: AspectRatio(
+          aspectRatio: 16 / 10,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(
+                _asset,
+                fit: BoxFit.cover,
+                errorBuilder: (context, _, _) => _Placeholder(
+                  label: l.home_hero_placeholder,
+                  colors: colors,
+                ),
+              ),
+              // Degradê do transparente ao escuro: é o que garante contraste
+              // do texto sobre uma foto qualquer, sem depender de a imagem ser
+              // escura embaixo.
+              //
+              // Começa a 55% da altura, não no meio: subindo mais, escurece o
+              // rosto das pessoas na foto — o degradê existe para o texto, não
+              // para tingir a imagem.
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: [0.55, 1.0],
+                    colors: [Color(0x00000000), Color(0xD9000000)],
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 14,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l.home_hero_title,
+                      style: AppTypography.title
+                          .copyWith(color: const Color(0xFFFFFFFF)),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      l.home_hero_subtitle,
+                      style: AppTypography.footnote
+                          .copyWith(color: const Color(0xCCFFFFFF)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+    );
+  }
+}
+
+class _Placeholder extends StatelessWidget {
+  const _Placeholder({required this.label, required this.colors});
+
+  final String label;
+  final AppColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: colors.fill,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            CupertinoIcons.person_3_fill,
+            size: 40,
+            color: colors.tertiaryLabel,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            style: AppTypography.footnote.copyWith(color: colors.tertiaryLabel),
+          ),
+        ],
       ),
     );
   }
@@ -103,87 +278,68 @@ class _PinnedAnnouncement extends ConsumerWidget {
 
     final isAdmin = ref.watch(isAdminProvider);
 
+    // Faixa de destaque, não cartão: o aviso fixado é um recado curto e
+    // pontual. A borda em cor de marca sobre fundo claro chama atenção sem
+    // competir com a foto logo acima, que já é o elemento pesado da tela.
     return Padding(
-      padding: const EdgeInsets.all(16),
-      // O `Card` do Material trazia elevação (sombra). No iOS o destaque de um
-      // cartão vem do contraste entre a superfície e o fundo agrupado, não de
-      // sombra — por isso só cor + canto arredondado.
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: colors.surface,
           borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: colors.tint.withValues(alpha: 0.35)),
         ),
         child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  // Substitui o CircleAvatar (Material) por um círculo simples.
-                  Container(
-                    width: 40,
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: colors.tintContainer,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      // CupertinoIcons não tem "megafone"; o sino é o símbolo
-                      // de aviso/notificação na iconografia da Apple.
-                      CupertinoIcons.bell_fill,
-                      size: 20,
-                      color: colors.onTintContainer,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          announcement.authorName ?? l.home_pinned_section,
-                          style: AppTypography.footnoteEmphasis
-                              .copyWith(color: colors.label),
-                        ),
-                        Text(
-                          timeago.format(
-                            announcement.createdAt,
-                            locale: 'pt_BR',
-                          ),
-                          style: AppTypography.footnote
-                              .copyWith(color: colors.secondaryLabel),
-                        ),
-                      ],
-                    ),
-                  ),
-                  if (isAdmin)
-                    CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      minimumSize: Size.zero,
-                      onPressed: () => _showActions(context, ref, announcement),
-                      child: Icon(
-                        CupertinoIcons.ellipsis,
-                        size: 20,
-                        color: colors.secondaryLabel,
+              Icon(
+                // CupertinoIcons não tem "megafone"; o sino é o símbolo de
+                // aviso/notificação na iconografia da Apple.
+                CupertinoIcons.bell_fill,
+                size: 18,
+                color: colors.tint,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (announcement.title != null &&
+                        announcement.title!.isNotEmpty)
+                      Text(
+                        announcement.title!,
+                        style: AppTypography.subheadlineEmphasis
+                            .copyWith(color: colors.label),
                       ),
+                    Text(
+                      announcement.body,
+                      style: AppTypography.subheadline
+                          .copyWith(color: colors.label),
                     ),
-                ],
-              ),
-              if (announcement.title != null &&
-                  announcement.title!.isNotEmpty) ...[
-                const SizedBox(height: 12),
-                Text(
-                  announcement.title!,
-                  style: AppTypography.headline.copyWith(color: colors.label),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${announcement.authorName ?? l.home_pinned_section}'
+                      ' · '
+                      '${timeago.format(announcement.createdAt, locale: 'pt_BR')}',
+                      style: AppTypography.caption
+                          .copyWith(color: colors.secondaryLabel),
+                    ),
+                  ],
                 ),
-              ],
-              const SizedBox(height: 8),
-              Text(
-                announcement.body,
-                style: AppTypography.body.copyWith(color: colors.label),
               ),
+              if (isAdmin)
+                CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  onPressed: () => _showActions(context, ref, announcement),
+                  child: Icon(
+                    CupertinoIcons.ellipsis,
+                    size: 18,
+                    color: colors.secondaryLabel,
+                  ),
+                ),
             ],
           ),
         ),
@@ -278,7 +434,7 @@ class _SocialLinks extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: Column(
             children: [
-              SectionHeader(title: l.home_social_section),
+              SectionHeader(title: l.home_social_section, prominent: true),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Wrap(
@@ -379,7 +535,7 @@ class _BaseInfoSection extends ConsumerWidget {
 
     return Column(
       children: [
-        SectionHeader(title: l.home_base_info_section),
+        SectionHeader(title: l.home_base_info_section, prominent: true),
         baseInfo.when(
           loading: () => const Padding(
             padding: EdgeInsets.all(24),
@@ -591,6 +747,7 @@ class _RecentAnnouncements extends ConsumerWidget {
       children: [
         SectionHeader(
           title: l.home_announcements_section,
+          prominent: true,
           actionLabel: l.action_see_all,
           onAction: () {
             // TODO: navegar para lista completa de avisos (rota /avisos)

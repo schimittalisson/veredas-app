@@ -14,6 +14,7 @@ class SectionHeader extends StatelessWidget {
     required this.title,
     this.actionLabel,
     this.onAction,
+    this.prominent = false,
     super.key,
   }) : assert(
           actionLabel == null || onAction != null,
@@ -24,20 +25,36 @@ class SectionHeader extends StatelessWidget {
   final String? actionLabel;
   final VoidCallback? onAction;
 
+  /// Título forte e em caixa mista, em vez do cabeçalho discreto de lista
+  /// agrupada.
+  ///
+  /// A tela Início não é uma lista de Ajustes: ela tem hierarquia editorial
+  /// ("Perguntas Frequentes" é um bloco de conteúdo, não o rótulo de um grupo
+  /// de células). Nesse caso o cabeçalho pequeno e em maiúsculas some no meio
+  /// dos cartões.
+  final bool prominent;
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
 
     return Padding(
-      padding: const EdgeInsets.only(left: 16, right: 8, top: 24, bottom: 6),
+      padding: EdgeInsets.only(
+        left: 16,
+        right: 8,
+        top: prominent ? 28 : 24,
+        bottom: prominent ? 10 : 6,
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
             child: Text(
-              title.toUpperCase(),
-              style: AppTypography.sectionHeader
-                  .copyWith(color: colors.secondaryLabel),
+              prominent ? title : title.toUpperCase(),
+              style: prominent
+                  ? AppTypography.title.copyWith(color: colors.label)
+                  : AppTypography.sectionHeader
+                      .copyWith(color: colors.secondaryLabel),
             ),
           ),
           if (actionLabel != null)

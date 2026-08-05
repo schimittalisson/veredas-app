@@ -4,7 +4,7 @@
 
 ## 1. Quem somos
 
-O app Veredas é o aplicativo oficial da Base Missionária Veredas
+O app Veredas é o aplicativo oficial da Base Missionária JOCUM Veredas
 (Joinville/SC), usado para gerenciamento interno de obreiros, escalas,
 eventos, avisos e pedidos de oração.
 
@@ -88,4 +88,4 @@ crianças.
 ## 10. Contato
 
 Para dúvidas sobre esta política, contate a liderança da Base Missionária
-Veredas.
+ JOCUM Veredas.

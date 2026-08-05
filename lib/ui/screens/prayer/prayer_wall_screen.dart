@@ -83,7 +83,9 @@ class _PrayerWallScreenState extends ConsumerState<PrayerWallScreen> {
         ),
       ),
       child: SafeArea(
-        bottom: false,
+        // `bottom` fica ligado: o RootScaffold soma o espaço da barra
+        // flutuante ao MediaQuery, e é isso que impede o último item da
+        // lista de ficar escondido atrás dela.
         child: Column(
           children: [
             // A busca sai do `bottom` da AppBar (que não existe na

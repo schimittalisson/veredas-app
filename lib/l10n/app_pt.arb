@@ -41,7 +41,7 @@
   },
 
   "auth_login_title": "Entrar",
-  "auth_login_subtitle": "Base Missionária Veredas",
+  "auth_login_subtitle": "JOCUM Veredas App",
   "auth_email_label": "E-mail",
   "auth_password_label": "Senha",
   "auth_login_button": "Entrar",
@@ -100,9 +100,19 @@
   "auth_error_timeout": "A operação demorou demais. Tente novamente.",
   "auth_error_unknown": "Ocorreu um erro inesperado. Tente novamente.",
 
+  "home_greeting": "Olá, {name}!",
+  "@home_greeting": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "home_greeting_fallback": "Equipe",
+  "home_greeting_subtitle": "Bem-vindo ao seu portal de trabalho",
+  "home_hero_title": "Juntos somos melhores",
+  "home_hero_subtitle": "Confira abaixo as informações e perguntas frequentes.",
+  "home_hero_placeholder": "Foto da equipe",
+
   "home_pinned_section": "Aviso em destaque",
   "home_social_section": "Redes sociais",
-  "home_base_info_section": "Dados da Base",
+  "home_base_info_section": "Perguntas Frequentes",
   "home_announcements_section": "Avisos anteriores",
   "home_no_announcements": "Nenhum aviso no momento.",
   "home_no_base_info": "Nenhum dado da base cadastrado.",

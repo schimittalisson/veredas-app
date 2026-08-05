@@ -92,7 +92,9 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
             : null,
       ),
       child: SafeArea(
-        bottom: false,
+        // `bottom` fica ligado: o RootScaffold soma o espaço da barra
+        // flutuante ao MediaQuery, e é isso que impede o último item da
+        // lista de ficar escondido atrás dela.
         child: Column(
           children: [
             Padding(

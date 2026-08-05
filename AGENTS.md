@@ -10,7 +10,7 @@ Ordem de leitura: `PLANO.md` → este arquivo → `SCHEMA.md` / `TELAS.md`.
 
 ## 1. Contexto
 
-App de gerenciamento da Base Missionária Veredas (Joinville/SC), ~20 obreiros.
+App de gerenciamento da Base Missionária JOCUM Veredas (Joinville/SC), ~20 obreiros.
 Flutter + Supabase, com cache offline em drift.
 
 - **Este projeto**: `/home/alisson.silva/Documentos/veredas-app`

@@ -1,6 +1,6 @@
 # Veredas App — Plano de Desenvolvimento
 
-App de gerenciamento para a Base Missionária Veredas (Joinville/SC).
+App de gerenciamento para a Base Missionária JOCUM Veredas (Joinville/SC).
 Flutter (Android + iOS), backend Supabase, cache offline com drift.
 
 > **Este documento é a especificação mestra.** Um agente de IA deve conseguir
@@ -210,7 +210,7 @@ Todas verificadas em 2026-08-03 contra Flutter 3.44.8 / Dart 3.12.2.
 
 ```yaml
 name: veredas
-description: "App de gerenciamento da Base Missionária Veredas."
+description: "App de gerenciamento da Base Missionária JOCUM Veredas."
 publish_to: 'none'
 version: 1.0.0+1
 
