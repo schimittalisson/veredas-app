@@ -1,4 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 
 /// Indicador de carregamento compartilhado.
 ///
@@ -12,19 +15,19 @@ class LoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = context.colors;
 
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const CircularProgressIndicator(),
+          const CupertinoActivityIndicator(radius: 14),
           if (message != null) ...[
             const SizedBox(height: 16),
             Text(
               message!,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: AppTypography.subheadline
+                  .copyWith(color: colors.secondaryLabel),
             ),
           ],
         ],

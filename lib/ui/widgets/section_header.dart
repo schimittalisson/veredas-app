@@ -1,7 +1,14 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 
 /// Cabeçalho de seção ("Dados da Base", "Avisos anteriores", "Próximos
 /// eventos"), com uma ação opcional à direita ("Ver tudo" no mockup).
+///
+/// Segue o padrão das listas agrupadas do iOS: texto em maiúsculas, pequeno e
+/// em cor secundária. É o que faz uma lista "parecer Ajustes do iPhone" — no
+/// Material o mesmo cabeçalho seria grande e escuro.
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
     required this.title,
@@ -19,21 +26,30 @@ class SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = context.colors;
 
     return Padding(
-      padding: const EdgeInsets.only(left: 16, right: 4, top: 24, bottom: 4),
+      padding: const EdgeInsets.only(left: 16, right: 8, top: 24, bottom: 6),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
             child: Text(
-              title,
-              style: theme.textTheme.titleMedium
-                  ?.copyWith(fontWeight: FontWeight.w600),
+              title.toUpperCase(),
+              style: AppTypography.sectionHeader
+                  .copyWith(color: colors.secondaryLabel),
             ),
           ),
           if (actionLabel != null)
-            TextButton(onPressed: onAction, child: Text(actionLabel!)),
+            CupertinoButton(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              onPressed: onAction,
+              child: Text(
+                actionLabel!,
+                style: AppTypography.footnote.copyWith(color: colors.tint),
+              ),
+            ),
         ],
       ),
     );

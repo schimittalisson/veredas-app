@@ -1,6 +1,8 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/providers/sync_providers.dart';
@@ -13,6 +15,10 @@ import 'package:veredas/providers/sync_providers.dart';
 /// - **error**: "Não foi possível sincronizar" com botão de tentar de novo
 ///
 /// No estado `idle`, o banner não aparece — a UI fica limpa.
+///
+/// Era um `MaterialBanner`, que não tem equivalente no Cupertino. A versão
+/// própria é uma faixa fina e discreta: o iOS comunica estado de conexão sem
+/// roubar altura da tela (pense na pílula de gravação de tela).
 class OfflineBanner extends ConsumerWidget {
   const OfflineBanner({super.key});
 
@@ -23,22 +29,25 @@ class OfflineBanner extends ConsumerWidget {
 
     return switch (status) {
       SyncStatus.idle => const SizedBox.shrink(),
-      SyncStatus.offline => MaterialBanner(
-          content: Text(l.offline_showing_cached),
-          leading: const Icon(Icons.cloud_off, size: 20),
-          actions: const [SizedBox.shrink()],
+      SyncStatus.offline => _Banner(
+          icon: CupertinoIcons.wifi_slash,
+          text: l.offline_showing_cached,
         ),
       SyncStatus.syncing => _PendingBanner(l: l),
-      SyncStatus.error => MaterialBanner(
-          content: Text(l.error_generic),
-          leading: const Icon(Icons.sync_problem, size: 20),
-          actions: [
-            TextButton(
-              onPressed: () =>
-                  ref.read(syncStatusProvider.notifier).pullAll(),
-              child: Text(l.action_retry),
+      SyncStatus.error => _Banner(
+          icon: CupertinoIcons.exclamationmark_triangle,
+          text: l.error_generic,
+          isError: true,
+          trailing: CupertinoButton(
+            padding: EdgeInsets.zero,
+            minimumSize: Size.zero,
+            onPressed: () => ref.read(syncStatusProvider.notifier).pullAll(),
+            child: Text(
+              l.action_retry,
+              style: AppTypography.footnoteEmphasis
+                  .copyWith(color: context.colors.tint),
             ),
-          ],
+          ),
         ),
     };
   }
@@ -52,33 +61,68 @@ class _PendingBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // O número de pendentes vem da outbox. O StreamProvider pode não ter
-    // resolvido ainda no primeiro frame; usa 0 como fallback (o banner
+    // resolvido ainda no primeiro frame; usa false como fallback (o banner
     // aparece quando o stream emite).
-    final hasPending =
-        ref.watch(hasPendingOutboxProvider).value ?? false;
+    final hasPending = ref.watch(hasPendingOutboxProvider).value ?? false;
+
     if (!hasPending) {
-      // Sincronizando sem pendentes: é um pull em andamento. Mostra um
-      // indicador discreto.
-      return MaterialBanner(
-        content: Row(
-          children: [
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            const SizedBox(width: 12),
-            Text(l.offline_showing_cached),
-          ],
-        ),
-        actions: const [SizedBox.shrink()],
+      // Sincronizando sem pendentes: é um pull em andamento.
+      return _Banner(
+        leading: const CupertinoActivityIndicator(radius: 7),
+        text: l.offline_showing_cached,
       );
     }
 
-    return MaterialBanner(
-      content: Text(l.offline_pending_changes(1)),
-      leading: const Icon(Icons.sync, size: 20),
-      actions: const [SizedBox.shrink()],
+    return _Banner(
+      icon: CupertinoIcons.arrow_up_circle,
+      text: l.offline_pending_changes(1),
+    );
+  }
+}
+
+class _Banner extends StatelessWidget {
+  const _Banner({
+    required this.text,
+    this.icon,
+    this.leading,
+    this.trailing,
+    this.isError = false,
+  });
+
+  final String text;
+  final IconData? icon;
+  final Widget? leading;
+  final Widget? trailing;
+  final bool isError;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final foreground = isError ? colors.destructive : colors.secondaryLabel;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.fill,
+        border: Border(
+          bottom: BorderSide(color: colors.separator, width: 0.5),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          children: [
+            leading ?? Icon(icon, size: 16, color: foreground),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                text,
+                style: AppTypography.footnote.copyWith(color: foreground),
+              ),
+            ),
+            ?trailing,
+          ],
+        ),
+      ),
     );
   }
 }

@@ -1,5 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 
 /// Estado de erro compartilhado.
@@ -28,7 +30,7 @@ class ErrorState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final theme = Theme.of(context);
+    final colors = context.colors;
 
     return Center(
       child: Padding(
@@ -40,29 +42,28 @@ class ErrorState extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.error_outline,
+              CupertinoIcons.exclamationmark_circle,
               size: compact ? 36 : 56,
-              color: theme.colorScheme.error,
+              color: colors.destructive,
             ),
             SizedBox(height: compact ? 12 : 20),
             Text(
               title ?? l.error_default_title,
               textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium,
+              style: AppTypography.headline.copyWith(color: colors.label),
             ),
             const SizedBox(height: 8),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: AppTypography.subheadline
+                  .copyWith(color: colors.secondaryLabel),
             ),
             if (onRetry != null) ...[
               SizedBox(height: compact ? 16 : 24),
-              OutlinedButton.icon(
+              CupertinoButton(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: Text(l.action_retry),
+                child: Text(l.action_retry),
               ),
             ],
           ],

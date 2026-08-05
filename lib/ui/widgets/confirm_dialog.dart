@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 import 'package:veredas/l10n/app_localizations.dart';
 
@@ -28,8 +28,9 @@ class ConfirmDialog extends StatelessWidget {
   final String? confirmLabel;
   final String? cancelLabel;
 
-  /// Pinta o botão de confirmação com `colorScheme.error`. Ligado por padrão,
-  /// porque o caso de uso deste diálogo é exclusão.
+  /// Marca a confirmação como destrutiva — no iOS isso pinta o texto de
+  /// vermelho, em vez de dar cor de fundo ao botão. Ligado por padrão, porque
+  /// o caso de uso deste diálogo é exclusão.
   final bool isDestructive;
 
   static Future<bool> show(
@@ -40,8 +41,12 @@ class ConfirmDialog extends StatelessWidget {
     String? cancelLabel,
     bool isDestructive = true,
   }) async {
-    final result = await showDialog<bool>(
+    final result = await showCupertinoDialog<bool>(
       context: context,
+      // No iOS o toque fora não fecha um alerta — só os botões fecham. Manter
+      // o padrão da plataforma evita fechar sem querer uma confirmação de
+      // exclusão.
+      barrierDismissible: false,
       builder: (_) => ConfirmDialog(
         title: title,
         message: message,
@@ -56,24 +61,21 @@ class ConfirmDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final theme = Theme.of(context);
 
-    return AlertDialog(
+    return CupertinoAlertDialog(
       title: Text(title),
       content: message == null ? null : Text(message!),
       actions: [
-        TextButton(
+        CupertinoDialogAction(
           onPressed: () => Navigator.of(context).pop(false),
+          // isDefaultAction põe o peso no cancelar: numa exclusão, a saída
+          // segura é a que deve estar em destaque.
+          isDefaultAction: true,
           child: Text(cancelLabel ?? l.action_cancel),
         ),
-        FilledButton(
+        CupertinoDialogAction(
           onPressed: () => Navigator.of(context).pop(true),
-          style: isDestructive
-              ? FilledButton.styleFrom(
-                  backgroundColor: theme.colorScheme.error,
-                  foregroundColor: theme.colorScheme.onError,
-                )
-              : null,
+          isDestructiveAction: isDestructive,
           child: Text(
             confirmLabel ?? (isDestructive ? l.action_delete : l.action_confirm),
           ),
