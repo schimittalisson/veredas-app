@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/scales_providers.dart';
+import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 
 /// Conteúdo de uma aba de escala.
@@ -19,9 +21,14 @@ import 'package:veredas/ui/widgets/empty_state.dart';
 /// - Com slots: tabela compacta (linhas = slots, células = responsável).
 /// - Sem slots: lista por dia da semana.
 class ScaleTabView extends ConsumerStatefulWidget {
-  const ScaleTabView({required this.scaleType, super.key});
+  const ScaleTabView({
+    required this.scaleType,
+    required this.canEdit,
+    super.key,
+  });
 
   final ScaleTypeRow scaleType;
+  final bool canEdit;
 
   @override
   ConsumerState<ScaleTabView> createState() => _ScaleTabViewState();
@@ -97,6 +104,7 @@ class _ScaleTabViewState extends ConsumerState<ScaleTabView> {
           child: _PeriodBody(
             scaleType: widget.scaleType,
             periodStart: _periodStart,
+            canEdit: widget.canEdit,
           ),
         ),
       ],
@@ -168,10 +176,15 @@ class _PeriodNavigator extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _PeriodBody extends ConsumerWidget {
-  const _PeriodBody({required this.scaleType, required this.periodStart});
+  const _PeriodBody({
+    required this.scaleType,
+    required this.periodStart,
+    required this.canEdit,
+  });
 
   final ScaleTypeRow scaleType;
   final DateTime periodStart;
+  final bool canEdit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -200,7 +213,15 @@ class _PeriodBody extends ConsumerWidget {
           return EmptyState(
             title: l.scales_no_assignments,
             icon: Icons.assignment_outlined,
-            // TODO: botão "Montar escala" se canEditScale.
+            action: canEdit
+                ? FilledButton.icon(
+                    onPressed: () => context.push(
+                      '${Routes.escalaAtribuicaoNovo}?scaleTypeId=${scaleType.id}',
+                    ),
+                    icon: const Icon(Icons.add),
+                    label: Text(l.scales_mount),
+                  )
+                : null,
           );
         }
 

@@ -21,12 +21,11 @@ class SplashScreen extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // TODO: usar a logo real (assets/images/logo.jpg) quando o
-            // launcher icon estiver configurado. Por ora, um ícone Material.
-            Icon(
-              Icons.wb_shade,
-              size: 80,
-              color: Theme.of(context).colorScheme.primary,
+            Image.asset(
+              'assets/images/logo.jpg',
+              width: 120,
+              height: 120,
+              fit: BoxFit.contain,
             ),
             const SizedBox(height: 24),
             // Só mostra o spinner se o auth ainda não resolveu. Quando

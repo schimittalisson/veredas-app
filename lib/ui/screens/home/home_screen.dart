@@ -100,11 +100,9 @@ class _PinnedAnnouncement extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // TODO: nome do autor (precisa de join com profiles
-                        // no cache, ou denormalizar author_name no sync).
-                        // Por ora, mostra "Aviso" como placeholder.
                         Text(
-                          l.home_pinned_section,
+                          announcement.authorName ??
+                              l.home_pinned_section,
                           style: Theme.of(context).textTheme.labelMedium,
                         ),
                         Text(

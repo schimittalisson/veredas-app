@@ -11,6 +11,7 @@ import 'package:veredas/ui/screens/admin/membros_screen.dart';
 import 'package:veredas/ui/screens/admin/responsaveis_screen.dart';
 import 'package:veredas/ui/screens/agenda/agenda_screen.dart';
 import 'package:veredas/ui/screens/agenda/event_editor_screen.dart';
+import 'package:veredas/ui/screens/agenda/weekly_slot_editor_screen.dart';
 import 'package:veredas/ui/screens/auth/aguardando_screen.dart';
 import 'package:veredas/ui/screens/auth/cadastro_screen.dart';
 import 'package:veredas/ui/screens/auth/esqueci_senha_screen.dart';
@@ -54,6 +55,8 @@ class Routes {
   static const String oracaoEditar = '/oracao/editar';
   static const String eventoNovo = '/evento/novo';
   static const String eventoEditar = '/evento/editar';
+  static const String slotNovo = '/cronograma/novo';
+  static const String slotEditar = '/cronograma/editar';
   static const String escalaAtribuicaoNovo = '/escala/atribuicao/novo';
   static const String escalaAtribuicaoEditar = '/escala/atribuicao/editar';
 
@@ -191,6 +194,16 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.eventoEditar,
         builder: (context, state) => EventEditorScreen(
           eventId: state.uri.queryParameters['id'],
+        ),
+      ),
+      GoRoute(
+        path: Routes.slotNovo,
+        builder: (context, state) => const WeeklySlotEditorScreen(),
+      ),
+      GoRoute(
+        path: Routes.slotEditar,
+        builder: (context, state) => WeeklySlotEditorScreen(
+          slotId: state.uri.queryParameters['id'],
         ),
       ),
       GoRoute(

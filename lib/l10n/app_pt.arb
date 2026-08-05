@@ -154,6 +154,7 @@
   "agenda_slot_ends_at": "Fim",
   "agenda_slot_location": "Local",
   "agenda_slot_category": "Categoria",
+  "agenda_slot_notes": "Notas",
   "agenda_slot_saved": "Slot salvo.",
 
   "scales_no_types": "Nenhuma escala cadastrada.",

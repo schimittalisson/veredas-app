@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -215,14 +216,24 @@ class EventCard extends StatelessWidget {
             if (event.coverImageUrl != null && event.coverImageUrl!.isNotEmpty)
               AspectRatio(
                 aspectRatio: 16 / 9,
-                child: Container(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  // TODO: cached_network_image quando houver URL real.
-                  // Por ora, placeholder.
-                  child: Icon(
-                    Icons.image_outlined,
-                    size: 48,
-                    color: theme.colorScheme.onSurfaceVariant,
+                child: CachedNetworkImage(
+                  imageUrl: event.coverImageUrl!,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    child: Icon(
+                      Icons.image_outlined,
+                      size: 48,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => Container(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      size: 48,
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
               )

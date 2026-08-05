@@ -449,10 +449,23 @@ Future<void> _restorePrayerComment(
 // --- announcements ---------------------------------------------------------
 
 Future<void> _upsertAnnouncement(AppDatabase db, Map<String, dynamic> j) async {
+  // Denormaliza author_name do cache de profiles. Como profiles é sincronizado
+  // antes (order: 0), o nome já está disponível aqui. Se o profile ainda não
+  // foi sincronizado, authorName fica null — o próximo sync corrigirá.
+  String? authorName;
+  final authorId = j['author_id'] as String?;
+  if (authorId != null) {
+    final profile = await (db.select(db.profileRows)
+          ..where((t) => t.id.equals(authorId)))
+        .getSingleOrNull();
+    authorName = profile?.fullName;
+  }
+
   await db.into(db.announcementRows).insertOnConflictUpdate(
         AnnouncementRow(
           id: j['id'] as String,
-          authorId: j['author_id'] as String?,
+          authorId: authorId,
+          authorName: authorName,
           title: j['title'] as String?,
           body: j['body'] as String,
           pinned: _bool(j['pinned']),

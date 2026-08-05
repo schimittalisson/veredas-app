@@ -227,10 +227,15 @@ class PrayerCommentRows extends Table {
 }
 
 /// Espelho de `public.announcements`.
+///
+/// `authorName` é denormalizado no upsert (join com `profiles` no cache) —
+/// não existe no servidor. Como `profiles` é sincronizado antes (order: 0),
+/// o nome já está disponível quando `announcements` é upsertado (order: 1).
 @DataClassName('AnnouncementRow')
 class AnnouncementRows extends Table {
   TextColumn get id => text()();
   TextColumn get authorId => text().nullable()();
+  TextColumn get authorName => text().nullable()();
   TextColumn get title => text().nullable()();
   TextColumn get body => text()();
   BoolColumn get pinned => boolean().withDefault(const Constant(false))();

@@ -56,8 +56,9 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
               onPressed: () {
                 if (_tabController.index == 0) {
                   context.push(Routes.eventoNovo);
+                } else {
+                  context.push(Routes.slotNovo);
                 }
-                // TODO: editor de slot semanal (/cronograma/novo)
               },
               tooltip: _tabController.index == 0
                   ? l.agenda_new_event

@@ -110,7 +110,10 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
       body: TabBarView(
         controller: _tabController,
         children: widget.scaleTypes
-            .map((type) => ScaleTabView(scaleType: type))
+            .map((type) => ScaleTabView(
+                  scaleType: type,
+                  canEdit: _canEditScale(profile, type, managedIds),
+                ))
             .toList(),
       ),
     );

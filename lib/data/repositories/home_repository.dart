@@ -22,10 +22,15 @@ class HomeRepository {
   // --- Announcements --------------------------------------------------------
 
   /// Cria um aviso. O id é gerado no cliente (UUID v4).
+  ///
+  /// [authorId] e [authorName] são do usuário atual — usados apenas no cache
+  /// otimista. O servidor define `author_id` via RLS.
   Future<String> createAnnouncement({
     required String body,
     String? title,
     bool pinned = false,
+    String? authorId,
+    String? authorName,
   }) async {
     final id = _uuid.v4();
     final now = DateTime.now().toUtc();
@@ -46,6 +51,8 @@ class HomeRepository {
         await _db.into(_db.announcementRows).insertOnConflictUpdate(
               AnnouncementRow(
                 id: id,
+                authorId: authorId,
+                authorName: authorName,
                 title: title,
                 body: body,
                 pinned: pinned,

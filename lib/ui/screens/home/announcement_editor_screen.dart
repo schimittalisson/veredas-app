@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:veredas/l10n/app_localizations.dart';
+import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/home_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
 
@@ -144,12 +145,15 @@ class _AnnouncementEditorScreenState
           pinned: _pinned,
         );
       } else {
+        final profile = ref.read(currentProfileProvider).value;
         await repo.createAnnouncement(
           title: _titleController.text.trim().isEmpty
               ? null
               : _titleController.text.trim(),
           body: _bodyController.text.trim(),
           pinned: _pinned,
+          authorId: profile?.id,
+          authorName: profile?.fullName,
         );
       }
 
