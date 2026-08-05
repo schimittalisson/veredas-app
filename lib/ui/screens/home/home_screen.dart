@@ -35,6 +35,11 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(l.tab_inicio)),
       floatingActionButton: isAdmin
           ? FloatingActionButton(
+              // As 4 tabs ficam vivas ao mesmo tempo (StatefulShellRoute.
+              // indexedStack), então os 4 FABs coexistem na árvore. Sem uma
+              // tag única, todos usam a hero tag padrão e o HeroController
+              // aborta a transição ao achar tags duplicadas.
+              heroTag: 'fab-inicio',
               onPressed: () => context.push(Routes.avisoNovo),
               tooltip: l.home_announcement_new,
               child: const Icon(Icons.add),

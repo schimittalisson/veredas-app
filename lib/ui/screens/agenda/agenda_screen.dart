@@ -63,6 +63,8 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
       ),
       floatingActionButton: isAdmin
           ? FloatingActionButton(
+              // Ver comentário em home_screen.dart: as 4 tabs coexistem.
+              heroTag: 'fab-agenda',
               onPressed: () {
                 if (_tabController.index == 0) {
                   context.push(Routes.eventoNovo);

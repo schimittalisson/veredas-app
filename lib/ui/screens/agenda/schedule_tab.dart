@@ -155,42 +155,51 @@ class _WeeklyGrid extends StatelessWidget {
             ),
           ),
           // Grade scrollável horizontalmente.
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Cabeçalho dos dias.
-                Row(
-                  children: [
-                    for (int day = 1; day <= 7; day++)
-                      SizedBox(
-                        width: 96,
-                        height: 40,
-                        child: Center(
-                          child: Text(
-                            dayLabels[day - 1],
-                            style: theme.textTheme.labelMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                // Linhas de hora.
-                for (final hour in hours)
+          //
+          // O Expanded é obrigatório: num Row, um filho não-flex recebe
+          // largura ilimitada, então o SingleChildScrollView se dimensionaria
+          // pelo conteúdo (7 × 96 dp). Viewport do tamanho do conteúdo = nada
+          // para rolar — a grade estourava para fora da tela em vez de
+          // arrastar. Com Expanded ele fica limitado à largura restante e o
+          // scroll passa a funcionar.
+          Expanded(
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Cabeçalho dos dias.
                   Row(
                     children: [
                       for (int day = 1; day <= 7; day++)
-                        _DayHourCell(
-                          day: day,
-                          hourMinutes: hour,
-                          slots: byDay[day] ?? const [],
+                        SizedBox(
+                          width: 96,
+                          height: 40,
+                          child: Center(
+                            child: Text(
+                              dayLabels[day - 1],
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
                         ),
                     ],
                   ),
-              ],
+                  // Linhas de hora.
+                  for (final hour in hours)
+                    Row(
+                      children: [
+                        for (int day = 1; day <= 7; day++)
+                          _DayHourCell(
+                            day: day,
+                            hourMinutes: hour,
+                            slots: byDay[day] ?? const [],
+                          ),
+                      ],
+                    ),
+                ],
+              ),
             ),
           ),
         ],

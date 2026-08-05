@@ -89,6 +89,8 @@ class _PrayerWallScreenState extends ConsumerState<PrayerWallScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        // Ver comentário em home_screen.dart: as 4 tabs coexistem.
+        heroTag: 'fab-oracao',
         onPressed: () => context.push(Routes.oracaoNovo),
         tooltip: l.prayer_new,
         child: const Icon(Icons.add),

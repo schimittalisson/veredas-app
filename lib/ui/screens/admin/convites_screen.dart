@@ -25,6 +25,8 @@ class ConvitesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: Text(l.admin_invites)),
       floatingActionButton: FloatingActionButton(
+        // Rota empilhada acima da shell, cujos FABs continuam na árvore.
+        heroTag: 'fab-convites',
         onPressed: () => _showCreateDialog(context, ref),
         tooltip: l.admin_invites_new,
         child: const Icon(Icons.add),

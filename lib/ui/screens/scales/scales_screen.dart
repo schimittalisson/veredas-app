@@ -151,6 +151,8 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
       ),
       floatingActionButton: canEdit
           ? FloatingActionButton(
+              // Ver comentário em home_screen.dart: as 4 tabs coexistem.
+              heroTag: 'fab-escalas',
               onPressed: () {
                 context.push(
                   '${Routes.escalaAtribuicaoNovo}?scaleTypeId=${currentType.id}',
