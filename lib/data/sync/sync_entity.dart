@@ -44,6 +44,11 @@ class SyncEntity {
   final SyncMode mode;
   final int order;
 
+  /// Coluna usada pelo OutboxWorker para filtrar UPDATE/DELETE.
+  /// Default: `'id'`. Entidades com PK composta ou chave diferente
+  /// (ex.: `prayer_interactions` filtra por `post_id`) precisam sobrescrever.
+  final String eqColumn;
+
   final Future<void> Function(AppDatabase db, Map<String, dynamic> json) upsert;
   final Future<void> Function(AppDatabase db, String id) remove;
   final Future<void> Function(AppDatabase db) clear;
@@ -59,6 +64,7 @@ class SyncEntity {
     required this.remove,
     required this.clear,
     required this.restore,
+    this.eqColumn = 'id',
   });
 }
 
@@ -658,7 +664,34 @@ final List<SyncEntity> syncEntities = [
     clear: _clearSocialLink,
     restore: _restoreSocialLink,
   ),
+  // prayer_interactions não é cacheada (é DELETE físico, sem tombstones).
+  // Está registrada apenas para o OutboxWorker saber enviá-la. As funções
+  // upsert/remove/clear/restore são no-ops porque não há cache local desta
+  // tabela — o toggle ajusta prayingCount/isPraying direto na linha do
+  // prayer_feed (view) e o próximo pull fullReplace corrige qualquer
+  // divergência.
+  //
+  // eqColumn = 'post_id': o RLS garante que só a interação do próprio
+  // usuário (user_id = auth.uid()) é afetada, então filtrar só por post_id
+  // é suficiente.
+  const SyncEntity(
+    name: 'prayer_interactions',
+    remoteTable: 'prayer_interactions',
+    mode: SyncMode.fullReplace,
+    order: 99,
+    upsert: _noopUpsert,
+    remove: _noopRemove,
+    clear: _noopClear,
+    restore: _noopUpsert,
+    eqColumn: 'post_id',
+  ),
 ];
+
+// --- No-ops para entidades não-cacheadas -----------------------------------
+
+Future<void> _noopUpsert(AppDatabase db, Map<String, dynamic> j) async {}
+Future<void> _noopRemove(AppDatabase db, String id) async {}
+Future<void> _noopClear(AppDatabase db) async {}
 
 final Map<String, SyncEntity> _entityByName = {
   for (final e in syncEntities) e.name: e,

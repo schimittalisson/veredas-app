@@ -114,7 +114,7 @@ class OutboxWorker {
         final result = await remote.update(
           table: entity.remoteTable,
           payload: payload,
-          eqColumn: 'id',
+          eqColumn: entity.eqColumn,
           eqValue: entry.rowId,
         );
         if (result.isEmpty) {
@@ -130,7 +130,7 @@ class OutboxWorker {
         // ainda a tem. Então tratamos como negação e revertemos.
         final result = await remote.delete(
           table: entity.remoteTable,
-          eqColumn: 'id',
+          eqColumn: entity.eqColumn,
           eqValue: entry.rowId,
         );
         if (result.isEmpty) {

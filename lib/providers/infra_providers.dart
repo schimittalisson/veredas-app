@@ -10,6 +10,10 @@ import 'package:veredas/data/daos/scales_dao.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/data/remote/admin_service.dart';
 import 'package:veredas/data/remote/supabase_admin_service.dart';
+import 'package:veredas/data/repositories/agenda_repository.dart';
+import 'package:veredas/data/repositories/home_repository.dart';
+import 'package:veredas/data/repositories/prayer_repository.dart';
+import 'package:veredas/data/repositories/scales_repository.dart';
 import 'package:veredas/data/sync/outbox_worker.dart';
 import 'package:veredas/data/sync/remote_source.dart';
 import 'package:veredas/data/sync/sync_service.dart';
@@ -63,6 +67,24 @@ final prayerDaoProvider = Provider<PrayerDao>(
 
 final profileDaoProvider = Provider<ProfileDao>(
   (ref) => ProfileDao(ref.watch(appDatabaseProvider)),
+);
+
+// --- Repositories (escrita via outbox) --------------------------------------
+
+final homeRepositoryProvider = Provider<HomeRepository>(
+  (ref) => HomeRepository(ref.watch(appDatabaseProvider)),
+);
+
+final prayerRepositoryProvider = Provider<PrayerRepository>(
+  (ref) => PrayerRepository(ref.watch(appDatabaseProvider)),
+);
+
+final agendaRepositoryProvider = Provider<AgendaRepository>(
+  (ref) => AgendaRepository(ref.watch(appDatabaseProvider)),
+);
+
+final scalesRepositoryProvider = Provider<ScalesRepository>(
+  (ref) => ScalesRepository(ref.watch(appDatabaseProvider)),
 );
 
 // --- Remote source ---------------------------------------------------------
