@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:veredas/core/error/app_exception.dart';
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/ui/navigation/app_router.dart';
@@ -102,12 +104,17 @@ class _CadastroScreenState extends ConsumerState<CadastroScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l.auth_signup_title)),
-      body: SafeArea(
+    return CupertinoPageScaffold(
+      backgroundColor: colors.groupedBackground,
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(l.auth_signup_title),
+        backgroundColor: colors.elevatedSurface,
+      ),
+      child: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(vertical: 24),
           child: _emailConfirmationRequired
               ? _EmailConfirmationView(email: _emailController.text.trim())
               : Form(
@@ -115,146 +122,220 @@ class _CadastroScreenState extends ConsumerState<CadastroScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        l.auth_signup_subtitle,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Nome
-                      TextFormField(
-                        controller: _nameController,
-                        decoration: InputDecoration(
-                          labelText: l.auth_full_name_label,
-                          prefixIcon: const Icon(Icons.person_outlined),
-                          border: const OutlineInputBorder(),
-                        ),
-                        textCapitalization: TextCapitalization.words,
-                        textInputAction: TextInputAction.next,
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? l.auth_error_validation : null,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // E-mail
-                      TextFormField(
-                        controller: _emailController,
-                        decoration: InputDecoration(
-                          labelText: l.auth_email_label,
-                          prefixIcon: const Icon(Icons.email_outlined),
-                          border: const OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.emailAddress,
-                        textInputAction: TextInputAction.next,
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) return l.auth_error_validation;
-                          if (!v.contains('@')) return l.auth_error_validation;
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Telefone (opcional)
-                      TextFormField(
-                        controller: _phoneController,
-                        decoration: InputDecoration(
-                          labelText: l.auth_phone_label,
-                          prefixIcon: const Icon(Icons.phone_outlined),
-                          border: const OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.phone,
-                        textInputAction: TextInputAction.next,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Senha
-                      TextFormField(
-                        controller: _passwordController,
-                        decoration: InputDecoration(
-                          labelText: l.auth_password_label,
-                          prefixIcon: const Icon(Icons.lock_outlined),
-                          border: const OutlineInputBorder(),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _obscurePassword
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined,
-                            ),
-                            onPressed: () => setState(
-                              () => _obscurePassword = !_obscurePassword,
-                            ),
-                          ),
-                        ),
-                        obscureText: _obscurePassword,
-                        textInputAction: TextInputAction.next,
-                        validator: (v) {
-                          if (v == null || v.isEmpty) return l.auth_error_validation;
-                          if (v.length < 8) return l.auth_error_weak_password;
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Confirmar senha
-                      TextFormField(
-                        controller: _confirmController,
-                        decoration: InputDecoration(
-                          labelText: l.auth_confirm_password_label,
-                          prefixIcon: const Icon(Icons.lock_outlined),
-                          border: const OutlineInputBorder(),
-                        ),
-                        obscureText: true,
-                        textInputAction: TextInputAction.next,
-                        validator: (v) {
-                          if (v == null || v.isEmpty) return l.auth_error_validation;
-                          if (v != _passwordController.text) {
-                            return l.auth_error_validation;
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Código de convite
-                      TextFormField(
-                        controller: _inviteController,
-                        decoration: InputDecoration(
-                          labelText: l.auth_invite_code_label,
-                          prefixIcon: const Icon(Icons.mail_outlined),
-                          border: const OutlineInputBorder(),
-                        ),
-                        textCapitalization: TextCapitalization.characters,
-                        textInputAction: TextInputAction.done,
-                        onFieldSubmitted: (_) => _signUp(),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? l.auth_error_validation : null,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Erro
-                      if (_error != null)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: Text(
-                            _errorMessage(_error!),
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.error,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-
-                      // Criar conta
-                      FilledButton(
-                        onPressed: _isLoading ? null : _signUp,
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Text(
-                          _isLoading ? l.auth_signing_up : l.auth_signup_button,
+                          l.auth_signup_subtitle,
+                          style: AppTypography.subheadline
+                              .copyWith(color: colors.secondaryLabel),
+                          textAlign: TextAlign.center,
                         ),
                       ),
                       const SizedBox(height: 8),
 
-                      TextButton(
+                      // Duas seções em vez de sete caixas soltas: no iOS os
+                      // formulários são cartões agrupados, e separar
+                      // "quem é você" de "como você entra" dá a pausa visual
+                      // que antes vinha do espaçamento entre os campos.
+                      CupertinoFormSection.insetGrouped(
+                        backgroundColor: colors.groupedBackground,
+                        decoration: BoxDecoration(
+                          color: colors.surface,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        children: [
+                          // Nome
+                          CupertinoTextFormFieldRow(
+                            controller: _nameController,
+                            prefix: Icon(
+                              CupertinoIcons.person,
+                              size: 20,
+                              color: colors.secondaryLabel,
+                            ),
+                            placeholder: l.auth_full_name_label,
+                            textCapitalization: TextCapitalization.words,
+                            textInputAction: TextInputAction.next,
+                            style: AppTypography.body
+                                .copyWith(color: colors.label),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? l.auth_error_validation
+                                : null,
+                          ),
+
+                          // E-mail
+                          CupertinoTextFormFieldRow(
+                            controller: _emailController,
+                            prefix: Icon(
+                              CupertinoIcons.mail,
+                              size: 20,
+                              color: colors.secondaryLabel,
+                            ),
+                            placeholder: l.auth_email_label,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            autocorrect: false,
+                            style: AppTypography.body
+                                .copyWith(color: colors.label),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return l.auth_error_validation;
+                              }
+                              if (!v.contains('@')) {
+                                return l.auth_error_validation;
+                              }
+                              return null;
+                            },
+                          ),
+
+                          // Telefone (opcional)
+                          CupertinoTextFormFieldRow(
+                            controller: _phoneController,
+                            prefix: Icon(
+                              CupertinoIcons.phone,
+                              size: 20,
+                              color: colors.secondaryLabel,
+                            ),
+                            placeholder: l.auth_phone_label,
+                            keyboardType: TextInputType.phone,
+                            textInputAction: TextInputAction.next,
+                            style: AppTypography.body
+                                .copyWith(color: colors.label),
+                          ),
+                        ],
+                      ),
+
+                      CupertinoFormSection.insetGrouped(
+                        backgroundColor: colors.groupedBackground,
+                        decoration: BoxDecoration(
+                          color: colors.surface,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        children: [
+                          // Senha
+                          CupertinoTextFormFieldRow(
+                            controller: _passwordController,
+                            prefix: Icon(
+                              CupertinoIcons.lock,
+                              size: 20,
+                              color: colors.secondaryLabel,
+                            ),
+                            placeholder: l.auth_password_label,
+                            obscureText: _obscurePassword,
+                            textInputAction: TextInputAction.next,
+                            style: AppTypography.body
+                                .copyWith(color: colors.label),
+                            validator: (v) {
+                              if (v == null || v.isEmpty) {
+                                return l.auth_error_validation;
+                              }
+                              if (v.length < 8) return l.auth_error_weak_password;
+                              return null;
+                            },
+                          ),
+
+                          // Confirmar senha
+                          CupertinoTextFormFieldRow(
+                            controller: _confirmController,
+                            prefix: Icon(
+                              CupertinoIcons.lock_rotation,
+                              size: 20,
+                              color: colors.secondaryLabel,
+                            ),
+                            placeholder: l.auth_confirm_password_label,
+                            obscureText: true,
+                            textInputAction: TextInputAction.next,
+                            style: AppTypography.body
+                                .copyWith(color: colors.label),
+                            validator: (v) {
+                              if (v == null || v.isEmpty) {
+                                return l.auth_error_validation;
+                              }
+                              if (v != _passwordController.text) {
+                                return l.auth_error_validation;
+                              }
+                              return null;
+                            },
+                          ),
+
+                          // Código de convite
+                          CupertinoTextFormFieldRow(
+                            controller: _inviteController,
+                            prefix: Icon(
+                              CupertinoIcons.ticket,
+                              size: 20,
+                              color: colors.secondaryLabel,
+                            ),
+                            placeholder: l.auth_invite_code_label,
+                            textCapitalization: TextCapitalization.characters,
+                            textInputAction: TextInputAction.done,
+                            autocorrect: false,
+                            onFieldSubmitted: (_) => _signUp(),
+                            style: AppTypography.body
+                                .copyWith(color: colors.label),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? l.auth_error_validation
+                                : null,
+                          ),
+                        ],
+                      ),
+
+                      // Mesma decisão do login: o "mostrar senha" sai de dentro
+                      // do campo, porque a linha do formulário do iOS não tem
+                      // espaço para um botão à direita sem brigar com a
+                      // mensagem de validação. Só afeta o campo Senha —
+                      // o de confirmação continua sempre oculto, como antes.
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 20),
+                          child: CupertinoButton(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            onPressed: () => setState(
+                              () => _obscurePassword = !_obscurePassword,
+                            ),
+                            child: Text(
+                              _obscurePassword
+                                  ? l.auth_password_show
+                                  : l.auth_password_hide,
+                              style: AppTypography.footnote
+                                  .copyWith(color: colors.tint),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Erro
+                      if (_error != null)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                          child: Text(
+                            _errorMessage(_error!),
+                            style: AppTypography.footnote
+                                .copyWith(color: colors.destructive),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+
+                      const SizedBox(height: 8),
+
+                      // Criar conta
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: CupertinoButton.filled(
+                            onPressed: _isLoading ? null : _signUp,
+                            child: Text(
+                              _isLoading
+                                  ? l.auth_signing_up
+                                  : l.auth_signup_button,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      CupertinoButton(
                         onPressed: () => context.go(Routes.login),
                         child: Text(l.auth_already_have_account),
                       ),
@@ -275,25 +356,35 @@ class _EmailConfirmationView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
 
     return Column(
       children: [
         const SizedBox(height: 48),
         Icon(
-          Icons.mark_email_read_outlined,
+          CupertinoIcons.envelope_badge,
           size: 64,
-          color: Theme.of(context).colorScheme.primary,
+          color: colors.tint,
         ),
         const SizedBox(height: 24),
-        Text(
-          l.auth_email_confirmation_required,
-          style: Theme.of(context).textTheme.bodyLarge,
-          textAlign: TextAlign.center,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Text(
+            l.auth_email_confirmation_required,
+            style: AppTypography.body.copyWith(color: colors.label),
+            textAlign: TextAlign.center,
+          ),
         ),
         const SizedBox(height: 24),
-        FilledButton(
-          onPressed: () => GoRouter.of(context).go(Routes.login),
-          child: Text(l.auth_login_button),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: SizedBox(
+            width: double.infinity,
+            child: CupertinoButton.filled(
+              onPressed: () => GoRouter.of(context).go(Routes.login),
+              child: Text(l.auth_login_button),
+            ),
+          ),
         ),
       ],
     );

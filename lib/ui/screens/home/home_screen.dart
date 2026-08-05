@@ -1,15 +1,19 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/home_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/navigation/app_router.dart';
+import 'package:veredas/ui/widgets/app_toast.dart';
+import 'package:veredas/ui/widgets/confirm_dialog.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
 import 'package:veredas/ui/widgets/section_header.dart';
@@ -18,45 +22,62 @@ import 'package:veredas/ui/widgets/section_header.dart';
 ///
 /// `ListView` com as seções na ordem do mockup (`TELAS.md` §1):
 /// 1. Aviso fixado (cartão em destaque)
-/// 2. Redes sociais (Row de IconButtons circulares)
-/// 3. Dados da Base (ExpansionTile)
+/// 2. Redes sociais (Row de botões circulares)
+/// 3. Dados da Base (linhas expansíveis)
 /// 4. Avisos anteriores (lista + "Ver tudo")
 ///
-/// FAB "Novo aviso" só aparece para admin.
+/// A ação "Novo aviso" só aparece para admin. No iOS ela mora no `trailing` da
+/// barra de navegação: o FAB é um padrão do Material Design e não tem
+/// equivalente na plataforma — a Apple põe a ação primária de uma lista no
+/// canto superior direito.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
     final isAdmin = ref.watch(isAdminProvider);
 
-    return Scaffold(
-      appBar: AppBar(title: Text(l.tab_inicio)),
-      floatingActionButton: isAdmin
-          ? FloatingActionButton(
-              // As 4 tabs ficam vivas ao mesmo tempo (StatefulShellRoute.
-              // indexedStack), então os 4 FABs coexistem na árvore. Sem uma
-              // tag única, todos usam a hero tag padrão e o HeroController
-              // aborta a transição ao achar tags duplicadas.
-              heroTag: 'fab-inicio',
-              onPressed: () => context.push(Routes.avisoNovo),
-              tooltip: l.home_announcement_new,
-              child: const Icon(Icons.add),
-            )
-          : null,
-      body: ListView(
-        children: [
-          // 1. Aviso fixado
-          const _PinnedAnnouncement(),
-          // 2. Redes sociais
-          const _SocialLinks(),
-          // 3. Dados da Base
-          const _BaseInfoSection(),
-          // 4. Avisos anteriores
-          const _RecentAnnouncements(),
-          const SizedBox(height: 80), // espaço para o FAB
-        ],
+    return CupertinoPageScaffold(
+      backgroundColor: colors.groupedBackground,
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(l.tab_inicio),
+        backgroundColor: colors.elevatedSurface,
+        // Sem `heroTag`: aquilo existia só para desambiguar os 4 FABs que
+        // coexistiam na árvore do StatefulShellRoute. Um botão de barra não
+        // participa de transição hero, então o problema deixa de existir.
+        trailing: isAdmin
+            ? Semantics(
+                // CupertinoButton não tem `tooltip`; a dica de acessibilidade
+                // vira label semântico, que é o que o VoiceOver lê.
+                label: l.home_announcement_new,
+                button: true,
+                child: CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  onPressed: () => context.push(Routes.avisoNovo),
+                  child: const Icon(CupertinoIcons.add),
+                ),
+              )
+            : null,
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: ListView(
+          children: const [
+            // 1. Aviso fixado
+            _PinnedAnnouncement(),
+            // 2. Redes sociais
+            _SocialLinks(),
+            // 3. Dados da Base
+            _BaseInfoSection(),
+            // 4. Avisos anteriores
+            _RecentAnnouncements(),
+            // Espaço para a tab bar não cobrir o último item.
+            SizedBox(height: 80),
+          ],
+        ),
       ),
     );
   }
@@ -72,6 +93,7 @@ class _PinnedAnnouncement extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
     final announcement = ref.watch(pinnedAnnouncementProvider);
 
     if (announcement == null) {
@@ -83,8 +105,14 @@ class _PinnedAnnouncement extends ConsumerWidget {
 
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Card(
-        elevation: 2,
+      // O `Card` do Material trazia elevação (sombra). No iOS o destaque de um
+      // cartão vem do contraste entre a superfície e o fundo agrupado, não de
+      // sombra — por isso só cor + canto arredondado.
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -92,12 +120,21 @@ class _PinnedAnnouncement extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor:
-                        Theme.of(context).colorScheme.primaryContainer,
+                  // Substitui o CircleAvatar (Material) por um círculo simples.
+                  Container(
+                    width: 40,
+                    height: 40,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: colors.tintContainer,
+                      shape: BoxShape.circle,
+                    ),
                     child: Icon(
-                      Icons.campaign,
-                      color: Theme.of(context).colorScheme.onPrimaryContainer,
+                      // CupertinoIcons não tem "megafone"; o sino é o símbolo
+                      // de aviso/notificação na iconografia da Apple.
+                      CupertinoIcons.bell_fill,
+                      size: 20,
+                      color: colors.onTintContainer,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -106,41 +143,31 @@ class _PinnedAnnouncement extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          announcement.authorName ??
-                              l.home_pinned_section,
-                          style: Theme.of(context).textTheme.labelMedium,
+                          announcement.authorName ?? l.home_pinned_section,
+                          style: AppTypography.footnoteEmphasis
+                              .copyWith(color: colors.label),
                         ),
                         Text(
                           timeago.format(
                             announcement.createdAt,
                             locale: 'pt_BR',
                           ),
-                          style: Theme.of(context).textTheme.bodySmall,
+                          style: AppTypography.footnote
+                              .copyWith(color: colors.secondaryLabel),
                         ),
                       ],
                     ),
                   ),
                   if (isAdmin)
-                    PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'edit') {
-                          context.push(
-                            '${Routes.avisoEditar}?id=${announcement.id}',
-                          );
-                        } else if (value == 'delete') {
-                          _confirmDelete(context, ref, announcement.id);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: 'edit',
-                          child: Text(l.home_announcement_edit),
-                        ),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Text(l.home_announcement_delete),
-                        ),
-                      ],
+                    CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      onPressed: () => _showActions(context, ref, announcement),
+                      child: Icon(
+                        CupertinoIcons.ellipsis,
+                        size: 20,
+                        color: colors.secondaryLabel,
+                      ),
                     ),
                 ],
               ),
@@ -149,13 +176,56 @@ class _PinnedAnnouncement extends ConsumerWidget {
                 const SizedBox(height: 12),
                 Text(
                   announcement.title!,
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: AppTypography.headline.copyWith(color: colors.label),
                 ),
               ],
               const SizedBox(height: 8),
-              Text(announcement.body),
+              Text(
+                announcement.body,
+                style: AppTypography.body.copyWith(color: colors.label),
+              ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  /// Menu de ações do aviso (era um `PopupMenuButton`).
+  ///
+  /// O menu suspenso ancorado no botão é padrão Material. No iOS a forma
+  /// equivalente para 2–3 ações é a *action sheet* que sobe da base, com o
+  /// "Cancelar" destacado embaixo. As opções e os callbacks são os mesmos.
+  Future<void> _showActions(
+    BuildContext context,
+    WidgetRef ref,
+    AnnouncementRow announcement,
+  ) async {
+    final l = AppLocalizations.of(context);
+
+    await showCupertinoModalPopup<void>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.of(sheetContext).pop();
+              context.push('${Routes.avisoEditar}?id=${announcement.id}');
+            },
+            child: Text(l.home_announcement_edit),
+          ),
+          CupertinoActionSheetAction(
+            isDestructiveAction: true,
+            onPressed: () {
+              Navigator.of(sheetContext).pop();
+              _confirmDelete(context, ref, announcement.id);
+            },
+            child: Text(l.home_announcement_delete),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          child: Text(l.action_cancel),
         ),
       ),
     );
@@ -167,33 +237,20 @@ class _PinnedAnnouncement extends ConsumerWidget {
     String id,
   ) async {
     final l = AppLocalizations.of(context);
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(l.home_announcement_delete),
-        content: Text(l.home_announcement_delete_confirm),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(l.action_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(l.home_announcement_delete),
-          ),
-        ],
-      ),
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: l.home_announcement_delete,
+      message: l.home_announcement_delete_confirm,
+      confirmLabel: l.home_announcement_delete,
     );
 
-    if (confirmed != true) return;
+    if (!confirmed) return;
 
     try {
       await ref.read(homeRepositoryProvider).deleteAnnouncement(id);
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        showAppToast(context, e.toString(), isError: true);
       }
     }
   }
@@ -245,17 +302,28 @@ class _SocialButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => _launch(context),
-      borderRadius: BorderRadius.circular(28),
-      child: Tooltip(
-        message: link.label ?? link.platform,
-        child: CircleAvatar(
-          radius: 24,
-          backgroundColor: Theme.of(context).colorScheme.secondaryContainer,
+    final colors = context.colors;
+
+    // O `Tooltip` sai: é um padrão de desktop/Material e no iOS não existe
+    // dica ao toque longo. O rótulo vira label semântico para o leitor de tela.
+    return Semantics(
+      label: link.label ?? link.platform,
+      button: true,
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        minimumSize: Size.zero,
+        onPressed: () => _launch(context),
+        child: Container(
+          width: 48,
+          height: 48,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: colors.tintContainer,
+            shape: BoxShape.circle,
+          ),
           child: Icon(
             _iconForPlatform(link.platform),
-            color: Theme.of(context).colorScheme.onSecondaryContainer,
+            color: colors.onTintContainer,
           ),
         ),
       ),
@@ -266,36 +334,33 @@ class _SocialButton extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final uri = Uri.tryParse(link.url);
     if (uri == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.home_link_open_error)),
-      );
+      showAppToast(context, l.home_link_open_error, isError: true);
       return;
     }
 
     final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(l.home_link_open_error)),
-      );
+      showAppToast(context, l.home_link_open_error, isError: true);
     }
   }
 
-  /// Ícone Material para a plataforma. Para marcas sem ícone nativo, usa
-  /// `Icons.link`. O `flutter_svg` com logos de marca seria mais fiel, mas
-  /// adiciona uma dependência só para isto — deixamos para quando o
-  /// solicitante pedir.
+  /// Ícone Cupertino para a plataforma. O conjunto da Apple não tem logos de
+  /// marca (nem Facebook, nem Instagram), então usamos o símbolo genérico mais
+  /// próximo da função de cada rede — câmera para Instagram, balão para
+  /// WhatsApp. O `flutter_svg` com os logos reais seria mais fiel, mas adiciona
+  /// uma dependência só para isto — deixamos para quando o solicitante pedir.
   IconData _iconForPlatform(String platform) {
     final p = platform.toLowerCase();
-    if (p.contains('instagram')) return Icons.camera_alt_outlined;
-    if (p.contains('facebook')) return Icons.facebook_outlined;
-    if (p.contains('whatsapp')) return Icons.chat_outlined;
-    if (p.contains('youtube')) return Icons.play_circle_outline;
-    if (p.contains('twitter') || p.contains('x')) return Icons.alternate_email;
-    if (p.contains('tiktok')) return Icons.music_note_outlined;
-    if (p.contains('spotify')) return Icons.graphic_eq_outlined;
-    if (p.contains('email') || p.contains('gmail')) return Icons.email_outlined;
-    if (p.contains('phone')) return Icons.phone_outlined;
-    return Icons.link;
+    if (p.contains('instagram')) return CupertinoIcons.camera;
+    if (p.contains('facebook')) return CupertinoIcons.person_2_fill;
+    if (p.contains('whatsapp')) return CupertinoIcons.chat_bubble_2;
+    if (p.contains('youtube')) return CupertinoIcons.play_circle;
+    if (p.contains('twitter') || p.contains('x')) return CupertinoIcons.at;
+    if (p.contains('tiktok')) return CupertinoIcons.music_note;
+    if (p.contains('spotify')) return CupertinoIcons.waveform;
+    if (p.contains('email') || p.contains('gmail')) return CupertinoIcons.mail;
+    if (p.contains('phone')) return CupertinoIcons.phone;
+    return CupertinoIcons.link;
   }
 }
 
@@ -322,14 +387,14 @@ class _BaseInfoSection extends ConsumerWidget {
           ),
           error: (_,_) => EmptyState(
             title: l.home_no_base_info,
-            icon: Icons.info_outline,
+            icon: CupertinoIcons.info_circle,
             compact: true,
           ),
           data: (data) {
             if (data.isEmpty) {
               return EmptyState(
                 title: l.home_no_base_info,
-                icon: Icons.info_outline,
+                icon: CupertinoIcons.info_circle,
                 compact: true,
               );
             }
@@ -345,62 +410,147 @@ class _BaseInfoSection extends ConsumerWidget {
   }
 }
 
-class _BaseInfoTile extends ConsumerWidget {
+/// Linha expansível dos dados da base.
+///
+/// O `ExpansionTile` é exclusivo do Material. Aqui a expansão é feita à mão: a
+/// linha inteira é tocável e a seta (`chevron_forward` → `chevron_down`) indica
+/// o estado, como nas listas de Ajustes do iOS. O corpo entra num
+/// `AnimatedCrossFade` para a transição não ser um salto seco.
+///
+/// Virou `StatefulWidget` só por causa disso — o "aberto/fechado" é estado de
+/// apresentação e não pertence a nenhum provider.
+class _BaseInfoTile extends ConsumerStatefulWidget {
   const _BaseInfoTile({required this.item, required this.isAdmin});
 
   final BaseInfoRow item;
   final bool isAdmin;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l = AppLocalizations.of(context);
+  ConsumerState<_BaseInfoTile> createState() => _BaseInfoTileState();
+}
 
-    return ExpansionTile(
-      title: Text(item.label),
-      trailing: isAdmin
-          ? IconButton(
-              icon: const Icon(Icons.edit_outlined, size: 20),
-              tooltip: l.home_base_info_edit,
-              onPressed: () => _showEditDialog(context, ref),
-            )
-          : null,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            // SelectableText permite copiar CNPJ/CEP/etc.
-            child: SelectableText(item.value),
+class _BaseInfoTileState extends ConsumerState<_BaseInfoTile> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final colors = context.colors;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          CupertinoListTile(
+            backgroundColor: const Color(0x00000000),
+            title: Text(
+              widget.item.label,
+              style: AppTypography.body.copyWith(color: colors.label),
+            ),
+            onTap: () => setState(() => _expanded = !_expanded),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.isAdmin)
+                  Semantics(
+                    label: l.home_base_info_edit,
+                    button: true,
+                    child: CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      onPressed: _showEditDialog,
+                      child: Icon(
+                        CupertinoIcons.pencil,
+                        size: 20,
+                        color: colors.tint,
+                      ),
+                    ),
+                  ),
+                const SizedBox(width: 8),
+                Icon(
+                  _expanded
+                      ? CupertinoIcons.chevron_down
+                      : CupertinoIcons.chevron_forward,
+                  size: 16,
+                  color: colors.tertiaryLabel,
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 200),
+            crossFadeState: _expanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
+            firstChild: const SizedBox(width: double.infinity),
+            secondChild: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Divider é Material; a régua fina do iOS é um traço de 0.5px.
+                Container(height: 0.5, color: colors.separator),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    // Seleção de texto para copiar CNPJ/CEP/etc. O
+                    // `SelectableText` mora no Material, então usamos o
+                    // `SelectableRegion` cru com as alças e o menu do iOS.
+                    child: SelectableRegion(
+                      selectionControls: cupertinoTextSelectionHandleControls,
+                      contextMenuBuilder: (context, state) =>
+                          CupertinoAdaptiveTextSelectionToolbar.buttonItems(
+                        buttonItems: state.contextMenuButtonItems,
+                        anchors: state.contextMenuAnchors,
+                      ),
+                      child: Text(
+                        widget.item.value,
+                        style: AppTypography.subheadline
+                            .copyWith(color: colors.secondaryLabel),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Future<void> _showEditDialog(BuildContext context, WidgetRef ref) async {
+  Future<void> _showEditDialog() async {
     final l = AppLocalizations.of(context);
-    final controller = TextEditingController(text: item.value);
+    final colors = context.colors;
+    final controller = TextEditingController(text: widget.item.value);
 
-    final result = await showDialog<String>(
+    // O iOS aceita campo de texto dentro de um alerta (é como o sistema pede
+    // senha de Wi-Fi), então o formato do diálogo se mantém.
+    final result = await showCupertinoDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => CupertinoAlertDialog(
         title: Text(l.home_base_info_edit_title),
-        content: TextField(
-          controller: controller,
-          decoration: InputDecoration(
-            labelText: l.home_base_info_value_label,
-            border: const OutlineInputBorder(),
+        content: Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: CupertinoTextField(
+            controller: controller,
+            placeholder: l.home_base_info_value_label,
+            maxLines: null,
+            autofocus: true,
+            style: AppTypography.body.copyWith(color: colors.label),
           ),
-          maxLines: null,
-          autofocus: true,
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+          CupertinoDialogAction(
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: Text(l.action_cancel),
           ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(controller.text),
+          CupertinoDialogAction(
+            isDefaultAction: true,
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
             child: Text(l.action_save),
           ),
         ],
@@ -409,18 +559,16 @@ class _BaseInfoTile extends ConsumerWidget {
 
     controller.dispose();
 
-    if (result == null || result == item.value) return;
+    if (result == null || result == widget.item.value) return;
 
     try {
       await ref.read(homeRepositoryProvider).updateBaseInfo(
-            id: item.id,
+            id: widget.item.id,
             value: result,
           );
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+      if (mounted) {
+        showAppToast(context, e.toString(), isError: true);
       }
     }
   }
@@ -436,6 +584,7 @@ class _RecentAnnouncements extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
     final announcements = ref.watch(recentAnnouncementsProvider);
 
     return Column(
@@ -446,17 +595,37 @@ class _RecentAnnouncements extends ConsumerWidget {
           onAction: () {
             // TODO: navegar para lista completa de avisos (rota /avisos)
             // Por ora, não há tela de lista — o editor de cada aviso é
-            // acessível pelo popup no aviso fixado.
+            // acessível pela action sheet no aviso fixado.
           },
         ),
         if (announcements.isEmpty)
           EmptyState(
             title: l.home_no_announcements,
-            icon: Icons.campaign_outlined,
+            icon: CupertinoIcons.bell,
             compact: true,
           )
         else
-          ...announcements.map((a) => _AnnouncementTile(announcement: a)),
+          // Os avisos ficam num único cartão, com as células separadas por um
+          // traço fino: é a lista agrupada (`insetGrouped`) do iOS.
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: colors.surface,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                for (var i = 0; i < announcements.length; i++) ...[
+                  if (i > 0)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 16),
+                      child: Container(height: 0.5, color: colors.separator),
+                    ),
+                  _AnnouncementTile(announcement: announcements[i]),
+                ],
+              ],
+            ),
+          ),
       ],
     );
   }
@@ -469,16 +638,28 @@ class _AnnouncementTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
+    final colors = context.colors;
+
+    return CupertinoListTile(
+      // O cartão em volta já dá a cor; a célula fica transparente para o canto
+      // arredondado do container não ser tapado por um retângulo opaco.
+      backgroundColor: const Color(0x00000000),
       title: Text(
         announcement.title?.isNotEmpty == true
             ? announcement.title!
             : announcement.body,
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
+        style: AppTypography.body.copyWith(color: colors.label),
       ),
       subtitle: Text(
         timeago.format(announcement.createdAt, locale: 'pt_BR'),
+        style: AppTypography.footnote.copyWith(color: colors.secondaryLabel),
+      ),
+      trailing: Icon(
+        CupertinoIcons.chevron_forward,
+        size: 16,
+        color: colors.tertiaryLabel,
       ),
       onTap: () {
         // Detalhe do aviso: por ora, abre o editor em modo visualização.

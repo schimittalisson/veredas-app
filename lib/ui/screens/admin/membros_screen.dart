@@ -1,14 +1,18 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/data/models/app_role.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/admin_providers.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
+import 'package:veredas/ui/widgets/app_toast.dart';
+import 'package:veredas/ui/widgets/confirm_dialog.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 
 /// Tela de Membros — lista de perfis com busca e ações administrativas.
@@ -44,6 +48,7 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
     final profiles = ref.watch(allProfilesProvider).value ?? const [];
     final pending = ref.watch(pendingProfilesProvider);
     final currentUserId = ref.watch(currentUserIdProvider);
@@ -59,85 +64,104 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
     final activeAdmins =
         profiles.where((p) => p.role == AppRole.admin && p.isApproved).length;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l.admin_members),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(56),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: TextField(
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-              decoration: InputDecoration(
-                hintText: l.admin_members_search,
-                prefixIcon: const Icon(Icons.search, size: 20),
-                suffixIcon: _search.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 20),
-                        onPressed: () {
-                          _searchController.clear();
-                          _onSearchChanged('');
-                        },
-                      )
-                    : null,
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
-                ),
-                filled: true,
+    return CupertinoPageScaffold(
+      backgroundColor: colors.groupedBackground,
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(l.admin_members),
+        backgroundColor: colors.elevatedSurface,
+      ),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // A `CupertinoNavigationBar` não tem o slot `bottom` da `AppBar`,
+            // então a busca passa a ser a primeira linha do corpo — que é onde
+            // o iOS a coloca de qualquer forma.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: CupertinoSearchTextField(
+                controller: _searchController,
+                onChanged: _onSearchChanged,
+                placeholder: l.admin_members_search,
+                // O botão de limpar já vem embutido e dispara `onChanged('')`,
+                // então o `suffixIcon` manual do Material saiu.
+                style: AppTypography.body.copyWith(color: colors.label),
+                backgroundColor: colors.fill,
               ),
             ),
-          ),
+            Expanded(
+              child: profiles.isEmpty
+                  ? EmptyState(
+                      title: l.admin_no_members,
+                      icon: CupertinoIcons.person_2,
+                    )
+                  : ListView(
+                      children: [
+                        // Seção de pendentes no topo.
+                        if (pending.isNotEmpty && _search.isEmpty)
+                          _MemberSection(
+                            header: l.admin_pending_section,
+                            profiles: pending,
+                            currentUserId: currentUserId,
+                            activeAdmins: activeAdmins,
+                          ),
+                        // Lista de todos os membros. Uma segunda seção
+                        // agrupada separa visualmente os dois blocos — é o que
+                        // o `Divider` fazia antes.
+                        if (filtered.isNotEmpty)
+                          _MemberSection(
+                            profiles: filtered,
+                            currentUserId: currentUserId,
+                            activeAdmins: activeAdmins,
+                          ),
+                      ],
+                    ),
+            ),
+          ],
         ),
       ),
-      body: profiles.isEmpty
-          ? EmptyState(
-              title: l.admin_no_members,
-              icon: Icons.people_outline,
-            )
-          : ListView(
-              children: [
-                // Seção de pendentes no topo.
-                if (pending.isNotEmpty && _search.isEmpty) ...[
-                  _SectionHeader(title: l.admin_pending_section),
-                  ...pending.map((p) => _MemberTile(
-                        profile: p,
-                        isSelf: p.id == currentUserId,
-                        activeAdmins: activeAdmins,
-                      )),
-                  const Divider(),
-                ],
-                // Lista de todos os membros.
-                ...filtered.map((p) => _MemberTile(
-                      profile: p,
-                      isSelf: p.id == currentUserId,
-                      activeAdmins: activeAdmins,
-                    )),
-              ],
-            ),
     );
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
+/// Bloco de membros dentro de um cartão arredondado.
+class _MemberSection extends StatelessWidget {
+  const _MemberSection({
+    required this.profiles,
+    required this.currentUserId,
+    required this.activeAdmins,
+    this.header,
+  });
 
-  final String title;
+  final String? header;
+  final List<ProfileRow> profiles;
+  final String? currentUserId;
+  final int activeAdmins;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-      child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+    final colors = context.colors;
+
+    return CupertinoListSection.insetGrouped(
+      backgroundColor: colors.groupedBackground,
+      separatorColor: colors.separator,
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(12),
       ),
+      header: header == null
+          ? null
+          : Text(
+              header!,
+              style: AppTypography.sectionHeader.copyWith(color: colors.tint),
+            ),
+      children: profiles
+          .map((p) => _MemberTile(
+                profile: p,
+                isSelf: p.id == currentUserId,
+                activeAdmins: activeAdmins,
+              ))
+          .toList(),
     );
   }
 }
@@ -156,84 +180,118 @@ class _MemberTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
-    final theme = Theme.of(context);
+    final colors = context.colors;
 
     final isAdmin = profile.role == AppRole.admin;
     // Proteção: não deixar o admin rebaixar/revogar a si mesmo se for o
     // único admin ativo. Isto trancaria a base fora da administração.
     final selfProtection = isSelf && isAdmin && activeAdmins <= 1;
 
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: theme.colorScheme.primaryContainer,
-        child: Text(
-          _initials(profile.fullName),
-          style: TextStyle(color: theme.colorScheme.onPrimaryContainer),
-        ),
-      ),
+    return CupertinoListTile(
+      leading: _Avatar(name: profile.fullName),
       title: Row(
         children: [
-          Text(profile.fullName),
+          Flexible(
+            child: Text(
+              profile.fullName,
+              overflow: TextOverflow.ellipsis,
+              style: AppTypography.body.copyWith(color: colors.label),
+            ),
+          ),
           if (!profile.isApproved) ...[
             const SizedBox(width: 8),
-            Chip(
-              label: Text(
-                l.admin_pending_badge,
-                style: TextStyle(
-                  fontSize: 10,
-                  color: theme.colorScheme.onPrimary,
-                ),
-              ),
-              backgroundColor: theme.colorScheme.primary,
-              visualDensity: VisualDensity.compact,
-              padding: EdgeInsets.zero,
+            _Badge(
+              label: l.admin_pending_badge,
+              background: colors.tint,
+              foreground: colors.onTint,
             ),
           ],
         ],
       ),
-      subtitle: Text(profile.email ?? ''),
+      subtitle: Text(
+        profile.email ?? '',
+        style: AppTypography.footnote.copyWith(color: colors.secondaryLabel),
+      ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Chip(
-            label: Text(
-              isAdmin ? l.admin_role_admin : l.admin_role_obreiro,
-              style: const TextStyle(fontSize: 11),
-            ),
-            visualDensity: VisualDensity.compact,
+          _Badge(
+            label: isAdmin ? l.admin_role_admin : l.admin_role_obreiro,
+            background: colors.fill,
+            foreground: colors.secondaryLabel,
           ),
-          PopupMenuButton<String>(
-            onSelected: (value) => _handleAction(context, ref, value),
-            itemBuilder: (context) => [
-              if (!profile.isApproved)
-                PopupMenuItem(
-                  value: 'approve',
-                  child: Text(l.admin_action_approve),
-                ),
-              if (profile.isApproved)
-                PopupMenuItem(
-                  value: 'revoke',
-                  child: Text(l.admin_action_revoke),
-                ),
-              if (!isAdmin)
-                PopupMenuItem(
-                  value: 'promote',
-                  child: Text(l.admin_action_promote),
-                ),
-              if (isAdmin && !selfProtection)
-                PopupMenuItem(
-                  value: 'demote',
-                  child: Text(l.admin_action_demote),
-                ),
-              PopupMenuItem(
-                value: 'remove',
-                child: Text(l.admin_action_remove),
-              ),
-            ],
+          // O iOS não tem menu suspenso ancorado no botão: o equivalente é a
+          // folha de ações que sobe da base da tela.
+          CupertinoButton(
+            padding: const EdgeInsets.only(left: 8),
+            minimumSize: Size.zero,
+            onPressed: () => _showActions(context, ref, selfProtection),
+            child: Icon(
+              CupertinoIcons.ellipsis,
+              size: 20,
+              color: colors.secondaryLabel,
+            ),
           ),
         ],
       ),
     );
+  }
+
+  /// Folha de ações no lugar do antigo `PopupMenuButton`.
+  ///
+  /// As condições de exibição de cada item são exatamente as de antes; só a
+  /// apresentação mudou.
+  Future<void> _showActions(
+    BuildContext context,
+    WidgetRef ref,
+    bool selfProtection,
+  ) async {
+    final l = AppLocalizations.of(context);
+    final isAdmin = profile.role == AppRole.admin;
+
+    final action = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        title: Text(profile.fullName),
+        actions: [
+          if (!profile.isApproved)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(sheetContext).pop('approve'),
+              child: Text(l.admin_action_approve),
+            ),
+          if (profile.isApproved)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(sheetContext).pop('revoke'),
+              isDestructiveAction: true,
+              child: Text(l.admin_action_revoke),
+            ),
+          if (!isAdmin)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(sheetContext).pop('promote'),
+              child: Text(l.admin_action_promote),
+            ),
+          if (isAdmin && !selfProtection)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(sheetContext).pop('demote'),
+              child: Text(l.admin_action_demote),
+            ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(sheetContext).pop('remove'),
+            isDestructiveAction: true,
+            child: Text(l.admin_action_remove),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          isDefaultAction: true,
+          child: Text(l.action_cancel),
+        ),
+      ),
+    );
+
+    if (action == null) return;
+    if (!context.mounted) return;
+    _handleAction(context, ref, action);
   }
 
   void _handleAction(BuildContext context, WidgetRef ref, String action) {
@@ -244,9 +302,7 @@ class _MemberTile extends ConsumerWidget {
 
     if (action == 'demote' || action == 'revoke') {
       if (selfProtection) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.admin_action_self_protection)),
-        );
+        showAppToast(context, l.admin_action_self_protection, isError: true);
         return;
       }
     }
@@ -270,25 +326,17 @@ class _MemberTile extends ConsumerWidget {
     String action,
     String actionLabel,
   ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(actionLabel),
-        content: Text('${profile.fullName}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(AppLocalizations.of(context).action_cancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(actionLabel),
-          ),
-        ],
-      ),
+    // `ConfirmDialog` já é o `CupertinoAlertDialog` padrão do app; marcar
+    // remover/revogar como destrutivo pinta a confirmação de vermelho.
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: actionLabel,
+      message: '${profile.fullName}?',
+      confirmLabel: actionLabel,
+      isDestructive: action == 'remove' || action == 'revoke',
     );
 
-    if (confirmed != true) return;
+    if (!confirmed) return;
 
     final adminService = ref.read(adminServiceProvider);
     try {
@@ -310,18 +358,77 @@ class _MemberTile extends ConsumerWidget {
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        showAppToast(context, e.toString(), isError: true);
       }
     }
   }
+}
 
-  String _initials(String name) {
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.isEmpty) return '?';
-    final first = parts.first.substring(0, 1);
-    if (parts.length == 1) return first.toUpperCase();
-    return (first + parts.last.substring(0, 1)).toUpperCase();
+/// Círculo com as iniciais — o `CircleAvatar` é do Material.
+class _Avatar extends StatelessWidget {
+  const _Avatar({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    // 28px é o `leadingSize` padrão do CupertinoListTile — sair dele
+    // desalinharia os separadores da seção.
+    return Container(
+      width: 28,
+      height: 28,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: colors.tintContainer,
+        shape: BoxShape.circle,
+      ),
+      child: Text(
+        _initials(name),
+        style: AppTypography.caption.copyWith(
+          color: colors.onTintContainer,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
+}
+
+/// Etiqueta arredondada de papel/estado — substitui o `Chip` do Material.
+class _Badge extends StatelessWidget {
+  const _Badge({
+    required this.label,
+    required this.background,
+    required this.foreground,
+  });
+
+  final String label;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        child: Text(
+          label,
+          style: AppTypography.caption.copyWith(color: foreground),
+        ),
+      ),
+    );
+  }
+}
+
+String _initials(String name) {
+  final parts = name.trim().split(RegExp(r'\s+'));
+  if (parts.isEmpty) return '?';
+  final first = parts.first.substring(0, 1);
+  if (parts.length == 1) return first.toUpperCase();
+  return (first + parts.last.substring(0, 1)).toUpperCase();
 }

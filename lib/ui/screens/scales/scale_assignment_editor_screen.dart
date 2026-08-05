@@ -1,10 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/admin_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
+import 'package:veredas/ui/widgets/app_toast.dart';
 
 /// Editor de atribuição de escala — cria ou edita.
 ///
@@ -50,6 +53,7 @@ class _ScaleAssignmentEditorScreenState
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
 
     if (_isEditing && !_loaded) {
       _loadExisting();
@@ -64,89 +68,109 @@ class _ScaleAssignmentEditorScreenState
     // Obreiros aprovados para selecionar o atribuído.
     final profiles = ref.watch(approvedProfilesProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? l.action_edit : l.scales_new_assignment),
+    // Mesma lista do antigo dropdown: o "—" na frente é a opção "sem obreiro
+    // vinculado", usada quando o nome é digitado à mão logo abaixo.
+    final assigneeIds = <String?>[null, ...profiles.map((p) => p.id)];
+    final assigneeLabels = <String?, String>{
+      null: '—',
+      for (final p in profiles) p.id: p.fullName,
+    };
+
+    // Salvar mora no `trailing` da barra — ver a nota em
+    // `announcement_editor_screen.dart` sobre por que o botão do fim saiu.
+    return CupertinoPageScaffold(
+      backgroundColor: colors.groupedBackground,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: colors.elevatedSurface,
+        middle: Text(_isEditing ? l.action_edit : l.scales_new_assignment),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const CupertinoActivityIndicator()
+              : Text(l.action_save),
+        ),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            ListTile(
-              leading: const Icon(Icons.calendar_today),
-              title: Text(l.scales_assignment_date),
-              subtitle: Text(_formatDate(_date)),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _pickDate(context),
-            ),
-            const SizedBox(height: 8),
-            if (slots.isNotEmpty)
-              DropdownButtonFormField<String>(
-                initialValue: _slot,
-                decoration: InputDecoration(
-                  labelText: l.scales_assignment_slot,
-                  border: const OutlineInputBorder(),
+      child: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              CupertinoFormSection.insetGrouped(
+                backgroundColor: colors.groupedBackground,
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                items: slots
-                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                    .toList(),
-                onChanged: (v) => setState(() => _slot = v),
+                children: [
+                  _ValueRow(
+                    label: l.scales_assignment_date,
+                    value: _formatDate(_date),
+                    onTap: _pickDate,
+                  ),
+                  if (slots.isNotEmpty)
+                    _ValueRow(
+                      label: l.scales_assignment_slot,
+                      value: _slot ?? '—',
+                      onTap: () => _pickSlot(slots),
+                    ),
+                  CupertinoTextFormFieldRow(
+                    controller: _taskController,
+                    placeholder: l.scales_assignment_task,
+                    style: AppTypography.body.copyWith(color: colors.label),
+                  ),
+                ],
               ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _taskController,
-              decoration: InputDecoration(
-                labelText: l.scales_assignment_task,
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            // Seleção de obreiro: dropdown dos aprovados.
-            DropdownButtonFormField<String>(
-              initialValue: _assigneeId,
-              decoration: InputDecoration(
-                labelText: l.scales_assignment_assignee,
-                border: const OutlineInputBorder(),
-              ),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('—')),
-                ...profiles.map(
-                  (p) => DropdownMenuItem(value: p.id, child: Text(p.fullName)),
+
+              CupertinoFormSection.insetGrouped(
+                backgroundColor: colors.groupedBackground,
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-              ],
-              onChanged: (v) => setState(() => _assigneeId = v),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _assigneeNameController,
-              decoration: InputDecoration(
-                labelText: l.scales_assignment_assignee_name,
-                border: const OutlineInputBorder(),
-                helperText: 'Use se a pessoa não tem conta no app',
+                // O `helperText` do campo Material vira o rodapé da seção: é
+                // onde o iOS coloca a explicação de um grupo de células.
+                // TODO l10n: scales_assignment_assignee_name_helper
+                footer: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    'Use se a pessoa não tem conta no app',
+                    style: AppTypography.footnote
+                        .copyWith(color: colors.secondaryLabel),
+                  ),
+                ),
+                children: [
+                  // Seleção de obreiro: roda com os aprovados.
+                  _ValueRow(
+                    label: l.scales_assignment_assignee,
+                    value: assigneeLabels[_assigneeId] ?? '—',
+                    onTap: () => _pickAssignee(assigneeIds, assigneeLabels),
+                  ),
+                  CupertinoTextFormFieldRow(
+                    controller: _assigneeNameController,
+                    placeholder: l.scales_assignment_assignee_name,
+                    style: AppTypography.body.copyWith(color: colors.label),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _notesController,
-              decoration: InputDecoration(
-                labelText: l.scales_assignment_notes,
-                border: const OutlineInputBorder(),
+
+              CupertinoFormSection.insetGrouped(
+                backgroundColor: colors.groupedBackground,
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                children: [
+                  CupertinoTextFormFieldRow(
+                    controller: _notesController,
+                    placeholder: l.scales_assignment_notes,
+                    maxLines: 3,
+                    style: AppTypography.body.copyWith(color: colors.label),
+                  ),
+                ],
               ),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(l.action_save),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -168,16 +192,108 @@ class _ScaleAssignmentEditorScreenState
     }
   }
 
-  Future<void> _pickDate(BuildContext context) async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _date,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
+  /// Roda de data no lugar do `showDatePicker` — o calendário em grade é um
+  /// padrão do Material; o iOS resolve datas com rolagem.
+  ///
+  /// A janela (1 ano atrás, 2 anos à frente) é a mesma de antes, e o valor só
+  /// é aplicado se o usuário confirmar.
+  Future<void> _pickDate() async {
+    var picked = DateTime(_date.year, _date.month, _date.day);
+    final confirmed = await _showPickerSheet(
+      child: CupertinoDatePicker(
+        mode: CupertinoDatePickerMode.date,
+        initialDateTime: _date,
+        minimumDate: DateTime.now().subtract(const Duration(days: 365)),
+        maximumDate: DateTime.now().add(const Duration(days: 365 * 2)),
+        onDateTimeChanged: (v) => picked = v,
+      ),
+      height: 260,
     );
-    if (picked != null && mounted) {
+    if (confirmed && mounted) {
       setState(() => _date = picked);
     }
+  }
+
+  /// Slot do tipo de escala. Lista de itens preservada do dropdown original.
+  Future<void> _pickSlot(List<String> slots) async {
+    var selected = _slot ?? slots.first;
+    final confirmed = await _showPickerSheet(
+      child: CupertinoPicker(
+        magnification: 1.1,
+        squeeze: 1.2,
+        itemExtent: 32,
+        scrollController: FixedExtentScrollController(
+          initialItem: _slot == null
+              ? 0
+              : slots.indexOf(_slot!).clamp(0, slots.length - 1),
+        ),
+        onSelectedItemChanged: (i) => selected = slots[i],
+        children: [for (final s in slots) Center(child: Text(s))],
+      ),
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _slot = selected);
+  }
+
+  /// Obreiro atribuído. O primeiro item continua sendo "nenhum" (`null`).
+  Future<void> _pickAssignee(
+    List<String?> ids,
+    Map<String?, String> labels,
+  ) async {
+    var selected = _assigneeId;
+    final confirmed = await _showPickerSheet(
+      child: CupertinoPicker(
+        magnification: 1.1,
+        squeeze: 1.2,
+        itemExtent: 32,
+        scrollController: FixedExtentScrollController(
+          initialItem: ids.indexOf(_assigneeId).clamp(0, ids.length - 1),
+        ),
+        onSelectedItemChanged: (i) => selected = ids[i],
+        children: [
+          for (final id in ids) Center(child: Text(labels[id] ?? '—')),
+        ],
+      ),
+    );
+    if (!confirmed || !mounted) return;
+    setState(() => _assigneeId = selected);
+  }
+
+  /// Folha modal padrão dos seletores: altura fixa, fundo de cartão e um botão
+  /// de confirmar. Sem o confirmar, girar a roda já aplicaria o valor — o que
+  /// torna impossível desistir da alteração.
+  Future<bool> _showPickerSheet({
+    required Widget child,
+    double height = 260,
+  }) async {
+    final colors = context.colors;
+    final l = AppLocalizations.of(context);
+
+    final result = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (sheetContext) => Container(
+        height: height,
+        color: colors.surface,
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: CupertinoButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(true),
+                  // TODO l10n: action_done ("Pronto") — não existe no .arb,
+                  // action_save é o rótulo mais próximo.
+                  child: Text(l.action_save),
+                ),
+              ),
+              Expanded(child: child),
+            ],
+          ),
+        ),
+      ),
+    );
+    return result ?? false;
   }
 
   String _formatDate(DateTime dt) {
@@ -189,8 +305,11 @@ class _ScaleAssignmentEditorScreenState
     // Valida: precisa de assigneeId OU assigneeName.
     if (_assigneeId == null &&
         _assigneeNameController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione um obreiro ou digite um nome.')),
+      // TODO l10n: scales_assignment_assignee_required
+      showAppToast(
+        context,
+        'Selecione um obreiro ou digite um nome.',
+        isError: true,
       );
       return;
     }
@@ -236,18 +355,65 @@ class _ScaleAssignmentEditorScreenState
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.scales_assignment_saved)),
-        );
+        showAppToast(context, l.scales_assignment_saved);
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        showAppToast(context, e.toString(), isError: true);
         setState(() => _saving = false);
       }
     }
+  }
+}
+
+/// Linha de formulário que mostra um valor e abre um seletor ao ser tocada.
+///
+/// Substitui o `ListTile` com `trailing: Icon(chevron_right)`: dentro de uma
+/// `CupertinoFormSection` a célula precisa ser um `CupertinoFormRow`, senão os
+/// separadores e o recuo do grupo não se aplicam.
+class _ValueRow extends StatelessWidget {
+  const _ValueRow({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return CupertinoFormRow(
+      prefix: Text(
+        label,
+        style: AppTypography.body.copyWith(color: colors.label),
+      ),
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        onPressed: onTap,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                value,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    AppTypography.body.copyWith(color: colors.secondaryLabel),
+              ),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              CupertinoIcons.chevron_right,
+              size: 16,
+              color: colors.tertiaryLabel,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

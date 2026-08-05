@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/providers/auth_providers.dart';
 
 /// Tela de splash. Mostra a logo brevemente enquanto resolve a sessão.
@@ -16,8 +17,9 @@ class SplashScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
 
-    return Scaffold(
-      body: Center(
+    return CupertinoPageScaffold(
+      backgroundColor: context.colors.groupedBackground,
+      child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -31,7 +33,7 @@ class SplashScreen extends ConsumerWidget {
             // Só mostra o spinner se o auth ainda não resolveu. Quando
             // resolve, o redirect já mandou para a próxima tela.
             if (authState.isLoading)
-              const CircularProgressIndicator(),
+              const CupertinoActivityIndicator(radius: 14),
           ],
         ),
       ),

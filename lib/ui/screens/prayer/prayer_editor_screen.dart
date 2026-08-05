@@ -1,10 +1,13 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
+import 'package:veredas/ui/widgets/app_toast.dart';
 
 /// Editor de pedido de oração — cria ou edita.
 class PrayerEditorScreen extends ConsumerStatefulWidget {
@@ -37,71 +40,87 @@ class _PrayerEditorScreenState extends ConsumerState<PrayerEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
 
     if (_isEditing && !_loaded) {
       _loadExisting();
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? l.prayer_edit : l.prayer_new),
+    // Salvar mora no `trailing` da barra — ver a nota em
+    // `announcement_editor_screen.dart` sobre por que o botão do fim saiu.
+    return CupertinoPageScaffold(
+      backgroundColor: colors.groupedBackground,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: colors.elevatedSurface,
+        middle: Text(_isEditing ? l.prayer_edit : l.prayer_new),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const CupertinoActivityIndicator()
+              : Text(l.action_save),
+        ),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            TextFormField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                labelText: l.prayer_title_label,
-                border: const OutlineInputBorder(),
+      child: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              CupertinoFormSection.insetGrouped(
+                backgroundColor: colors.groupedBackground,
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                children: [
+                  CupertinoTextFormFieldRow(
+                    controller: _titleController,
+                    placeholder: l.prayer_title_label,
+                    style: AppTypography.body.copyWith(color: colors.label),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return l.prayer_title_label;
+                      }
+                      return null;
+                    },
+                  ),
+                  CupertinoTextFormFieldRow(
+                    controller: _bodyController,
+                    placeholder: l.prayer_body_label,
+                    maxLines: 8,
+                    style: AppTypography.body.copyWith(color: colors.label),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return l.prayer_body_label;
+                      }
+                      return null;
+                    },
+                  ),
+                  // O subtítulo do antigo `SwitchListTile` vira o `helper` da
+                  // linha: é o slot que o iOS reserva para texto explicativo
+                  // abaixo do controle, sem virar uma segunda célula.
+                  CupertinoFormRow(
+                    prefix: Text(
+                      l.prayer_anonymous,
+                      style: AppTypography.body.copyWith(color: colors.label),
+                    ),
+                    helper: Text(
+                      // TODO l10n: prayer_anonymous_on / prayer_anonymous_off
+                      _isAnonymous
+                          ? 'Seu nome não será exibido'
+                          : 'Seu nome será exibido',
+                      style: AppTypography.footnote
+                          .copyWith(color: colors.secondaryLabel),
+                    ),
+                    child: CupertinoSwitch(
+                      value: _isAnonymous,
+                      onChanged: (v) => setState(() => _isAnonymous = v),
+                    ),
+                  ),
+                ],
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return l.prayer_title_label;
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _bodyController,
-              decoration: InputDecoration(
-                labelText: l.prayer_body_label,
-                border: const OutlineInputBorder(),
-              ),
-              maxLines: 8,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return l.prayer_body_label;
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            SwitchListTile(
-              title: Text(l.prayer_anonymous),
-              subtitle: Text(
-                _isAnonymous
-                    ? 'Seu nome não será exibido'
-                    : 'Seu nome será exibido',
-              ),
-              value: _isAnonymous,
-              onChanged: (v) => setState(() => _isAnonymous = v),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(l.action_save),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -150,16 +169,12 @@ class _PrayerEditorScreenState extends ConsumerState<PrayerEditorScreen> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.prayer_saved)),
-        );
+        showAppToast(context, l.prayer_saved);
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        showAppToast(context, e.toString(), isError: true);
         setState(() => _saving = false);
       }
     }

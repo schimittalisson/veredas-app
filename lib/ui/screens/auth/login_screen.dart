@@ -1,11 +1,14 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:veredas/core/error/app_exception.dart';
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/ui/navigation/app_router.dart';
+import 'package:veredas/ui/widgets/app_toast.dart';
 
 /// Tela de login.
 ///
@@ -73,15 +76,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await ref.read(authActionsProvider.notifier).resendEmailConfirmation(email);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(AppLocalizations.of(context).auth_reset_email_sent)),
-        );
+        showAppToast(context, AppLocalizations.of(context).auth_reset_email_sent);
       }
     } on AppException catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(_errorMessage(e.code))),
-        );
+        showAppToast(context, _errorMessage(e.code), isError: true);
       }
     }
   }
@@ -105,131 +104,149 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
 
-    return Scaffold(
-      body: SafeArea(
+    return CupertinoPageScaffold(
+      backgroundColor: colors.groupedBackground,
+      child: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.symmetric(vertical: 24),
             child: Form(
               key: _formKey,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Logo / ícone
-                  Icon(
-                    Icons.wb_shade,
-                    size: 64,
-                    color: Theme.of(context).colorScheme.primary,
+                  Image.asset(
+                    'assets/images/logo.jpg',
+                    width: 96,
+                    height: 96,
+                    fit: BoxFit.contain,
                   ),
                   const SizedBox(height: 16),
                   Text(
                     l.auth_login_subtitle,
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: AppTypography.headline.copyWith(color: colors.label),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
 
-                  // E-mail
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: InputDecoration(
-                      labelText: l.auth_email_label,
-                      prefixIcon: const Icon(Icons.email_outlined),
-                      border: const OutlineInputBorder(),
+                  // Campos agrupados: é como o iOS apresenta formulários
+                  // curtos — um cartão arredondado com as linhas separadas
+                  // por um traço fino, em vez de caixas independentes.
+                  CupertinoFormSection.insetGrouped(
+                    backgroundColor: colors.groupedBackground,
+                    decoration: BoxDecoration(
+                      color: colors.surface,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return l.auth_error_validation;
-                      }
-                      if (!value.contains('@')) {
-                        return l.auth_error_validation;
-                      }
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Senha
-                  TextFormField(
-                    controller: _passwordController,
-                    decoration: InputDecoration(
-                      labelText: l.auth_password_label,
-                      prefixIcon: const Icon(Icons.lock_outlined),
-                      border: const OutlineInputBorder(),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_outlined
-                              : Icons.visibility_off_outlined,
+                    children: [
+                      CupertinoTextFormFieldRow(
+                        controller: _emailController,
+                        prefix: Icon(
+                          CupertinoIcons.mail,
+                          size: 20,
+                          color: colors.secondaryLabel,
                         ),
+                        placeholder: l.auth_email_label,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        autocorrect: false,
+                        style: AppTypography.body.copyWith(color: colors.label),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return l.auth_error_validation;
+                          }
+                          if (!value.contains('@')) {
+                            return l.auth_error_validation;
+                          }
+                          return null;
+                        },
+                      ),
+                      CupertinoTextFormFieldRow(
+                        controller: _passwordController,
+                        prefix: Icon(
+                          CupertinoIcons.lock,
+                          size: 20,
+                          color: colors.secondaryLabel,
+                        ),
+                        placeholder: l.auth_password_label,
+                        obscureText: _obscurePassword,
+                        textInputAction: TextInputAction.done,
+                        onFieldSubmitted: (_) => _signIn(),
+                        style: AppTypography.body.copyWith(color: colors.label),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return l.auth_error_validation;
+                          }
+                          return null;
+                        },
+                      ),
+                    ],
+                  ),
+
+                  // O olho de "mostrar senha" sai de dentro do campo: no iOS
+                  // a linha do formulário não comporta um botão à direita sem
+                  // competir com a mensagem de validação.
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 20),
+                      child: CupertinoButton(
+                        padding: EdgeInsets.zero,
+                        minimumSize: Size.zero,
                         onPressed: () => setState(
                           () => _obscurePassword = !_obscurePassword,
                         ),
+                        child: Text(
+                          _obscurePassword
+                              ? l.auth_password_show
+                              : l.auth_password_hide,
+                          style: AppTypography.footnote
+                              .copyWith(color: colors.tint),
+                        ),
                       ),
                     ),
-                    obscureText: _obscurePassword,
-                    textInputAction: TextInputAction.done,
-                    onFieldSubmitted: (_) => _signIn(),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return l.auth_error_validation;
-                      }
-                      return null;
-                    },
                   ),
-                  const SizedBox(height: 8),
 
-                  // Erro
                   if (_error != null) ...[
-                    Text(
-                      _errorMessage(_error!),
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
+                    const SizedBox(height: 8),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Text(
+                        _errorMessage(_error!),
+                        textAlign: TextAlign.center,
+                        style: AppTypography.footnote
+                            .copyWith(color: colors.destructive),
                       ),
-                      textAlign: TextAlign.center,
                     ),
                     if (_error == AppErrorCode.emailNotConfirmed)
-                      TextButton(
+                      CupertinoButton(
                         onPressed: _resendConfirmation,
                         child: Text(l.auth_error_email_not_confirmed_resend),
                       ),
-                    const SizedBox(height: 8),
                   ],
 
-                  // Entrar
-                  FilledButton(
-                    onPressed: _isLoading ? null : _signIn,
-                    child: Text(
-                      _isLoading ? l.auth_signing_in : l.auth_login_button,
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: CupertinoButton.filled(
+                        onPressed: _isLoading ? null : _signIn,
+                        child: _isLoading
+                            ? const CupertinoActivityIndicator()
+                            : Text(l.auth_login_button),
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 8),
 
-                  // Esqueci senha
-                  TextButton(
+                  CupertinoButton(
                     onPressed: () => context.push(Routes.esqueciSenha),
                     child: Text(l.auth_forgot_password),
                   ),
-
-                  // Divisor
-                  const Row(
-                    children: [
-                      Expanded(child: Divider()),
-                      Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 16),
-                        child: Text('—'),
-                      ),
-                      Expanded(child: Divider()),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Criar conta
-                  TextButton(
+                  CupertinoButton(
                     onPressed: () => context.push(Routes.cadastro),
-                    child: Text(l.auth_have_invite),
+                    child: Text(l.auth_signup_button),
                   ),
                 ],
               ),

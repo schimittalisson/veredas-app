@@ -1,10 +1,22 @@
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+// `table_calendar` é construído sobre o Material (usa `InkWell` e `Table` do
+// Material internamente) e não tem equivalente Cupertino no pub. Mantê-lo é
+// deliberado: reescrever um calendário de mês à mão custaria muito mais do que
+// o ganho estético. Ele funciona porque `MaterialCompat` fornece o ancestral
+// `Material` globalmente; aqui só ajustamos `CalendarStyle`/`HeaderStyle` com
+// as cores de `context.colors` para ele não destoar do resto da tela.
+//
+// Nada de `material.dart` é importado neste arquivo — os tipos de estilo do
+// pacote (`CalendarStyle`, `HeaderStyle`, `DaysOfWeekStyle`) vivem em
+// `flutter/widgets.dart`, que o `cupertino.dart` já reexporta.
 import 'package:table_calendar/table_calendar.dart';
 
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/agenda_providers.dart';
@@ -40,6 +52,7 @@ class _EventsTabState extends ConsumerState<EventsTab> {
   @override
   Widget build(BuildContext context) {
     final daysWithEvents = ref.watch(daysWithEventsProvider);
+    final colors = context.colors;
 
     return ListView(
       children: [
@@ -59,6 +72,7 @@ class _EventsTabState extends ConsumerState<EventsTab> {
           onFormatChanged: (format) {
             setState(() => _calendarFormat = format);
           },
+          // TODO l10n: agenda_calendar_format_month / agenda_calendar_format_week
           availableCalendarFormats: const {
             CalendarFormat.month: 'Mês',
             CalendarFormat.week: 'Semana',
@@ -78,15 +92,59 @@ class _EventsTabState extends ConsumerState<EventsTab> {
                   s.day == day.day;
             }).toList();
           },
+          headerStyle: HeaderStyle(
+            titleCentered: true,
+            titleTextStyle: AppTypography.headline.copyWith(color: colors.label),
+            formatButtonTextStyle:
+                AppTypography.footnoteEmphasis.copyWith(color: colors.tint),
+            formatButtonDecoration: BoxDecoration(
+              color: colors.fill,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            formatButtonPadding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            // Chevrons do iOS no lugar das setas do Material.
+            leftChevronIcon: Icon(CupertinoIcons.chevron_left,
+                size: 20, color: colors.tint),
+            rightChevronIcon: Icon(CupertinoIcons.chevron_right,
+                size: 20, color: colors.tint),
+          ),
+          daysOfWeekStyle: DaysOfWeekStyle(
+            weekdayStyle:
+                AppTypography.caption.copyWith(color: colors.secondaryLabel),
+            weekendStyle:
+                AppTypography.caption.copyWith(color: colors.tertiaryLabel),
+          ),
           calendarStyle: CalendarStyle(
-            // Herda do ColorScheme — não hardcodar cores.
+            // Toda cor sai de context.colors — nada hardcodado, e o tema
+            // escuro passa a valer também dentro do calendário.
+            defaultTextStyle:
+                AppTypography.subheadline.copyWith(color: colors.label),
+            weekendTextStyle:
+                AppTypography.subheadline.copyWith(color: colors.secondaryLabel),
+            outsideTextStyle:
+                AppTypography.subheadline.copyWith(color: colors.tertiaryLabel),
+            disabledTextStyle:
+                AppTypography.subheadline.copyWith(color: colors.tertiaryLabel),
+            todayTextStyle:
+                AppTypography.subheadlineEmphasis.copyWith(color: colors.tint),
+            todayDecoration: BoxDecoration(
+              color: colors.tintContainer,
+              shape: BoxShape.circle,
+            ),
+            selectedTextStyle:
+                AppTypography.subheadlineEmphasis.copyWith(color: colors.onTint),
+            selectedDecoration: BoxDecoration(
+              color: colors.tint,
+              shape: BoxShape.circle,
+            ),
             markerDecoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primary,
+              color: colors.tint,
               shape: BoxShape.circle,
             ),
           ),
         ),
-        const Divider(height: 1),
+        Container(height: 0.5, color: colors.separator),
         _SelectedDayEvents(selectedDay: _selectedDay!),
       ],
     );
@@ -112,7 +170,7 @@ class _SelectedDayEvents extends ConsumerWidget {
         ),
         error: (_,_) => EmptyState(
           title: l.agenda_no_events_day,
-          icon: Icons.event_busy,
+          icon: CupertinoIcons.calendar_badge_minus,
           compact: true,
         ),
         data: (data) {
@@ -127,7 +185,7 @@ class _SelectedDayEvents extends ConsumerWidget {
             }
             return EmptyState(
               title: l.agenda_no_events_day,
-              icon: Icons.event_outlined,
+              icon: CupertinoIcons.calendar,
               compact: true,
             );
           }
@@ -156,7 +214,7 @@ class _UpcomingEvents extends ConsumerWidget {
     if (upcoming.isEmpty) {
       return EmptyState(
         title: l.agenda_no_events_upcoming,
-        icon: Icons.event_outlined,
+        icon: CupertinoIcons.calendar,
         compact: true,
       );
     }
@@ -169,7 +227,8 @@ class _UpcomingEvents extends ConsumerWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               l.agenda_upcoming_section,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: AppTypography.headline
+                  .copyWith(color: context.colors.label),
             ),
           ),
         ),
@@ -188,7 +247,7 @@ class EventCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final theme = Theme.of(context);
+    final colors = context.colors;
 
     String timeLabel;
     if (event.allDay) {
@@ -200,124 +259,155 @@ class EventCard extends StatelessWidget {
       timeLabel = DateFormat.Hm().format(event.startsAt);
     }
 
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      // O `Card` do Material vira um contêiner arredondado sobre o fundo
+      // agrupado — a mesma leitura visual, sem elevação (o iOS separa por
+      // contraste de superfície, não por sombra).
+      child: GestureDetector(
         onTap: () {
           // TODO: tela de detalhe do evento (/evento/:id) com mapa e anexos.
           // Por ora, abre o editor em modo edição.
           context.push('${Routes.eventoEditar}?id=${event.id}');
         },
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Capa 16:9 quando houver URL; placeholder com ícone otherwise.
-            if (event.coverImageUrl != null && event.coverImageUrl!.isNotEmpty)
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child: CachedNetworkImage(
-                  imageUrl: event.coverImageUrl!,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    child: Icon(
-                      Icons.image_outlined,
-                      size: 48,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  errorWidget: (context, url, error) => Container(
-                    color: theme.colorScheme.surfaceContainerHighest,
-                    child: Icon(
-                      Icons.broken_image_outlined,
-                      size: 48,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              )
-            else
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Container(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  child: Icon(
-                    _categoryIcon(event.category),
-                    size: 48,
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(event.title, style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.schedule,
-                        size: 16,
-                        color: theme.colorScheme.onSurfaceVariant,
+        child: Container(
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Capa 16:9 quando houver URL; placeholder com ícone otherwise.
+              if (event.coverImageUrl != null &&
+                  event.coverImageUrl!.isNotEmpty)
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: CachedNetworkImage(
+                    imageUrl: event.coverImageUrl!,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: colors.fill,
+                      child: Icon(
+                        CupertinoIcons.photo,
+                        size: 48,
+                        color: colors.secondaryLabel,
                       ),
-                      const SizedBox(width: 4),
-                      Text(timeLabel, style: theme.textTheme.bodySmall),
-                    ],
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: colors.fill,
+                      child: Icon(
+                        CupertinoIcons.exclamationmark_triangle,
+                        size: 48,
+                        color: colors.secondaryLabel,
+                      ),
+                    ),
                   ),
-                  if (event.location != null &&
-                      event.location!.isNotEmpty) ...[
+                )
+              else
+                AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Container(
+                    color: colors.fill,
+                    child: Icon(
+                      _categoryIcon(event.category),
+                      size: 48,
+                      color: colors.secondaryLabel,
+                    ),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      event.title,
+                      style:
+                          AppTypography.headline.copyWith(color: colors.label),
+                    ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
                         Icon(
-                          Icons.place_outlined,
+                          CupertinoIcons.clock,
                           size: 16,
-                          color: theme.colorScheme.onSurfaceVariant,
+                          color: colors.secondaryLabel,
                         ),
                         const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            event.location!,
-                            style: theme.textTheme.bodySmall,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        Text(
+                          timeLabel,
+                          style: AppTypography.footnote
+                              .copyWith(color: colors.secondaryLabel),
                         ),
                       ],
                     ),
+                    if (event.location != null &&
+                        event.location!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            CupertinoIcons.location,
+                            size: 16,
+                            color: colors.secondaryLabel,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              event.location!,
+                              style: AppTypography.footnote
+                                  .copyWith(color: colors.secondaryLabel),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                    if (event.category != null &&
+                        event.category!.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      // Chip do Material → pílula simples sobre `fill`.
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: colors.fill,
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          event.category!,
+                          style: AppTypography.caption
+                              .copyWith(color: colors.secondaryLabel),
+                        ),
+                      ),
+                    ],
                   ],
-                  if (event.category != null &&
-                      event.category!.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Chip(
-                      label: Text(event.category!),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
   IconData _categoryIcon(String? category) {
-    if (category == null) return Icons.event_outlined;
+    if (category == null) return CupertinoIcons.calendar;
     final c = category.toLowerCase();
     if (c.contains('culto') || c.contains('reuniao')) {
-      return Icons.groups_outlined;
+      return CupertinoIcons.person_3;
     }
     if (c.contains('treinamento') || c.contains('curso')) {
-      return Icons.school_outlined;
+      return CupertinoIcons.book;
     }
     if (c.contains('viagem') || c.contains('saida')) {
-      return Icons.directions_bus_outlined;
+      return CupertinoIcons.bus;
     }
-    return Icons.event_outlined;
+    return CupertinoIcons.calendar;
   }
 }

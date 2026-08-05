@@ -46,6 +46,8 @@
   "auth_password_label": "Senha",
   "auth_login_button": "Entrar",
   "auth_forgot_password": "Esqueci minha senha",
+  "auth_password_show": "Mostrar senha",
+  "auth_password_hide": "Ocultar senha",
   "auth_have_invite": "Tenho um convite — criar conta",
   "auth_signing_in": "Entrando…",
 

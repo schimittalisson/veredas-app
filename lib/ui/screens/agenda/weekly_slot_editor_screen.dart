@@ -1,9 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/infra_providers.dart';
+import 'package:veredas/ui/widgets/app_toast.dart';
 
 /// Editor de slot do cronograma semanal — cria ou edita.
 class WeeklySlotEditorScreen extends ConsumerStatefulWidget {
@@ -24,8 +27,13 @@ class _WeeklySlotEditorScreenState
   final _categoryController = TextEditingController();
   final _notesController = TextEditingController();
   int _weekday = 1; // 1=segunda ... 7=domingo
-  TimeOfDay _startsAt = const TimeOfDay(hour: 19, minute: 0);
-  TimeOfDay? _endsAt;
+
+  // O horário passa a ser guardado em minutos desde a meia-noite, e não mais
+  // em `TimeOfDay`: aquele tipo é do Material e some junto com o import. Como
+  // o banco já grava minutos (`startsAtMinutes`), guardar minutos aqui elimina
+  // uma conversão em vez de criar outra — o payload enviado é idêntico.
+  int _startsAtMinutes = 19 * 60;
+  int? _endsAtMinutes;
   bool _loaded = false;
   bool _saving = false;
 
@@ -43,101 +51,103 @@ class _WeeklySlotEditorScreenState
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
 
     if (_isEditing && !_loaded) {
       _loadExisting();
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? l.action_edit : l.agenda_new_slot),
+    final weekdayLabels = <int, String>{
+      1: l.agenda_weekday_mon,
+      2: l.agenda_weekday_tue,
+      3: l.agenda_weekday_wed,
+      4: l.agenda_weekday_thu,
+      5: l.agenda_weekday_fri,
+      6: l.agenda_weekday_sat,
+      7: l.agenda_weekday_sun,
+    };
+
+    // Salvar mora no `trailing` da barra — ver a nota em
+    // `announcement_editor_screen.dart` sobre por que o botão do fim saiu.
+    return CupertinoPageScaffold(
+      backgroundColor: colors.groupedBackground,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: colors.elevatedSurface,
+        middle: Text(_isEditing ? l.action_edit : l.agenda_new_slot),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const CupertinoActivityIndicator()
+              : Text(l.action_save),
+        ),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            DropdownButtonFormField<int>(
-              initialValue: _weekday,
-              decoration: InputDecoration(
-                labelText: l.agenda_slot_weekday,
-                border: const OutlineInputBorder(),
+      child: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              CupertinoFormSection.insetGrouped(
+                backgroundColor: colors.groupedBackground,
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                children: [
+                  _ValueRow(
+                    label: l.agenda_slot_weekday,
+                    value: weekdayLabels[_weekday] ?? '—',
+                    onTap: () => _pickWeekday(weekdayLabels),
+                  ),
+                  CupertinoTextFormFieldRow(
+                    controller: _titleController,
+                    placeholder: l.agenda_slot_title_label,
+                    style: AppTypography.body.copyWith(color: colors.label),
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? l.agenda_slot_title_label
+                        : null,
+                  ),
+                  _ValueRow(
+                    label: l.agenda_slot_starts_at,
+                    value: _formatMinutes(_startsAtMinutes),
+                    onTap: () => _pickTime(isStart: true),
+                  ),
+                  _ValueRow(
+                    label: l.agenda_slot_ends_at,
+                    value: _endsAtMinutes != null
+                        ? _formatMinutes(_endsAtMinutes!)
+                        : '—',
+                    onTap: () => _pickTime(isStart: false),
+                  ),
+                ],
               ),
-              items: [
-                DropdownMenuItem(value: 1, child: Text(l.agenda_weekday_mon)),
-                DropdownMenuItem(value: 2, child: Text(l.agenda_weekday_tue)),
-                DropdownMenuItem(value: 3, child: Text(l.agenda_weekday_wed)),
-                DropdownMenuItem(value: 4, child: Text(l.agenda_weekday_thu)),
-                DropdownMenuItem(value: 5, child: Text(l.agenda_weekday_fri)),
-                DropdownMenuItem(value: 6, child: Text(l.agenda_weekday_sat)),
-                DropdownMenuItem(value: 7, child: Text(l.agenda_weekday_sun)),
-              ],
-              onChanged: (v) => setState(() => _weekday = v ?? 1),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                labelText: l.agenda_slot_title_label,
-                border: const OutlineInputBorder(),
+              CupertinoFormSection.insetGrouped(
+                backgroundColor: colors.groupedBackground,
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                children: [
+                  CupertinoTextFormFieldRow(
+                    controller: _locationController,
+                    placeholder: l.agenda_slot_location,
+                    style: AppTypography.body.copyWith(color: colors.label),
+                  ),
+                  CupertinoTextFormFieldRow(
+                    controller: _categoryController,
+                    placeholder: l.agenda_slot_category,
+                    style: AppTypography.body.copyWith(color: colors.label),
+                  ),
+                  CupertinoTextFormFieldRow(
+                    controller: _notesController,
+                    placeholder: l.agenda_slot_notes,
+                    maxLines: 3,
+                    style: AppTypography.body.copyWith(color: colors.label),
+                  ),
+                ],
               ),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? l.agenda_slot_title_label : null,
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              leading: const Icon(Icons.access_time),
-              title: Text(l.agenda_slot_starts_at),
-              subtitle: Text(_formatTime(_startsAt)),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _pickTime(context, isStart: true),
-            ),
-            ListTile(
-              leading: const Icon(Icons.access_time_filled),
-              title: Text(l.agenda_slot_ends_at),
-              subtitle: Text(
-                _endsAt != null ? _formatTime(_endsAt!) : '—',
-              ),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _pickTime(context, isStart: false),
-            ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _locationController,
-              decoration: InputDecoration(
-                labelText: l.agenda_slot_location,
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _categoryController,
-              decoration: InputDecoration(
-                labelText: l.agenda_slot_category,
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _notesController,
-              decoration: InputDecoration(
-                labelText: l.agenda_slot_notes,
-                border: const OutlineInputBorder(),
-              ),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(l.action_save),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -153,40 +163,115 @@ class _WeeklySlotEditorScreenState
       _notesController.text = row.notes ?? '';
       setState(() {
         _weekday = row.weekday;
-        _startsAt = TimeOfDay(
-          hour: row.startsAtMinutes ~/ 60,
-          minute: row.startsAtMinutes % 60,
-        );
-        if (row.endsAtMinutes != null) {
-          _endsAt = TimeOfDay(
-            hour: row.endsAtMinutes! ~/ 60,
-            minute: row.endsAtMinutes! % 60,
-          );
-        }
+        _startsAtMinutes = row.startsAtMinutes;
+        _endsAtMinutes = row.endsAtMinutes;
         _loaded = true;
       });
     }
   }
 
-  Future<void> _pickTime(BuildContext context, {required bool isStart}) async {
-    final initial = isStart ? _startsAt : (_endsAt ?? _startsAt);
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: initial,
+  /// Dia da semana numa roda, no lugar do `DropdownButtonFormField`.
+  ///
+  /// O iOS não tem menu suspenso em formulário: a escolha entre poucas opções
+  /// fixas é feita numa `CupertinoPicker` que sobe do rodapé. A lista de itens
+  /// e o efeito do antigo `onChanged` (1..7, com fallback para 1) são os
+  /// mesmos.
+  Future<void> _pickWeekday(Map<int, String> labels) async {
+    final values = labels.keys.toList();
+    var selected = _weekday;
+
+    final confirmed = await _showPickerSheet(
+      child: CupertinoPicker(
+        magnification: 1.1,
+        squeeze: 1.2,
+        itemExtent: 32,
+        scrollController: FixedExtentScrollController(
+          initialItem: values.indexOf(_weekday).clamp(0, values.length - 1),
+        ),
+        onSelectedItemChanged: (i) => selected = values[i],
+        children: [
+          for (final v in values)
+            Center(child: Text(labels[v]!)),
+        ],
+      ),
     );
-    if (picked == null || !mounted) return;
+    if (!confirmed || !mounted) return;
+    setState(() => _weekday = selected);
+  }
+
+  /// Roda de hora no lugar do `showTimePicker`.
+  ///
+  /// A roda trabalha com `DateTime`, então a hora vai e volta convertida para
+  /// minutos — que é como o slot é gravado. A data usada na conversão é
+  /// descartável (só hora e minuto são lidos).
+  Future<void> _pickTime({required bool isStart}) async {
+    final initialMinutes =
+        isStart ? _startsAtMinutes : (_endsAtMinutes ?? _startsAtMinutes);
+    var picked = DateTime(
+      2000,
+      1,
+      1,
+      initialMinutes ~/ 60,
+      initialMinutes % 60,
+    );
+
+    final confirmed = await _showPickerSheet(
+      child: CupertinoDatePicker(
+        mode: CupertinoDatePickerMode.time,
+        initialDateTime: picked,
+        use24hFormat: true,
+        onDateTimeChanged: (v) => picked = v,
+      ),
+    );
+    if (!confirmed || !mounted) return;
+
+    final minutes = picked.hour * 60 + picked.minute;
     setState(() {
       if (isStart) {
-        _startsAt = picked;
+        _startsAtMinutes = minutes;
       } else {
-        _endsAt = picked;
+        _endsAtMinutes = minutes;
       }
     });
   }
 
-  String _formatTime(TimeOfDay t) {
+  /// Folha modal padrão dos seletores: altura fixa, fundo de cartão e um botão
+  /// de confirmar. Sem o confirmar, girar a roda já aplicaria o valor — o que
+  /// torna impossível desistir da alteração.
+  Future<bool> _showPickerSheet({required Widget child}) async {
+    final colors = context.colors;
+    final l = AppLocalizations.of(context);
+
+    final result = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (sheetContext) => Container(
+        height: 260,
+        color: colors.surface,
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: CupertinoButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(true),
+                  // TODO l10n: action_done ("Pronto") — não existe no .arb,
+                  // action_save é o rótulo mais próximo.
+                  child: Text(l.action_save),
+                ),
+              ),
+              Expanded(child: child),
+            ],
+          ),
+        ),
+      ),
+    );
+    return result ?? false;
+  }
+
+  String _formatMinutes(int minutes) {
     String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(t.hour)}:${two(t.minute)}';
+    return '${two(minutes ~/ 60)}:${two(minutes % 60)}';
   }
 
   Future<void> _save() async {
@@ -196,8 +281,8 @@ class _WeeklySlotEditorScreenState
     final l = AppLocalizations.of(context);
     final repo = ref.read(agendaRepositoryProvider);
 
-    final startsAtMinutes = _startsAt.hour * 60 + _startsAt.minute;
-    final endsAtMinutes = _endsAt != null ? _endsAt!.hour * 60 + _endsAt!.minute : null;
+    final startsAtMinutes = _startsAtMinutes;
+    final endsAtMinutes = _endsAtMinutes;
 
     try {
       if (_isEditing) {
@@ -236,18 +321,61 @@ class _WeeklySlotEditorScreenState
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.agenda_slot_saved)),
-        );
+        showAppToast(context, l.agenda_slot_saved);
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        showAppToast(context, e.toString(), isError: true);
         setState(() => _saving = false);
       }
     }
+  }
+}
+
+/// Linha de formulário que mostra um valor e abre um seletor ao ser tocada.
+///
+/// Substitui o `ListTile` com `trailing: Icon(chevron_right)`: dentro de uma
+/// `CupertinoFormSection` a célula precisa ser um `CupertinoFormRow`, senão os
+/// separadores e o recuo do grupo não se aplicam.
+class _ValueRow extends StatelessWidget {
+  const _ValueRow({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return CupertinoFormRow(
+      prefix: Text(
+        label,
+        style: AppTypography.body.copyWith(color: colors.label),
+      ),
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        onPressed: onTap,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: AppTypography.body.copyWith(color: colors.secondaryLabel),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              CupertinoIcons.chevron_right,
+              size: 16,
+              color: colors.tertiaryLabel,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

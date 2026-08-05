@@ -1,16 +1,26 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/home_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
+import 'package:veredas/ui/widgets/app_toast.dart';
 
 /// Editor de aviso — cria ou edita.
 ///
 /// Se [announcementId] for null, é criação. Se for fornecido, carrega o aviso
 /// existente do cache para preencher os campos.
+///
+/// **Onde fica o botão de salvar.** No Material o padrão era um `FilledButton`
+/// largo no fim do formulário. No iOS a ação de confirmação de um editor mora
+/// no canto direito da barra de navegação — é onde o usuário procura, e evita
+/// que o botão principal fique escondido abaixo do teclado num formulário
+/// longo. Por isso o botão do fim foi **removido** em todos os cinco editores;
+/// existe só o `trailing` da `CupertinoNavigationBar`.
 class AnnouncementEditorScreen extends ConsumerStatefulWidget {
   const AnnouncementEditorScreen({super.key, this.announcementId});
 
@@ -42,61 +52,73 @@ class _AnnouncementEditorScreenState
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
 
     // Carrega o aviso existente se for edição.
     if (_isEditing && !_loaded) {
       _loadExisting();
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? l.home_announcement_edit : l.home_announcement_new),
+    return CupertinoPageScaffold(
+      backgroundColor: colors.groupedBackground,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: colors.elevatedSurface,
+        middle: Text(
+          _isEditing ? l.home_announcement_edit : l.home_announcement_new,
+        ),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const CupertinoActivityIndicator()
+              : Text(l.action_save),
+        ),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            TextFormField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                labelText: l.home_announcement_title_label,
-                border: const OutlineInputBorder(),
+      child: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              // Uma única seção agrupada: título, corpo e o interruptor de
+              // fixar são o mesmo assunto, não merecem cartões separados.
+              CupertinoFormSection.insetGrouped(
+                backgroundColor: colors.groupedBackground,
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                children: [
+                  CupertinoTextFormFieldRow(
+                    controller: _titleController,
+                    placeholder: l.home_announcement_title_label,
+                    style: AppTypography.body.copyWith(color: colors.label),
+                  ),
+                  CupertinoTextFormFieldRow(
+                    controller: _bodyController,
+                    placeholder: l.home_announcement_body_label,
+                    maxLines: 8,
+                    style: AppTypography.body.copyWith(color: colors.label),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return l.home_announcement_body_label;
+                      }
+                      return null;
+                    },
+                  ),
+                  CupertinoFormRow(
+                    prefix: Text(
+                      l.home_announcement_pinned,
+                      style: AppTypography.body.copyWith(color: colors.label),
+                    ),
+                    child: CupertinoSwitch(
+                      value: _pinned,
+                      onChanged: (v) => setState(() => _pinned = v),
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _bodyController,
-              decoration: InputDecoration(
-                labelText: l.home_announcement_body_label,
-                border: const OutlineInputBorder(),
-              ),
-              maxLines: 8,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return l.home_announcement_body_label;
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            SwitchListTile(
-              title: Text(l.home_announcement_pinned),
-              value: _pinned,
-              onChanged: (v) => setState(() => _pinned = v),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(l.action_save),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -158,16 +180,12 @@ class _AnnouncementEditorScreenState
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.home_announcement_saved)),
-        );
+        showAppToast(context, l.home_announcement_saved);
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        showAppToast(context, e.toString(), isError: true);
         setState(() => _saving = false);
       }
     }

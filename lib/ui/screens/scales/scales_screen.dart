@@ -1,7 +1,15 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
+// `TabController` e `TabBarView` não têm equivalente no Cupertino — são as
+// únicas peças do Material que sobreviveram à migração desta tela. Importadas
+// nominalmente (`show`) para deixar explícito que nada mais do Material entra
+// aqui: a aparência é 100% Cupertino, só a mecânica de troca de página é
+// reaproveitada.
+import 'package:flutter/material.dart' show TabBarView, TabController;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/data/models/profile.dart';
 import 'package:veredas/l10n/app_localizations.dart';
@@ -14,9 +22,10 @@ import 'package:veredas/ui/widgets/loading_state.dart';
 
 /// Tela Escalas — terceira tab.
 ///
-/// `TabBar` **gerada dinamicamente** de `scale_types` (ordenada por `ordering`,
-/// `is_active = true`), com `isScrollable: true`. Nunca hardcode as abas —
-/// adicionar uma escala nova deve ser um `INSERT` no banco, não um release.
+/// Barra de abas **gerada dinamicamente** de `scale_types` (ordenada por
+/// `ordering`, `is_active = true`), rolável na horizontal. Nunca hardcode as
+/// abas — adicionar uma escala nova deve ser um `INSERT` no banco, não um
+/// release.
 class ScalesScreen extends ConsumerWidget {
   const ScalesScreen({super.key});
 
@@ -25,18 +34,18 @@ class ScalesScreen extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     final scaleTypes = ref.watch(activeScaleTypesProvider);
 
-    // A TabBar precisa estar na mesma subárvore que o TabController, e o
-    // controller só pode ser criado depois que sabemos quantas abas existem.
-    // Por isso os estados sem abas têm um Scaffold próprio (AppBar sem
-    // TabBar) e o caso com dados delega tudo — AppBar incluído — para
-    // _ScalesBody, que é quem detém o controller.
+    // A barra de abas precisa estar na mesma subárvore que o TabController, e
+    // o controller só pode ser criado depois que sabemos quantas abas existem.
+    // Por isso os estados sem abas têm um scaffold próprio (navigation bar sem
+    // barra de abas) e o caso com dados delega tudo — navigation bar incluída —
+    // para _ScalesBody, que é quem detém o controller.
     return scaleTypes.when(
       loading: () => _ScalesScaffold(title: l.tab_escalas, body: const LoadingState()),
       error: (_,_) => _ScalesScaffold(
         title: l.tab_escalas,
         body: EmptyState(
           title: l.scales_no_types,
-          icon: Icons.assignment_outlined,
+          icon: CupertinoIcons.doc_text,
         ),
       ),
       data: (data) {
@@ -45,7 +54,7 @@ class ScalesScreen extends ConsumerWidget {
             title: l.tab_escalas,
             body: EmptyState(
               title: l.scales_no_types,
-              icon: Icons.assignment_outlined,
+              icon: CupertinoIcons.doc_text,
             ),
           );
         }
@@ -64,9 +73,15 @@ class _ScalesScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text(title)),
-      body: body,
+    final colors = context.colors;
+
+    return CupertinoPageScaffold(
+      backgroundColor: colors.groupedBackground,
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(title),
+        backgroundColor: colors.elevatedSurface,
+      ),
+      child: SafeArea(child: body),
     );
   }
 }
@@ -95,7 +110,7 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
     super.didUpdateWidget(oldWidget);
     // As escalas vêm do sync: uma nova pode aparecer (ou ser desativada) a
     // qualquer momento. O TabController tem length fixo, então precisa ser
-    // recriado — senão o length diverge do número de abas e a TabBar quebra.
+    // recriado — senão o length diverge do número de abas e a troca quebra.
     if (widget.scaleTypes.length != oldWidget.scaleTypes.length) {
       final previousIndex = _tabController.index;
       _tabController.dispose();
@@ -112,9 +127,11 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
       initialIndex: initialIndex,
       vsync: this,
     )
-      // O FAB depende da aba ativa (cada escala tem seu próprio scaleTypeId
-      // e sua própria permissão). Sem este listener, trocar de aba não
-      // rebuilda e o FAB continua apontando para a escala anterior.
+      // A ação do canto da navigation bar depende da aba ativa (cada escala
+      // tem seu próprio scaleTypeId e sua própria permissão) e a barra de abas
+      // precisa repintar o item selecionado. Sem este listener, trocar de aba
+      // não rebuilda: o botão continua apontando para a escala anterior e o
+      // destaque fica na aba errada.
       ..addListener(_onTabChanged);
   }
 
@@ -133,42 +150,54 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
     final profile = ref.watch(currentProfileProvider).value;
     final managedIds = ref.watch(managedScaleTypeIdsProvider);
 
     final currentType = widget.scaleTypes[_tabController.index];
     final canEdit = _canEditScale(profile, currentType, managedIds);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(l.tab_escalas),
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          tabAlignment: TabAlignment.start,
-          tabs: widget.scaleTypes.map((t) => Tab(text: t.name)).toList(),
-        ),
+    return CupertinoPageScaffold(
+      backgroundColor: colors.groupedBackground,
+      navigationBar: CupertinoNavigationBar(
+        middle: Text(l.tab_escalas),
+        backgroundColor: colors.elevatedSurface,
+        // O iOS não tem FAB: a ação de criar mora no canto da navigation bar.
+        // Continua condicionada a canEdit e continua carregando o scaleTypeId
+        // da aba ativa.
+        trailing: canEdit
+            ? CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () {
+                  context.push(
+                    '${Routes.escalaAtribuicaoNovo}?scaleTypeId=${currentType.id}',
+                  );
+                },
+                child: const Icon(CupertinoIcons.add),
+              )
+            : null,
       ),
-      floatingActionButton: canEdit
-          ? FloatingActionButton(
-              // Ver comentário em home_screen.dart: as 4 tabs coexistem.
-              heroTag: 'fab-escalas',
-              onPressed: () {
-                context.push(
-                  '${Routes.escalaAtribuicaoNovo}?scaleTypeId=${currentType.id}',
-                );
-              },
-              child: const Icon(Icons.add),
-            )
-          : null,
-      body: TabBarView(
-        controller: _tabController,
-        children: widget.scaleTypes
-            .map((type) => ScaleTabView(
-                  scaleType: type,
-                  canEdit: _canEditScale(profile, type, managedIds),
-                ))
-            .toList(),
+      child: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            _ScaleTabBar(
+              scaleTypes: widget.scaleTypes,
+              controller: _tabController,
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: widget.scaleTypes
+                    .map((type) => ScaleTabView(
+                          scaleType: type,
+                          canEdit: _canEditScale(profile, type, managedIds),
+                        ))
+                    .toList(),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -181,5 +210,99 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
   ) {
     if (profile == null) return false;
     return profile.isAdmin || managedIds.contains(type.id);
+  }
+}
+
+/// Barra de abas rolável, no lugar da `TabBar` do Material.
+///
+/// O equivalente idiomático no iOS seria o `CupertinoSlidingSegmentedControl`,
+/// mas ele **não rola**: distribui os segmentos na largura disponível. Como as
+/// abas vêm do banco (`scale_types`) e a quantidade é variável, um dia com seis
+/// ou sete escalas os rótulos ficariam ilegíveis — e não há como chegar na
+/// sétima. Por isso a barra é montada à mão: scroll horizontal de
+/// `CupertinoButton`, ativa em `tint` com peso maior e sublinhado fino,
+/// inativas em `secondaryLabel`.
+///
+/// Fica no corpo do scaffold, logo abaixo da navigation bar, porque
+/// `CupertinoNavigationBar` não tem o slot `bottom` que a `AppBar` tinha.
+class _ScaleTabBar extends StatelessWidget {
+  const _ScaleTabBar({required this.scaleTypes, required this.controller});
+
+  final List<ScaleTypeRow> scaleTypes;
+  final TabController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colors.elevatedSurface,
+        // Traço fino fechando a barra, no lugar da sombra da AppBar.
+        border: Border(bottom: BorderSide(color: colors.separator, width: 0.5)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Row(
+          children: [
+            for (var i = 0; i < scaleTypes.length; i++)
+              _ScaleTab(
+                label: scaleTypes[i].name,
+                isSelected: i == controller.index,
+                onPressed: () => controller.animateTo(i),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ScaleTab extends StatelessWidget {
+  const _ScaleTab({
+    required this.label,
+    required this.isSelected,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return CupertinoButton(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      minimumSize: Size.zero,
+      onPressed: onPressed,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: (isSelected
+                    ? AppTypography.subheadlineEmphasis
+                    : AppTypography.subheadline)
+                .copyWith(
+              color: isSelected ? colors.tint : colors.secondaryLabel,
+            ),
+          ),
+          const SizedBox(height: 6),
+          // Sublinhado só na ativa; o inativo é transparente para que a altura
+          // da barra não mude ao trocar de aba.
+          Container(
+            height: 2,
+            width: 24,
+            decoration: BoxDecoration(
+              color: isSelected ? colors.tint : null,
+              borderRadius: BorderRadius.circular(1),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

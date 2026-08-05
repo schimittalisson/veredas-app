@@ -1,9 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/infra_providers.dart';
+import 'package:veredas/ui/widgets/app_toast.dart';
 
 /// Editor de evento — cria ou edita.
 class EventEditorScreen extends ConsumerStatefulWidget {
@@ -42,90 +45,110 @@ class _EventEditorScreenState extends ConsumerState<EventEditorScreen> {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
 
     if (_isEditing && !_loaded) {
       _loadExisting();
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(_isEditing ? l.action_edit : l.agenda_new_event),
+    // Salvar mora no `trailing` da barra — ver a nota em
+    // `announcement_editor_screen.dart` sobre por que o botão do fim saiu.
+    return CupertinoPageScaffold(
+      backgroundColor: colors.groupedBackground,
+      navigationBar: CupertinoNavigationBar(
+        backgroundColor: colors.elevatedSurface,
+        middle: Text(_isEditing ? l.action_edit : l.agenda_new_event),
+        trailing: CupertinoButton(
+          padding: EdgeInsets.zero,
+          onPressed: _saving ? null : _save,
+          child: _saving
+              ? const CupertinoActivityIndicator()
+              : Text(l.action_save),
+        ),
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            TextFormField(
-              controller: _titleController,
-              decoration: InputDecoration(
-                labelText: l.agenda_event_title_label,
-                border: const OutlineInputBorder(),
-              ),
-              validator: (v) =>
-                  v == null || v.trim().isEmpty ? l.agenda_event_title_label : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _descriptionController,
-              decoration: InputDecoration(
-                labelText: l.agenda_event_description_label,
-                border: const OutlineInputBorder(),
-              ),
-              maxLines: 4,
-            ),
-            const SizedBox(height: 16),
-            SwitchListTile(
-              title: Text(l.agenda_event_all_day),
-              value: _allDay,
-              onChanged: (v) => setState(() => _allDay = v),
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              leading: const Icon(Icons.event),
-              title: Text(l.agenda_event_starts_at),
-              subtitle: Text(_formatDateTime(_startsAt)),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _pickDateTime(context, isStart: true),
-            ),
-            if (!_allDay)
-              ListTile(
-                leading: const Icon(Icons.event_available),
-                title: Text(l.agenda_event_ends_at),
-                subtitle: Text(
-                  _endsAt != null ? _formatDateTime(_endsAt!) : '—',
+      child: SafeArea(
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            children: [
+              CupertinoFormSection.insetGrouped(
+                backgroundColor: colors.groupedBackground,
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _pickDateTime(context, isStart: false),
+                children: [
+                  CupertinoTextFormFieldRow(
+                    controller: _titleController,
+                    placeholder: l.agenda_event_title_label,
+                    style: AppTypography.body.copyWith(color: colors.label),
+                    validator: (v) => v == null || v.trim().isEmpty
+                        ? l.agenda_event_title_label
+                        : null,
+                  ),
+                  CupertinoTextFormFieldRow(
+                    controller: _descriptionController,
+                    placeholder: l.agenda_event_description_label,
+                    maxLines: 4,
+                    style: AppTypography.body.copyWith(color: colors.label),
+                  ),
+                ],
               ),
-            const SizedBox(height: 8),
-            TextFormField(
-              controller: _locationController,
-              decoration: InputDecoration(
-                labelText: l.agenda_event_location,
-                border: const OutlineInputBorder(),
+
+              // Datas em seção própria: no iOS as linhas que abrem uma roda de
+              // seleção ficam separadas dos campos de digitação.
+              CupertinoFormSection.insetGrouped(
+                backgroundColor: colors.groupedBackground,
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                children: [
+                  CupertinoFormRow(
+                    prefix: Text(
+                      l.agenda_event_all_day,
+                      style: AppTypography.body.copyWith(color: colors.label),
+                    ),
+                    child: CupertinoSwitch(
+                      value: _allDay,
+                      onChanged: (v) => setState(() => _allDay = v),
+                    ),
+                  ),
+                  _ValueRow(
+                    label: l.agenda_event_starts_at,
+                    value: _formatDateTime(_startsAt),
+                    onTap: () => _pickDateTime(isStart: true),
+                  ),
+                  if (!_allDay)
+                    _ValueRow(
+                      label: l.agenda_event_ends_at,
+                      value: _endsAt != null ? _formatDateTime(_endsAt!) : '—',
+                      onTap: () => _pickDateTime(isStart: false),
+                    ),
+                ],
               ),
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _categoryController,
-              decoration: InputDecoration(
-                labelText: l.agenda_event_category,
-                border: const OutlineInputBorder(),
+
+              CupertinoFormSection.insetGrouped(
+                backgroundColor: colors.groupedBackground,
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                children: [
+                  CupertinoTextFormFieldRow(
+                    controller: _locationController,
+                    placeholder: l.agenda_event_location,
+                    style: AppTypography.body.copyWith(color: colors.label),
+                  ),
+                  CupertinoTextFormFieldRow(
+                    controller: _categoryController,
+                    placeholder: l.agenda_event_category,
+                    style: AppTypography.body.copyWith(color: colors.label),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 24),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              child: _saving
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(l.action_save),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -148,13 +171,18 @@ class _EventEditorScreenState extends ConsumerState<EventEditorScreen> {
     }
   }
 
-  Future<void> _pickDateTime(BuildContext context, {required bool isStart}) async {
+  /// Abre a roda de data e, se o evento não for de dia inteiro, a de hora.
+  ///
+  /// O parâmetro `BuildContext` da versão Material saiu: as duas folhas usam o
+  /// `context` do `State`, sempre precedido de `if (!mounted) return;`. Era
+  /// exatamente para isso que existia o antigo `context: this.context` na
+  /// segunda chamada (lint `use_build_context_synchronously`).
+  Future<void> _pickDateTime({required bool isStart}) async {
     final now = DateTime.now();
     final initial = isStart ? _startsAt : (_endsAt ?? _startsAt);
 
-    final date = await showDatePicker(
-      context: context,
-      initialDate: initial,
+    final date = await _showDateSheet(
+      initial: initial,
       firstDate: DateTime(now.year - 1),
       lastDate: DateTime(now.year + 5),
     );
@@ -172,10 +200,7 @@ class _EventEditorScreenState extends ConsumerState<EventEditorScreen> {
     }
 
     if (!mounted) return;
-    final time = await showTimePicker(
-      context: this.context,
-      initialTime: TimeOfDay.fromDateTime(initial),
-    );
+    final time = await _showTimeSheet(initial: initial);
     if (time == null || !mounted) return;
 
     final dt = DateTime(date.year, date.month, date.day, time.hour, time.minute);
@@ -186,6 +211,81 @@ class _EventEditorScreenState extends ConsumerState<EventEditorScreen> {
         _endsAt = dt;
       }
     });
+  }
+
+  /// Roda de data numa folha modal — o `showDatePicker` (calendário Material)
+  /// não existe no Cupertino.
+  ///
+  /// Só devolve valor se o usuário confirmar: a roda dispara `onDateTimeChanged`
+  /// a cada giro, então sem o botão de confirmar um toque acidental já mudaria
+  /// a data.
+  Future<DateTime?> _showDateSheet({
+    required DateTime initial,
+    required DateTime firstDate,
+    required DateTime lastDate,
+  }) async {
+    var picked = DateTime(initial.year, initial.month, initial.day);
+    final confirmed = await _showPickerSheet(
+      height: 260,
+      child: CupertinoDatePicker(
+        mode: CupertinoDatePickerMode.date,
+        initialDateTime: initial,
+        minimumDate: firstDate,
+        maximumDate: lastDate,
+        onDateTimeChanged: (v) => picked = v,
+      ),
+    );
+    return confirmed ? picked : null;
+  }
+
+  /// Roda de hora. Devolve um `DateTime` do qual só interessam hora e minuto —
+  /// o dia vem da roda de data, como no fluxo Material original.
+  Future<DateTime?> _showTimeSheet({required DateTime initial}) async {
+    var picked = initial;
+    final confirmed = await _showPickerSheet(
+      height: 260,
+      child: CupertinoDatePicker(
+        mode: CupertinoDatePickerMode.time,
+        initialDateTime: initial,
+        use24hFormat: true,
+        onDateTimeChanged: (v) => picked = v,
+      ),
+    );
+    return confirmed ? picked : null;
+  }
+
+  Future<bool> _showPickerSheet({
+    required double height,
+    required Widget child,
+  }) async {
+    final colors = context.colors;
+    final l = AppLocalizations.of(context);
+
+    final result = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (sheetContext) => Container(
+        height: height,
+        color: colors.surface,
+        child: SafeArea(
+          top: false,
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerRight,
+                child: CupertinoButton(
+                  onPressed: () => Navigator.of(sheetContext).pop(true),
+                  // TODO l10n: action_done ("Pronto") — não existe no .arb,
+                  // action_save é o rótulo mais próximo.
+                  child: Text(l.action_save),
+                ),
+              ),
+              Expanded(child: child),
+            ],
+          ),
+        ),
+      ),
+    );
+    return result ?? false;
   }
 
   String _formatDateTime(DateTime dt) {
@@ -241,18 +341,61 @@ class _EventEditorScreenState extends ConsumerState<EventEditorScreen> {
       }
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l.agenda_event_saved)),
-        );
+        showAppToast(context, l.agenda_event_saved);
         context.pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.toString())),
-        );
+        showAppToast(context, e.toString(), isError: true);
         setState(() => _saving = false);
       }
     }
+  }
+}
+
+/// Linha de formulário que mostra um valor e abre um seletor ao ser tocada.
+///
+/// Substitui o `ListTile` com `trailing: Icon(chevron_right)`: dentro de uma
+/// `CupertinoFormSection` a célula precisa ser um `CupertinoFormRow`, senão os
+/// separadores e o recuo do grupo não se aplicam.
+class _ValueRow extends StatelessWidget {
+  const _ValueRow({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    return CupertinoFormRow(
+      prefix: Text(
+        label,
+        style: AppTypography.body.copyWith(color: colors.label),
+      ),
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        onPressed: onTap,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              value,
+              style: AppTypography.body.copyWith(color: colors.secondaryLabel),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              CupertinoIcons.chevron_right,
+              size: 16,
+              color: colors.tertiaryLabel,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

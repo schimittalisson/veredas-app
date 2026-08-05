@@ -1,8 +1,10 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import 'package:veredas/core/theme/app_theme.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/auth_providers.dart';
@@ -84,6 +86,7 @@ class _ScaleTabViewState extends ConsumerState<ScaleTabView> {
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
     final cadence = widget.scaleType.cadence;
 
     if (cadence == 'adhoc') {
@@ -99,7 +102,9 @@ class _ScaleTabViewState extends ConsumerState<ScaleTabView> {
           onNext: _nextPeriod,
           onToday: _goToToday,
         ),
-        const Divider(height: 1),
+        // Meio pixel é a espessura do separador do iOS — o Divider do Material
+        // não existe aqui.
+        Container(height: 0.5, color: colors.separator),
         Expanded(
           child: _PeriodBody(
             scaleType: widget.scaleType,
@@ -134,6 +139,7 @@ class _PeriodNavigator extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
 
     String label;
     if (cadence == 'weekly') {
@@ -148,23 +154,36 @@ class _PeriodNavigator extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       child: Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.chevron_left),
+          CupertinoButton(
+            padding: const EdgeInsets.all(8),
+            minimumSize: Size.zero,
             onPressed: onPrevious,
+            child: Icon(CupertinoIcons.chevron_left, color: colors.tint),
           ),
           Expanded(
             child: Center(
               child: Text(
                 label,
-                style: Theme.of(context).textTheme.titleSmall,
+                style: AppTypography.subheadlineEmphasis
+                    .copyWith(color: colors.label),
               ),
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.chevron_right),
+          CupertinoButton(
+            padding: const EdgeInsets.all(8),
+            minimumSize: Size.zero,
             onPressed: onNext,
+            child: Icon(CupertinoIcons.chevron_right, color: colors.tint),
           ),
-          TextButton(onPressed: onToday, child: Text(l.scales_today)),
+          CupertinoButton(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            minimumSize: Size.zero,
+            onPressed: onToday,
+            child: Text(
+              l.scales_today,
+              style: AppTypography.subheadline.copyWith(color: colors.tint),
+            ),
+          ),
         ],
       ),
     );
@@ -189,6 +208,7 @@ class _PeriodBody extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
     final cadence = scaleType.cadence;
 
     // Calcula o intervalo de datas.
@@ -203,23 +223,35 @@ class _PeriodBody extends ConsumerWidget {
     final currentUserId = ref.watch(currentUserIdProvider);
 
     return assignments.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: CupertinoActivityIndicator()),
       error: (_,_) => EmptyState(
         title: l.scales_no_assignments,
-        icon: Icons.assignment_outlined,
+        icon: CupertinoIcons.doc_text,
       ),
       data: (data) {
         if (data.isEmpty) {
           return EmptyState(
             title: l.scales_no_assignments,
-            icon: Icons.assignment_outlined,
+            icon: CupertinoIcons.doc_text,
             action: canEdit
-                ? FilledButton.icon(
+                ? CupertinoButton.filled(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 10,
+                    ),
                     onPressed: () => context.push(
                       '${Routes.escalaAtribuicaoNovo}?scaleTypeId=${scaleType.id}',
                     ),
-                    icon: const Icon(Icons.add),
-                    label: Text(l.scales_mount),
+                    // CupertinoButton não tem slot de ícone: o par ícone+texto
+                    // do FilledButton.icon vira uma Row explícita.
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(CupertinoIcons.add, size: 18),
+                        const SizedBox(width: 6),
+                        Text(l.scales_mount),
+                      ],
+                    ),
                   )
                 : null,
           );
@@ -233,7 +265,8 @@ class _PeriodBody extends ConsumerWidget {
                 padding: const EdgeInsets.all(12),
                 child: Text(
                   l.scales_you_count(myCount),
-                  style: Theme.of(context).textTheme.bodyMedium,
+                  style: AppTypography.subheadline
+                      .copyWith(color: colors.secondaryLabel),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -280,9 +313,12 @@ class _SlotsTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final theme = Theme.of(context);
+    final colors = context.colors;
     final days = scaleType.cadence == 'weekly' ? 7 : 1;
     final dayLabels = _dayLabels(periodStart, days);
+
+    final headerStyle =
+        AppTypography.footnoteEmphasis.copyWith(color: colors.label);
 
     // Agrupa atribuições por (slot, dia).
     final bySlotAndDay = <String, Map<int, ScaleAssignmentRow>>{};
@@ -296,8 +332,14 @@ class _SlotsTable extends StatelessWidget {
     final slots = scaleType.slots;
 
     return SingleChildScrollView(
-      child: Card(
+      child: Container(
+        // O Card do Material vira um retângulo arredondado sobre o fundo
+        // agrupado — é a forma de "cartão" do iOS.
         margin: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: colors.surface,
+          borderRadius: BorderRadius.circular(12),
+        ),
         child: Padding(
           padding: const EdgeInsets.all(8),
           child: Table(
@@ -308,22 +350,12 @@ class _SlotsTable extends StatelessWidget {
                 children: [
                   Padding(
                     padding: const EdgeInsets.all(4),
-                    child: Text(
-                      l.scales_slot_label,
-                      style: theme.textTheme.labelMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    child: Text(l.scales_slot_label, style: headerStyle),
                   ),
                   for (final label in dayLabels)
                     Padding(
                       padding: const EdgeInsets.all(4),
-                      child: Text(
-                        label,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                      child: Text(label, style: headerStyle),
                     ),
                 ],
               ),
@@ -333,7 +365,11 @@ class _SlotsTable extends StatelessWidget {
                   children: [
                     Padding(
                       padding: const EdgeInsets.all(4),
-                      child: Text(slot, style: theme.textTheme.bodySmall),
+                      child: Text(
+                        slot,
+                        style: AppTypography.footnote
+                            .copyWith(color: colors.label),
+                      ),
                     ),
                     for (int day = 0; day < days; day++)
                       _AssignmentCell(
@@ -366,16 +402,15 @@ class _AssignmentCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final theme = Theme.of(context);
+    final colors = context.colors;
 
     if (assignment == null) {
       return Padding(
         padding: const EdgeInsets.all(4),
         child: Text(
           '—',
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
+          style:
+              AppTypography.footnote.copyWith(color: colors.secondaryLabel),
         ),
       );
     }
@@ -389,7 +424,7 @@ class _AssignmentCell extends StatelessWidget {
       padding: const EdgeInsets.all(4),
       decoration: isMe
           ? BoxDecoration(
-              color: theme.colorScheme.primaryContainer,
+              color: colors.tintContainer,
               borderRadius: BorderRadius.circular(4),
             )
           : null,
@@ -398,10 +433,8 @@ class _AssignmentCell extends StatelessWidget {
         children: [
           Text(
             name,
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: isMe
-                  ? theme.colorScheme.onPrimaryContainer
-                  : theme.colorScheme.onSurface,
+            style: AppTypography.footnote.copyWith(
+              color: isMe ? colors.onTintContainer : colors.label,
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -409,9 +442,8 @@ class _AssignmentCell extends StatelessWidget {
           if (isMe)
             Text(
               l.scales_you,
-              style: theme.textTheme.labelSmall?.copyWith(
-                color: theme.colorScheme.onPrimaryContainer,
-              ),
+              style: AppTypography.caption
+                  .copyWith(color: colors.onTintContainer),
             ),
         ],
       ),
@@ -438,7 +470,7 @@ class _SimpleList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final colors = context.colors;
     final days = cadence == 'weekly' ? 7 : 1;
 
     // Agrupa por dia.
@@ -459,7 +491,8 @@ class _SimpleList extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
               child: Text(
                 fmt.format(periodStart.add(Duration(days: day))),
-                style: theme.textTheme.titleSmall,
+                style: AppTypography.subheadlineEmphasis
+                    .copyWith(color: colors.label),
               ),
             ),
             for (final a in byDay[day]!)
@@ -482,29 +515,46 @@ class _AssignmentListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
-    final theme = Theme.of(context);
+    final colors = context.colors;
     final name = assignment.assigneeName ??
         assignment.assigneeId ??
         l.scales_assignee_unknown;
 
-    return Container(
-      color: isMe ? theme.colorScheme.primaryContainer : null,
-      child: ListTile(
-        leading: Icon(
-          Icons.person_outline,
-          color: isMe
-              ? theme.colorScheme.onPrimaryContainer
-              : theme.colorScheme.onSurfaceVariant,
-        ),
-        title: Text(name),
-        subtitle: assignment.task != null ? Text(assignment.task!) : null,
-        trailing: isMe
-            ? Chip(
-                label: Text(l.scales_you),
-                visualDensity: VisualDensity.compact,
-              )
-            : null,
+    return CupertinoListTile(
+      backgroundColor: isMe ? colors.tintContainer : colors.surface,
+      leading: Icon(
+        CupertinoIcons.person,
+        color: isMe ? colors.onTintContainer : colors.secondaryLabel,
       ),
+      title: Text(
+        name,
+        style: AppTypography.body.copyWith(
+          color: isMe ? colors.onTintContainer : colors.label,
+        ),
+      ),
+      subtitle: assignment.task != null
+          ? Text(
+              assignment.task!,
+              style: AppTypography.footnote.copyWith(
+                color: isMe ? colors.onTintContainer : colors.secondaryLabel,
+              ),
+            )
+          : null,
+      // O Chip do Material vira uma cápsula desenhada à mão: o iOS não tem
+      // chips, e o destaque "Você" só precisa de um fundo arredondado.
+      trailing: isMe
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: colors.fill,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                l.scales_you,
+                style: AppTypography.caption.copyWith(color: colors.label),
+              ),
+            )
+          : null,
     );
   }
 }
@@ -525,16 +575,16 @@ class _AdhocView extends ConsumerWidget {
     final currentUserId = ref.watch(currentUserIdProvider);
 
     return assignments.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const Center(child: CupertinoActivityIndicator()),
       error: (_,_) => EmptyState(
         title: l.scales_no_assignments,
-        icon: Icons.assignment_outlined,
+        icon: CupertinoIcons.doc_text,
       ),
       data: (data) {
         if (data.isEmpty) {
           return EmptyState(
             title: l.scales_no_assignments,
-            icon: Icons.assignment_outlined,
+            icon: CupertinoIcons.doc_text,
           );
         }
 
@@ -552,19 +602,76 @@ class _AdhocView extends ConsumerWidget {
                 isMe: a.assigneeId == currentUserId,
               ),
             if (past.isNotEmpty)
-              ExpansionTile(
-                title: Text('Anteriores'),
-                children: past
-                    .take(20)
-                    .map((a) => _AssignmentListTile(
-                          assignment: a,
-                          isMe: a.assigneeId == currentUserId,
-                        ))
-                    .toList(),
+              _PreviousSection(
+                assignments: past.take(20).toList(),
+                currentUserId: currentUserId,
               ),
           ],
         );
       },
+    );
+  }
+}
+
+/// Seção recolhível "Anteriores".
+///
+/// Substitui o `ExpansionTile` do Material, que não tem equivalente no
+/// Cupertino: uma linha clicável com chevron, no estilo das listas de Ajustes
+/// do iOS, guardando o estado de aberto/fechado localmente.
+class _PreviousSection extends StatefulWidget {
+  const _PreviousSection({
+    required this.assignments,
+    required this.currentUserId,
+  });
+
+  final List<ScaleAssignmentRow> assignments;
+  final String? currentUserId;
+
+  @override
+  State<_PreviousSection> createState() => _PreviousSectionState();
+}
+
+class _PreviousSectionState extends State<_PreviousSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        CupertinoButton(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          minimumSize: Size.zero,
+          onPressed: () => setState(() => _expanded = !_expanded),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  // TODO l10n: scales_previous
+                  'Anteriores',
+                  style: AppTypography.subheadlineEmphasis
+                      .copyWith(color: colors.label),
+                ),
+              ),
+              Icon(
+                _expanded
+                    ? CupertinoIcons.chevron_down
+                    : CupertinoIcons.chevron_right,
+                size: 18,
+                color: colors.secondaryLabel,
+              ),
+            ],
+          ),
+        ),
+        if (_expanded)
+          for (final a in widget.assignments)
+            _AssignmentListTile(
+              assignment: a,
+              isMe: a.assigneeId == widget.currentUserId,
+            ),
+      ],
     );
   }
 }
