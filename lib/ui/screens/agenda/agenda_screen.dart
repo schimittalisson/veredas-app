@@ -26,12 +26,22 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this)
+      // O tooltip e o destino do FAB dependem da aba ativa. Sem este
+      // listener, trocar de aba não rebuilda e o tooltip fica descrevendo
+      // a aba anterior.
+      ..addListener(_onTabChanged);
+  }
+
+  void _onTabChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _tabController
+      ..removeListener(_onTabChanged)
+      ..dispose();
     super.dispose();
   }
 
