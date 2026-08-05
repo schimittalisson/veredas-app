@@ -7,6 +7,7 @@ import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/home_providers.dart';
+import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
 import 'package:veredas/ui/widgets/section_header.dart';
@@ -161,11 +162,35 @@ class _PinnedAnnouncement extends ConsumerWidget {
     String id,
   ) async {
     final l = AppLocalizations.of(context);
-    // TODO: usar ConfirmDialog quando o repositório de announcements existir.
-    // Por ora, só um placeholder.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(l.home_announcement_delete_confirm)),
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l.home_announcement_delete),
+        content: Text(l.home_announcement_delete_confirm),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l.action_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l.home_announcement_delete),
+          ),
+        ],
+      ),
     );
+
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(homeRepositoryProvider).deleteAnnouncement(id);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    }
   }
 }
 
@@ -315,14 +340,14 @@ class _BaseInfoSection extends ConsumerWidget {
   }
 }
 
-class _BaseInfoTile extends StatelessWidget {
+class _BaseInfoTile extends ConsumerWidget {
   const _BaseInfoTile({required this.item, required this.isAdmin});
 
   final BaseInfoRow item;
   final bool isAdmin;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
 
     return ExpansionTile(
@@ -331,7 +356,7 @@ class _BaseInfoTile extends StatelessWidget {
           ? IconButton(
               icon: const Icon(Icons.edit_outlined, size: 20),
               tooltip: l.home_base_info_edit,
-              onPressed: () => _showEditDialog(context),
+              onPressed: () => _showEditDialog(context, ref),
             )
           : null,
       children: [
@@ -347,7 +372,7 @@ class _BaseInfoTile extends StatelessWidget {
     );
   }
 
-  Future<void> _showEditDialog(BuildContext context) async {
+  Future<void> _showEditDialog(BuildContext context, WidgetRef ref) async {
     final l = AppLocalizations.of(context);
     final controller = TextEditingController(text: item.value);
 
@@ -380,8 +405,19 @@ class _BaseInfoTile extends StatelessWidget {
     controller.dispose();
 
     if (result == null || result == item.value) return;
-    // TODO: chamar repositório para salvar via outbox.
-    // Por ora, o editor não persiste — precisa do HomeRepository.
+
+    try {
+      await ref.read(homeRepositoryProvider).updateBaseInfo(
+            id: item.id,
+            value: result,
+          );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    }
   }
 }
 

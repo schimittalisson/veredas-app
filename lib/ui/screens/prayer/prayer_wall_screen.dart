@@ -231,8 +231,16 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
                 ),
                 if (canEdit)
                   PopupMenuButton<String>(
-                    onSelected: (value) {
-                      // TODO: implementar ações
+                    onSelected: (value) async {
+                      switch (value) {
+                        case 'edit':
+                          // TODO: navegar para /oracao/:id/editar
+                          break;
+                        case 'delete':
+                          await _confirmDelete(context);
+                        case 'mark_answered':
+                          await _markAnswered(context);
+                      }
                     },
                     itemBuilder: (context) => [
                       if (canEdit)
@@ -334,17 +342,68 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
 
   Future<void> _togglePraying() async {
     final post = widget.post;
-    final newIsPraying = !post.isPraying;
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
 
     // Marca como em progresso para desabilitar o botão (evita duplo toque).
     ref.read(prayingToggleInProgressProvider.notifier).add(post.id);
 
     try {
-      // Toggle otimista: ajusta o cache local imediatamente.
-      await ref.read(prayerDaoProvider).togglePraying(post, newIsPraying);
-      // TODO: enfileirar na outbox o INSERT/DELETE em prayer_interactions.
+      // Toggle otimista via repositório: ajusta o cache da view e enfileira
+      // INSERT/DELETE em prayer_interactions na outbox.
+      await ref.read(prayerRepositoryProvider).togglePraying(
+            postId: post.id,
+            userId: userId,
+          );
     } finally {
       ref.read(prayingToggleInProgressProvider.notifier).remove(post.id);
+    }
+  }
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final l = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l.prayer_delete),
+        content: Text(l.prayer_delete),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(l.action_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(l.prayer_delete),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(prayerRepositoryProvider).deletePost(widget.post.id);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    }
+  }
+
+  Future<void> _markAnswered(BuildContext context) async {
+    try {
+      await ref.read(prayerRepositoryProvider).markAnswered(
+            id: widget.post.id,
+          );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
     }
   }
 
