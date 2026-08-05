@@ -1,24 +1,17 @@
-import 'package:flutter/material.dart';
+import 'dart:ui' show Color;
+
+import 'package:flutter/foundation.dart' show immutable;
 
 /// Paleta extraída da logo da base (o vitral).
 ///
-/// O `ColorScheme` do Material 3 é gerado a partir de uma única cor semente
-/// (o marrom do traço da logo), o que dá uma base neutra e sóbria. Estas cores
-/// vivem fora dele porque têm significado **semântico**, não decorativo: cada
-/// uma identifica um tipo de escala ou uma categoria de evento.
-///
-/// O ganho é funcional, não estético — na grade do cronograma e nas abas de
-/// escala o obreiro reconhece a categoria pela cor antes de ler o texto.
+/// Valores amostrados de `assets/images/logo.jpg`, não estimados a olho.
 class VeredasPalette {
   const VeredasPalette._();
 
-  // Valores amostrados de assets/images/logo.jpg, não estimados a olho.
-
-  /// Traço e tipografia da logo. Cor semente do `ColorScheme`.
+  /// Traço e tipografia da logo. É a cor de marca (`primary` no claro).
   static const Color brown = Color(0xFF62503F);
 
-  /// Fundo do vitral. Usada como `surface` no tema claro — mais quente que
-  /// branco puro e coerente com a identidade da base.
+  /// Fundo do vitral. Mais quente que branco puro e coerente com a identidade.
   static const Color cream = Color(0xFFF5EEE6);
 
   // As 5 cores do vitral, na ordem em que aparecem na logo.
@@ -29,35 +22,94 @@ class VeredasPalette {
   static const Color purple = Color(0xFF904195);
 }
 
-/// Cores de acento que não cabem no `ColorScheme`.
+/// Cores semânticas do app, **independentes de Material e de Cupertino**.
 ///
-/// Cada acento vem em par: [accents] é a cor viva (bordas, ícones, marcadores)
-/// e [accentContainers] é a versão dessaturada para **fundos**.
+/// Antes a UI lia `Theme.of(context).colorScheme.*`, o que amarrava 65 pontos
+/// do código ao Material. O `CupertinoThemeData` não tem `ColorScheme` — não
+/// existe `onSurfaceVariant` nem `primaryContainer` no mundo Cupertino. Em vez
+/// de espalhar `CupertinoColors` cru pelas telas (perdendo a identidade visual
+/// e o suporte a tema escuro), a UI passa a ler daqui via `context.colors`.
 ///
-/// A separação existe por acessibilidade: o amarelo e o laranja da logo têm
-/// contraste insuficiente para texto quando usados como fundo. Pintar uma
-/// célula da grade com `yellow` puro e escrever em cima dela reprova em
-/// WCAG AA. Use sempre `accentContainer` atrás de texto e `accent` só para
-/// traços e ícones.
+/// O benefício é que a camada de widgets não sabe qual design system está por
+/// baixo: trocar de novo no futuro não toca nas telas.
+///
+/// Os nomes seguem a estrutura do iOS (`label`, `secondaryLabel`, `separator`,
+/// `groupedBackground`) porque é para lá que o app está indo, mas os valores
+/// mantêm a temperatura da marca.
 @immutable
-class AppColors extends ThemeExtension<AppColors> {
+class AppColors {
   const AppColors({
-    required this.accents,
-    required this.accentContainers,
-    required this.onAccentContainers,
+    required this.groupedBackground,
+    required this.surface,
+    required this.elevatedSurface,
+    required this.fill,
+    required this.label,
+    required this.secondaryLabel,
+    required this.tertiaryLabel,
+    required this.tint,
+    required this.onTint,
+    required this.tintContainer,
+    required this.onTintContainer,
+    required this.separator,
+    required this.destructive,
+    required this.onDestructive,
     required this.success,
     required this.warning,
     required this.pendingSync,
+    required this.accents,
+    required this.accentContainers,
+    required this.onAccentContainers,
   });
 
-  /// Cores vivas, para bordas, ícones e marcadores de calendário.
-  final List<Color> accents;
+  // --- Superfícies ----------------------------------------------------------
 
-  /// Fundos legíveis correspondentes a [accents], mesmo índice.
-  final List<Color> accentContainers;
+  /// Fundo das telas com listas agrupadas — o cinza por trás dos cartões.
+  /// Equivale a `systemGroupedBackground` do iOS.
+  final Color groupedBackground;
 
-  /// Cor de texto sobre [accentContainers], mesmo índice.
-  final List<Color> onAccentContainers;
+  /// Fundo de cartões e células sobre [groupedBackground].
+  final Color surface;
+
+  /// Superfícies que precisam se destacar de [surface] (barras, cabeçalhos).
+  final Color elevatedSurface;
+
+  /// Fundo de campos de texto e chips. `tertiarySystemFill` do iOS.
+  final Color fill;
+
+  // --- Texto ----------------------------------------------------------------
+
+  /// Texto principal.
+  final Color label;
+
+  /// Texto de apoio: legendas, timestamps, subtítulos.
+  final Color secondaryLabel;
+
+  /// Texto desabilitado e placeholders.
+  final Color tertiaryLabel;
+
+  // --- Marca ----------------------------------------------------------------
+
+  /// Cor de destaque do app (botões, links, ícone da tab ativa).
+  final Color tint;
+
+  /// Texto sobre [tint].
+  final Color onTint;
+
+  /// Fundo suave da marca, para destaques que não são botões.
+  final Color tintContainer;
+
+  /// Texto sobre [tintContainer].
+  final Color onTintContainer;
+
+  // --- Estrutura e estado ---------------------------------------------------
+
+  /// Divisórias e bordas de célula.
+  final Color separator;
+
+  /// Ações destrutivas e mensagens de erro.
+  final Color destructive;
+
+  final Color onDestructive;
 
   /// Badge "Respondido" no mural de oração.
   final Color success;
@@ -66,6 +118,21 @@ class AppColors extends ThemeExtension<AppColors> {
 
   /// Itens da outbox aguardando envio ("enviando…").
   final Color pendingSync;
+
+  // --- Acentos do vitral ----------------------------------------------------
+
+  /// Cores vivas, para bordas, ícones e marcadores de calendário.
+  final List<Color> accents;
+
+  /// Fundos legíveis correspondentes a [accents], mesmo índice.
+  ///
+  /// A separação existe por acessibilidade: o amarelo e o laranja da logo têm
+  /// contraste insuficiente para texto quando usados como fundo. Use sempre
+  /// `accentContainer` atrás de texto e `accent` só para traços e ícones.
+  final List<Color> accentContainers;
+
+  /// Cor de texto sobre [accentContainers], mesmo índice.
+  final List<Color> onAccentContainers;
 
   /// Acento estável para uma entidade, derivado de uma chave.
   ///
@@ -88,7 +155,26 @@ class AppColors extends ThemeExtension<AppColors> {
     return sum;
   }
 
+  /// Tema claro: cartões brancos sobre o creme da logo — a estrutura de lista
+  /// agrupada do iOS, com a temperatura da marca no lugar do cinza neutro.
   static const AppColors light = AppColors(
+    groupedBackground: VeredasPalette.cream,
+    surface: Color(0xFFFFFFFF),
+    elevatedSurface: Color(0xFFFBF7F2),
+    fill: Color(0xFFEAE2D8),
+    label: Color(0xFF1C1712),
+    secondaryLabel: Color(0xFF6B5F52),
+    tertiaryLabel: Color(0xFF9C9084),
+    tint: VeredasPalette.brown,
+    onTint: Color(0xFFFFFFFF),
+    tintContainer: Color(0xFFE4D8CB),
+    onTintContainer: Color(0xFF2A211A),
+    separator: Color(0xFFD8CEC2),
+    destructive: Color(0xFFD0342C),
+    onDestructive: Color(0xFFFFFFFF),
+    success: Color(0xFF2E7D4F),
+    warning: Color(0xFF9A6B00),
+    pendingSync: Color(0xFF7A6A5C),
     accents: [
       VeredasPalette.teal,
       VeredasPalette.blue,
@@ -112,14 +198,31 @@ class AppColors extends ThemeExtension<AppColors> {
       Color(0xFF7E6326), // 4.65:1
       Color(0xFF893E8E), // 4.51:1
     ],
-    success: Color(0xFF2E7D4F),
-    warning: Color(0xFF9A6B00),
-    pendingSync: Color(0xFF7A6A5C),
   );
 
-  /// No escuro os acentos são clareados e os contêineres escurecidos — inverter
-  /// a luminosidade é o que mantém o contraste do texto em ambos os temas.
+  /// Tema escuro: preto quente, como o `systemBackground` escuro do iOS, mas
+  /// puxado para o marrom da marca em vez do cinza neutro.
+  ///
+  /// Os acentos são clareados e os contêineres escurecidos — inverter a
+  /// luminosidade é o que mantém o contraste do texto em ambos os temas.
   static const AppColors dark = AppColors(
+    groupedBackground: Color(0xFF17130F),
+    surface: Color(0xFF221C17),
+    elevatedSurface: Color(0xFF2C2520),
+    fill: Color(0xFF332B24),
+    label: Color(0xFFF2EBE3),
+    secondaryLabel: Color(0xFFB3A697),
+    tertiaryLabel: Color(0xFF7D7266),
+    tint: Color(0xFFD8C3AC),
+    onTint: Color(0xFF33271C),
+    tintContainer: Color(0xFF3D3128),
+    onTintContainer: Color(0xFFEFE2D4),
+    separator: Color(0xFF38302A),
+    destructive: Color(0xFFFF6961),
+    onDestructive: Color(0xFF3A0C08),
+    success: Color(0xFF7BC894),
+    warning: Color(0xFFE8BC5A),
+    pendingSync: Color(0xFFBFAE9E),
     accents: [
       Color(0xFF64D0C2),
       Color(0xFF8EC5FA),
@@ -141,54 +244,5 @@ class AppColors extends ThemeExtension<AppColors> {
       Color(0xFFFCC64C), // 5.21:1
       Color(0xFFBF7EC4), // 4.56:1
     ],
-    success: Color(0xFF7BC894),
-    warning: Color(0xFFE8BC5A),
-    pendingSync: Color(0xFFBFAE9E),
   );
-
-  @override
-  AppColors copyWith({
-    List<Color>? accents,
-    List<Color>? accentContainers,
-    List<Color>? onAccentContainers,
-    Color? success,
-    Color? warning,
-    Color? pendingSync,
-  }) {
-    return AppColors(
-      accents: accents ?? this.accents,
-      accentContainers: accentContainers ?? this.accentContainers,
-      onAccentContainers: onAccentContainers ?? this.onAccentContainers,
-      success: success ?? this.success,
-      warning: warning ?? this.warning,
-      pendingSync: pendingSync ?? this.pendingSync,
-    );
-  }
-
-  @override
-  AppColors lerp(covariant AppColors? other, double t) {
-    if (other == null) return this;
-    return AppColors(
-      accents: _lerpList(accents, other.accents, t),
-      accentContainers: _lerpList(accentContainers, other.accentContainers, t),
-      onAccentContainers:
-          _lerpList(onAccentContainers, other.onAccentContainers, t),
-      success: Color.lerp(success, other.success, t)!,
-      warning: Color.lerp(warning, other.warning, t)!,
-      pendingSync: Color.lerp(pendingSync, other.pendingSync, t)!,
-    );
-  }
-
-  static List<Color> _lerpList(List<Color> a, List<Color> b, double t) {
-    return List<Color>.generate(
-      a.length,
-      (i) => Color.lerp(a[i], b[i], t)!,
-      growable: false,
-    );
-  }
-}
-
-/// Açúcar sintático para `Theme.of(context).extension<AppColors>()!`.
-extension AppColorsX on ThemeData {
-  AppColors get appColors => extension<AppColors>()!;
 }

@@ -1,147 +1,73 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 
 import 'package:veredas/core/theme/app_colors.dart';
+import 'package:veredas/core/theme/app_typography.dart';
 
-/// Tema Material 3 do app.
+/// Entrega [AppColors] à árvore de widgets.
 ///
-/// O esquema inteiro é gerado por `ColorScheme.fromSeed` a partir do marrom da
-/// logo. Escrever os dois `ColorScheme` à mão (como faz o projeto de
-/// referência) dá muito mais código e produz um M3 inconsistente — o algoritmo
-/// do `fromSeed` garante os pares `container`/`onContainer` com contraste
-/// correto, que é justamente o que a UI usa.
-class AppTheme {
-  const AppTheme._();
+/// Não usa `ThemeExtension` porque `ThemeExtension` vive no Material e o app
+/// roda sobre `CupertinoApp`. Um `InheritedWidget` próprio resolve o mesmo
+/// problema sem arrastar o Material junto.
+///
+/// A tipografia não passa por aqui: [AppTypography] é toda `static const`,
+/// não varia com o brilho, então não há motivo para custar uma dependência de
+/// contexto em cada widget que só quer um tamanho de fonte.
+class AppTheme extends InheritedWidget {
+  const AppTheme({
+    required this.colors,
+    required super.child,
+    super.key,
+  });
 
-  static const Color _seed = VeredasPalette.brown;
+  final AppColors colors;
 
-  static ThemeData light() => _build(Brightness.light);
-  static ThemeData dark() => _build(Brightness.dark);
-
-  static ThemeData _build(Brightness brightness) {
-    final isLight = brightness == Brightness.light;
-
-    final scheme = ColorScheme.fromSeed(
-      seedColor: _seed,
-      brightness: brightness,
-      // No claro, o creme da logo substitui o branco puro do M3: a base é
-      // neutra, como pedido, mas com a temperatura da identidade visual.
-      surface: isLight ? VeredasPalette.cream : null,
-    );
-
-    final base = ThemeData(colorScheme: scheme, useMaterial3: true);
-
-    return base.copyWith(
-      extensions: <ThemeExtension<dynamic>>[
-        isLight ? AppColors.light : AppColors.dark,
-      ],
-
-      // AppBar plana: o mockup usa uma barra colorida cheia, mas em M3 a
-      // elevação por scroll já separa a barra do conteúdo sem pintar 56 dp de
-      // cor saturada, que competiria com os acentos do vitral.
-      appBarTheme: AppBarTheme(
-        centerTitle: false,
-        elevation: 0,
-        scrolledUnderElevation: 2,
-        backgroundColor: scheme.surface,
-        foregroundColor: scheme.onSurface,
-        titleTextStyle: base.textTheme.titleLarge?.copyWith(
-          color: scheme.onSurface,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-
-      cardTheme: CardThemeData(
-        elevation: 0,
-        color: scheme.surfaceContainerLow,
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      ),
-
-      navigationBarTheme: NavigationBarThemeData(
-        elevation: 3,
-        backgroundColor: scheme.surfaceContainer,
-        indicatorColor: scheme.secondaryContainer,
-        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-      ),
-
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: scheme.surfaceContainerHighest,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: scheme.primary, width: 2),
-        ),
-        errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: scheme.error, width: 1),
-        ),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      ),
-
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          // 48 dp: alvo de toque mínimo recomendado. A base usa o app no
-          // celular, muitas vezes em pé e com pressa.
-          minimumSize: const Size.fromHeight(48),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
-        ),
-      ),
-
-      outlinedButtonTheme: OutlinedButtonThemeData(
-        style: OutlinedButton.styleFrom(
-          minimumSize: const Size.fromHeight(48),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      ),
-
-      chipTheme: ChipThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        side: BorderSide.none,
-      ),
-
-      listTileTheme: const ListTileThemeData(
-        contentPadding: EdgeInsets.symmetric(horizontal: 16),
-      ),
-
-      dividerTheme: DividerThemeData(
-        color: scheme.outlineVariant,
-        thickness: 1,
-        space: 1,
-      ),
-
-      snackBarTheme: SnackBarThemeData(
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-
-      dialogTheme: DialogThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      ),
-
-      bottomSheetTheme: const BottomSheetThemeData(
-        showDragHandle: true,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-      ),
-
-      tabBarTheme: TabBarThemeData(
-        indicatorSize: TabBarIndicatorSize.tab,
-        dividerColor: scheme.outlineVariant,
-        labelStyle: const TextStyle(fontWeight: FontWeight.w600),
-      ),
-    );
+  /// Cores do tema ativo. Lance se não houver [AppTheme] acima — é erro de
+  /// montagem, não um caso a tratar em runtime.
+  static AppColors of(BuildContext context) {
+    final theme = context.dependOnInheritedWidgetOfExactType<AppTheme>();
+    assert(theme != null, 'Nenhum AppTheme encontrado acima deste widget.');
+    return theme!.colors;
   }
+
+  @override
+  bool updateShouldNotify(AppTheme oldWidget) => colors != oldWidget.colors;
+}
+
+/// Açúcar sintático: `context.colors.tint` em vez de `AppTheme.of(context)`.
+///
+/// Substitui o antigo `Theme.of(context).colorScheme` — mais curto, e sem
+/// acoplar a tela ao design system.
+extension AppThemeX on BuildContext {
+  AppColors get colors => AppTheme.of(this);
+}
+
+/// Constrói o [CupertinoThemeData] a partir da nossa paleta.
+///
+/// Os widgets Cupertino leem daqui (a cor do `CupertinoButton`, do cursor de
+/// texto, do indicador de atividade). Manter essa derivação num único lugar é
+/// o que impede o tema nativo e o nosso de divergirem.
+CupertinoThemeData cupertinoThemeFor(AppColors colors, Brightness brightness) {
+  return CupertinoThemeData(
+    brightness: brightness,
+    primaryColor: colors.tint,
+    primaryContrastingColor: colors.onTint,
+    scaffoldBackgroundColor: colors.groupedBackground,
+    barBackgroundColor: colors.elevatedSurface,
+    // applyThemeToAll faz o tema alcançar também os widgets que, por padrão,
+    // ignoram o CupertinoTheme (CupertinoButton entre eles). Sem isto, botões
+    // apareceriam no azul do sistema em vez do marrom da marca.
+    applyThemeToAll: true,
+    textTheme: CupertinoTextThemeData(
+      primaryColor: colors.tint,
+      textStyle: AppTypography.body.copyWith(color: colors.label),
+      actionTextStyle: AppTypography.body.copyWith(color: colors.tint),
+      navTitleTextStyle: AppTypography.navTitle.copyWith(color: colors.label),
+      navLargeTitleTextStyle:
+          AppTypography.largeTitle.copyWith(color: colors.label),
+      tabLabelTextStyle: AppTypography.caption2,
+      pickerTextStyle: AppTypography.body.copyWith(color: colors.label),
+      dateTimePickerTextStyle:
+          AppTypography.body.copyWith(color: colors.label),
+    ),
+  );
 }
