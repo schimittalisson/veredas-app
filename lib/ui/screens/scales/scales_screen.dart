@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/data/models/profile.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/scales_providers.dart';
+import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/screens/scales/scale_tab_view.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
@@ -98,7 +100,9 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
       floatingActionButton: canEdit
           ? FloatingActionButton(
               onPressed: () {
-                // TODO: navegar para /escala/:tipo/atribuicao/novo
+                context.push(
+                  '${Routes.escalaAtribuicaoNovo}?scaleTypeId=${currentType.id}',
+                );
               },
               child: const Icon(Icons.add),
             )

@@ -10,13 +10,17 @@ import 'package:veredas/ui/screens/admin/convites_screen.dart';
 import 'package:veredas/ui/screens/admin/membros_screen.dart';
 import 'package:veredas/ui/screens/admin/responsaveis_screen.dart';
 import 'package:veredas/ui/screens/agenda/agenda_screen.dart';
+import 'package:veredas/ui/screens/agenda/event_editor_screen.dart';
 import 'package:veredas/ui/screens/auth/aguardando_screen.dart';
 import 'package:veredas/ui/screens/auth/cadastro_screen.dart';
 import 'package:veredas/ui/screens/auth/esqueci_senha_screen.dart';
 import 'package:veredas/ui/screens/auth/login_screen.dart';
 import 'package:veredas/ui/screens/auth/splash_screen.dart';
+import 'package:veredas/ui/screens/home/announcement_editor_screen.dart';
 import 'package:veredas/ui/screens/home/home_screen.dart';
+import 'package:veredas/ui/screens/prayer/prayer_editor_screen.dart';
 import 'package:veredas/ui/screens/prayer/prayer_wall_screen.dart';
+import 'package:veredas/ui/screens/scales/scale_assignment_editor_screen.dart';
 import 'package:veredas/ui/screens/scales/scales_screen.dart';
 import 'package:veredas/ui/widgets/root_scaffold.dart';
 
@@ -42,6 +46,16 @@ class Routes {
   static const String adminConvites = '/admin/convites';
   static const String adminResponsaveis = '/admin/responsaveis';
   static const String adminBase = '/admin/base';
+
+  // Rotas de editores (acima da NavigationBar, tela inteira).
+  static const String avisoNovo = '/aviso/novo';
+  static const String avisoEditar = '/aviso/editar';
+  static const String oracaoNovo = '/oracao/novo';
+  static const String oracaoEditar = '/oracao/editar';
+  static const String eventoNovo = '/evento/novo';
+  static const String eventoEditar = '/evento/editar';
+  static const String escalaAtribuicaoNovo = '/escala/atribuicao/novo';
+  static const String escalaAtribuicaoEditar = '/escala/atribuicao/editar';
 
   /// Rotas onde um usuário sem sessão pode estar. O `redirect` usa esta lista
   /// para não entrar em loop de redirecionamento.
@@ -147,6 +161,50 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.adminBase,
         builder: (context, state) => const AdminScreen(), // TODO: BaseDataScreen
+      ),
+      // Editores — tela inteira, acima da NavigationBar.
+      GoRoute(
+        path: Routes.avisoNovo,
+        builder: (context, state) => const AnnouncementEditorScreen(),
+      ),
+      GoRoute(
+        path: Routes.avisoEditar,
+        builder: (context, state) => AnnouncementEditorScreen(
+          announcementId: state.uri.queryParameters['id'],
+        ),
+      ),
+      GoRoute(
+        path: Routes.oracaoNovo,
+        builder: (context, state) => const PrayerEditorScreen(),
+      ),
+      GoRoute(
+        path: Routes.oracaoEditar,
+        builder: (context, state) => PrayerEditorScreen(
+          postId: state.uri.queryParameters['id'],
+        ),
+      ),
+      GoRoute(
+        path: Routes.eventoNovo,
+        builder: (context, state) => const EventEditorScreen(),
+      ),
+      GoRoute(
+        path: Routes.eventoEditar,
+        builder: (context, state) => EventEditorScreen(
+          eventId: state.uri.queryParameters['id'],
+        ),
+      ),
+      GoRoute(
+        path: Routes.escalaAtribuicaoNovo,
+        builder: (context, state) => ScaleAssignmentEditorScreen(
+          scaleTypeId: state.uri.queryParameters['scaleTypeId']!,
+        ),
+      ),
+      GoRoute(
+        path: Routes.escalaAtribuicaoEditar,
+        builder: (context, state) => ScaleAssignmentEditorScreen(
+          scaleTypeId: state.uri.queryParameters['scaleTypeId']!,
+          assignmentId: state.uri.queryParameters['id'],
+        ),
       ),
       StatefulShellRoute.indexedStack(
         // indexedStack mantém as 4 tabs vivas simultaneamente. Isso interage

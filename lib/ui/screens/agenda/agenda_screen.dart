@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/auth_providers.dart';
+import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/screens/agenda/events_tab.dart';
 import 'package:veredas/ui/screens/agenda/schedule_tab.dart';
 
@@ -52,8 +54,10 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
       floatingActionButton: isAdmin
           ? FloatingActionButton(
               onPressed: () {
-                // TODO: navegar para /evento/novo ou /cronograma/novo
-                // conforme a aba ativa.
+                if (_tabController.index == 0) {
+                  context.push(Routes.eventoNovo);
+                }
+                // TODO: editor de slot semanal (/cronograma/novo)
               },
               tooltip: _tabController.index == 0
                   ? l.agenda_new_event

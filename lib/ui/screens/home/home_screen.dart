@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:url_launcher/url_launcher.dart';
 
@@ -8,6 +9,7 @@ import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/home_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
+import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
 import 'package:veredas/ui/widgets/section_header.dart';
@@ -33,9 +35,7 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(title: Text(l.tab_inicio)),
       floatingActionButton: isAdmin
           ? FloatingActionButton(
-              onPressed: () {
-                // TODO: navegar para /aviso/novo (Fase 9 ou editor de aviso)
-              },
+              onPressed: () => context.push(Routes.avisoNovo),
               tooltip: l.home_announcement_new,
               child: const Icon(Icons.add),
             )
@@ -121,7 +121,9 @@ class _PinnedAnnouncement extends ConsumerWidget {
                     PopupMenuButton<String>(
                       onSelected: (value) {
                         if (value == 'edit') {
-                          // TODO: navegar para editor de aviso
+                          context.push(
+                            '${Routes.avisoEditar}?id=${announcement.id}',
+                          );
                         } else if (value == 'delete') {
                           _confirmDelete(context, ref, announcement.id);
                         }
@@ -439,7 +441,9 @@ class _RecentAnnouncements extends ConsumerWidget {
           title: l.home_announcements_section,
           actionLabel: l.action_see_all,
           onAction: () {
-            // TODO: navegar para lista completa de avisos
+            // TODO: navegar para lista completa de avisos (rota /avisos)
+            // Por ora, não há tela de lista — o editor de cada aviso é
+            // acessível pelo popup no aviso fixado.
           },
         ),
         if (announcements.isEmpty)
@@ -474,7 +478,9 @@ class _AnnouncementTile extends StatelessWidget {
         timeago.format(announcement.createdAt, locale: 'pt_BR'),
       ),
       onTap: () {
-        // TODO: navegar para detalhe do aviso
+        // Detalhe do aviso: por ora, abre o editor em modo visualização.
+        // TODO: tela de detalhe dedicada (/aviso/:id) quando houver
+        // comentários ou anexos.
       },
     );
   }

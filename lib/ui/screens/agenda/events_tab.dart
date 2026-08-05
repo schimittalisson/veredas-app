@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/agenda_providers.dart';
+import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
 
@@ -202,7 +204,9 @@ class EventCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
-          // TODO: navegar para /evento/:id
+          // TODO: tela de detalhe do evento (/evento/:id) com mapa e anexos.
+          // Por ora, abre o editor em modo edição.
+          context.push('${Routes.eventoEditar}?id=${event.id}');
         },
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

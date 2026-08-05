@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 
 import 'package:veredas/data/local/app_database.dart';
@@ -10,6 +11,7 @@ import 'package:veredas/data/models/profile.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/providers/prayer_providers.dart';
+import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 
 /// Mural de Oração — quarta tab.
@@ -87,9 +89,7 @@ class _PrayerWallScreenState extends ConsumerState<PrayerWallScreen> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: navegar para /oracao/novo
-        },
+        onPressed: () => context.push(Routes.oracaoNovo),
         tooltip: l.prayer_new,
         child: const Icon(Icons.add),
       ),
@@ -134,9 +134,7 @@ class _InlineComposer extends ConsumerWidget {
     final profile = ref.watch(currentProfileProvider).value;
 
     return InkWell(
-      onTap: () {
-        // TODO: navegar para /oracao/novo
-      },
+      onTap: () => context.push(Routes.oracaoNovo),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
@@ -234,8 +232,9 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
                     onSelected: (value) async {
                       switch (value) {
                         case 'edit':
-                          // TODO: navegar para /oracao/:id/editar
-                          break;
+                          await context.push(
+                            '${Routes.oracaoEditar}?id=${widget.post.id}',
+                          );
                         case 'delete':
                           await _confirmDelete(context);
                         case 'mark_answered':
