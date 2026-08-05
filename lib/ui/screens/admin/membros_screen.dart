@@ -8,6 +8,7 @@ import 'package:veredas/data/models/app_role.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/admin_providers.dart';
 import 'package:veredas/providers/auth_providers.dart';
+import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 
 /// Tela de Membros — lista de perfis com busca e ações administrativas.
@@ -250,8 +251,6 @@ class _MemberTile extends ConsumerWidget {
       }
     }
 
-    // TODO: chamar RPCs do Supabase (set_approval, set_role, soft_delete).
-    // Por ora, só mostra um SnackBar com a ação.
     final actionLabel = switch (action) {
       'approve' => l.admin_action_approve,
       'revoke' => l.admin_action_revoke,
@@ -261,9 +260,61 @@ class _MemberTile extends ConsumerWidget {
       _ => action,
     };
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$actionLabel: ${profile.fullName}')),
+    // Confirmação antes de executar.
+    _confirmAndExecute(context, ref, action, actionLabel);
+  }
+
+  Future<void> _confirmAndExecute(
+    BuildContext context,
+    WidgetRef ref,
+    String action,
+    String actionLabel,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(actionLabel),
+        content: Text('${profile.fullName}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(AppLocalizations.of(context).action_cancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(actionLabel),
+          ),
+        ],
+      ),
     );
+
+    if (confirmed != true) return;
+
+    final adminService = ref.read(adminServiceProvider);
+    try {
+      switch (action) {
+        case 'approve':
+          await adminService.setApproval(
+              userId: profile.id, approved: true);
+        case 'revoke':
+          await adminService.setApproval(
+              userId: profile.id, approved: false);
+        case 'promote':
+          await adminService.setRole(
+              userId: profile.id, role: AppRole.admin);
+        case 'demote':
+          await adminService.setRole(
+              userId: profile.id, role: AppRole.obreiro);
+        case 'remove':
+          await adminService.softDeleteUser(userId: profile.id);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString())),
+        );
+      }
+    }
   }
 
   String _initials(String name) {

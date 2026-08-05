@@ -8,6 +8,8 @@ import 'package:veredas/data/daos/prayer_dao.dart';
 import 'package:veredas/data/daos/profile_dao.dart';
 import 'package:veredas/data/daos/scales_dao.dart';
 import 'package:veredas/data/local/app_database.dart';
+import 'package:veredas/data/remote/admin_service.dart';
+import 'package:veredas/data/remote/supabase_admin_service.dart';
 import 'package:veredas/data/sync/outbox_worker.dart';
 import 'package:veredas/data/sync/remote_source.dart';
 import 'package:veredas/data/sync/sync_service.dart';
@@ -26,6 +28,11 @@ import 'package:veredas/data/sync/sync_service.dart';
 /// `Supabase.initialize`; o `Supabase.instance.client` é estável após isso.
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {
   return Supabase.instance.client;
+});
+
+/// Provider do [AdminService]. Em testes, override com um fake.
+final adminServiceProvider = Provider<AdminService>((ref) {
+  return SupabaseAdminService(ref.watch(supabaseClientProvider));
 });
 
 // --- Database -------------------------------------------------------------

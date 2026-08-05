@@ -7,6 +7,7 @@ import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/data/models/app_role.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/admin_providers.dart';
+import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 
 /// Tela de Convites — lista + FAB criar diálogo.
@@ -135,9 +136,28 @@ class ConvitesScreen extends ConsumerWidget {
               child: Text(l.action_cancel),
             ),
             FilledButton(
-              onPressed: () {
-                // TODO: chamar RPC create_invite no Supabase.
-                Navigator.of(context).pop();
+              onPressed: () async {
+                final adminService = ref.read(adminServiceProvider);
+                try {
+                  await adminService.createInvite(
+                    role: role,
+                    maxUses: int.tryParse(maxUsesController.text) ?? 1,
+                    expiresAt: expiry,
+                    note: noteController.text.trim().isEmpty
+                        ? null
+                        : noteController.text.trim(),
+                    code: codeController.text.trim().isEmpty
+                        ? null
+                        : codeController.text.trim().toUpperCase(),
+                  );
+                  if (context.mounted) Navigator.of(context).pop();
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(e.toString())),
+                    );
+                  }
+                }
               },
               child: Text(l.action_save),
             ),
@@ -157,13 +177,13 @@ class ConvitesScreen extends ConsumerWidget {
   }
 }
 
-class _InviteTile extends StatelessWidget {
+class _InviteTile extends ConsumerWidget {
   const _InviteTile({required this.invite});
 
   final InviteRow invite;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final theme = Theme.of(context);
 
@@ -223,14 +243,25 @@ class _InviteTile extends StatelessWidget {
             visualDensity: VisualDensity.compact,
           ),
           PopupMenuButton<String>(
-            onSelected: (value) {
+            onSelected: (value) async {
               if (value == 'copy') {
-                Clipboard.setData(ClipboardData(text: invite.code));
+                await Clipboard.setData(ClipboardData(text: invite.code));
+                if (!context.mounted) return;
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(content: Text(l.admin_invite_copied)),
                 );
               } else if (value == 'revoke') {
-                // TODO: chamar RPC revoke_invite.
+                try {
+                  await ref.read(adminServiceProvider).revokeInvite(
+                        inviteId: invite.id,
+                      );
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(e.toString())),
+                    );
+                  }
+                }
               }
             },
             itemBuilder: (context) => [

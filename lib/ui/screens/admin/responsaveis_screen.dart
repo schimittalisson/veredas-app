@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/admin_providers.dart';
+import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 
 /// Tela de Responsáveis por escala — um ExpansionTile por scale_type.
@@ -103,8 +104,19 @@ class _ScaleTypeSection extends ConsumerWidget {
               trailing: IconButton(
                 icon: const Icon(Icons.remove_circle_outline),
                 tooltip: l.admin_managers_remove,
-                onPressed: () {
-                  // TODO: chamar RPC remove_scale_manager.
+                onPressed: () async {
+                  try {
+                    await ref.read(adminServiceProvider).removeScaleManager(
+                          scaleTypeId: scaleType.id,
+                          userId: p.id,
+                        );
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(e.toString())),
+                      );
+                    }
+                  }
                 },
               ),
             )),
@@ -157,9 +169,20 @@ class _ScaleTypeSection extends ConsumerWidget {
                         ),
                       ),
                       title: Text(p.fullName),
-                      onTap: () {
-                        // TODO: chamar RPC add_scale_manager.
-                        Navigator.of(context).pop(p.id);
+                      onTap: () async {
+                        Navigator.of(context).pop();
+                        try {
+                          await ref.read(adminServiceProvider).addScaleManager(
+                                scaleTypeId: scaleType.id,
+                                userId: p.id,
+                              );
+                        } catch (e) {
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(e.toString())),
+                            );
+                          }
+                        }
                       },
                     ))
                 .toList(),

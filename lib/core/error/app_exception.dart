@@ -30,6 +30,11 @@ enum AppErrorCode {
   /// (ver `permissionDeniedOrStale`).
   permissionDenied,
 
+  /// A operação foi recusada por uma RPC (ex.: admin tentando rebaixar a si
+  /// mesmo sendo o único admin). Diferente de [permissionDenied] (RLS):
+  /// a recusa é explícita, com uma mensagem específica.
+  forbidden,
+
   /// Escrita que não afetou nenhuma linha.
   ///
   /// Existe separado de [permissionDenied] porque a causa é ambígua: pode ser
@@ -86,6 +91,7 @@ class AppException implements Exception {
         AppErrorCode.permissionDenied ||
         AppErrorCode.permissionDeniedOrStale ||
         AppErrorCode.notApproved ||
+        AppErrorCode.forbidden ||
         AppErrorCode.conflict ||
         AppErrorCode.validation ||
         AppErrorCode.notFound =>
