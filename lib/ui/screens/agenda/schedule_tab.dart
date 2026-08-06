@@ -1,11 +1,17 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/agenda_providers.dart';
+import 'package:veredas/providers/auth_providers.dart';
+import 'package:veredas/providers/infra_providers.dart';
+import 'package:veredas/ui/navigation/app_router.dart';
+import 'package:veredas/ui/widgets/app_toast.dart';
+import 'package:veredas/ui/widgets/confirm_dialog.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
 
@@ -278,7 +284,7 @@ class _HourCell extends StatelessWidget {
   }
 }
 
-class _DayHourCell extends StatelessWidget {
+class _DayHourCell extends ConsumerWidget {
   const _DayHourCell({
     required this.day,
     required this.hourMinutes,
@@ -290,7 +296,7 @@ class _DayHourCell extends StatelessWidget {
   final List<WeeklySlotRow> slots;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
 
     // Encontra o slot que cobre esta hora.
@@ -330,7 +336,7 @@ class _DayHourCell extends StatelessWidget {
         : colors.onAccentContainerFor(category);
 
     return GestureDetector(
-      onTap: () => _showSlotDetails(context, slot),
+      onTap: () => _showSlotDetails(context, ref, slot),
       child: Container(
         width: 96,
         height: 56,
@@ -357,12 +363,41 @@ class _DayHourCell extends StatelessWidget {
 /// `showModalBottomSheet` do Material vira `showCupertinoModalPopup`: no iOS a
 /// folha sobe do rodapé com cantos arredondados e fundo de superfície, sem a
 /// sombra/elevação do Material.
-void _showSlotDetails(BuildContext context, WeeklySlotRow slot) {
+///
+/// Para admin, a folha também é o caminho para **editar e excluir**. Antes ela
+/// só exibia informação: o `WeeklySlotEditorScreen` e o
+/// `AgendaRepository.deleteWeeklySlot` existiam, mas nada no app chegava até
+/// eles — dava para criar um item do cronograma e nunca mais mexer nele.
+void _showSlotDetails(
+  BuildContext context,
+  WidgetRef ref,
+  WeeklySlotRow slot,
+) {
+  final l = AppLocalizations.of(context);
   final colors = context.colors;
+  final isAdmin = ref.read(isAdminProvider);
   final start = _formatMinutes(slot.startsAtMinutes);
   final end = slot.endsAtMinutes != null
       ? _formatMinutes(slot.endsAtMinutes!)
       : null;
+
+  Future<void> delete(BuildContext sheetContext) async {
+    Navigator.of(sheetContext).pop();
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: l.action_delete,
+      message: l.agenda_slot_delete_confirm,
+    );
+    if (!confirmed) return;
+
+    try {
+      await ref.read(agendaRepositoryProvider).deleteWeeklySlot(slot.id);
+    } catch (e) {
+      if (context.mounted) {
+        showAppToast(context, e.toString(), isError: true);
+      }
+    }
+  }
 
   showCupertinoModalPopup<void>(
     context: context,
@@ -413,6 +448,42 @@ void _showSlotDetails(BuildContext context, WeeklySlotRow slot) {
                   slot.notes!,
                   style:
                       AppTypography.subheadline.copyWith(color: colors.label),
+                ),
+              ],
+              if (isAdmin) ...[
+                const SizedBox(height: 16),
+                Container(height: 0.5, color: colors.separator),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(
+                      child: CupertinoButton(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        onPressed: () {
+                          Navigator.of(context).pop();
+                          context.push(
+                            '${Routes.slotEditar}?id=${slot.id}',
+                          );
+                        },
+                        child: Text(
+                          l.action_edit,
+                          style: AppTypography.body
+                              .copyWith(color: colors.tint),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: CupertinoButton(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        onPressed: () => delete(context),
+                        child: Text(
+                          l.action_delete,
+                          style: AppTypography.body
+                              .copyWith(color: colors.destructive),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ],
@@ -530,13 +601,13 @@ class _DaySectionState extends State<_DaySection> {
   }
 }
 
-class _SlotListTile extends StatelessWidget {
+class _SlotListTile extends ConsumerWidget {
   const _SlotListTile({required this.slot});
 
   final WeeklySlotRow slot;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
     final start = _formatMinutes(slot.startsAtMinutes);
     final end = slot.endsAtMinutes != null
@@ -558,12 +629,10 @@ class _SlotListTile extends StatelessWidget {
         end != null ? '$start – $end' : start,
         style: AppTypography.footnote.copyWith(color: colors.secondaryLabel),
       ),
-      onTap: () {
-        // Continua sem ação, como antes da migração. O _showSlotDetails já
-        // está extraído aqui no arquivo; falta decidir se a lista abre a
-        // mesma folha ou vai direto para o editor.
-        // TODO: extrair para um widget compartilhado.
-      },
+      // A lista abre a mesma folha da grade: é o único caminho para editar
+      // e excluir, e ter dois comportamentos diferentes para o mesmo dado só
+      // confundiria.
+      onTap: () => _showSlotDetails(context, ref, slot),
     );
   }
 }

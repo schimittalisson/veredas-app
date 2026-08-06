@@ -172,6 +172,7 @@
   "agenda_slot_category": "Categoria",
   "agenda_slot_notes": "Notas",
   "agenda_slot_saved": "Slot salvo.",
+  "agenda_slot_delete_confirm": "Excluir este item do cronograma?",
 
   "scales_no_types": "Nenhuma escala cadastrada.",
   "scales_no_assignments": "Escala deste período ainda não foi montada.",
