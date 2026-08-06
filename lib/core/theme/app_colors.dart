@@ -144,6 +144,57 @@ class AppColors {
   Color accentContainerFor(String key) => accentContainers[_indexFor(key)];
   Color onAccentContainerFor(String key) => onAccentContainers[_indexFor(key)];
 
+  /// Quantas cores a paleta oferece. É o que a UI de seleção percorre.
+  int get accentCount => accents.length;
+
+  /// Acento por índice explícito, escolhido pelo usuário.
+  ///
+  /// O módulo é proposital: o índice vem do banco, e a paleta pode encolher
+  /// numa versão futura do app. Sem ele, um registro salvo com índice 9 numa
+  /// paleta de 5 cores derrubaria a tela com `RangeError`. Preferimos uma cor
+  /// diferente da escolhida a uma tela quebrada.
+  Color accentAt(int i) => accents[i % accents.length];
+  Color accentContainerAt(int i) => accentContainers[i % accentContainers.length];
+  Color onAccentContainerAt(int i) =>
+      onAccentContainers[i % onAccentContainers.length];
+
+  /// Trio de cores de um registro: usa o índice escolhido, e cai na derivação
+  /// pela categoria quando não há escolha.
+  ///
+  /// Centralizado aqui porque a regra de precedência precisa ser a mesma na
+  /// grade, na lista e nos editores — se cada tela decidisse por conta, o
+  /// mesmo compromisso apareceria de cores diferentes.
+  ({Color accent, Color container, Color onContainer}) resolve({
+    int? colorIndex,
+    String? category,
+  }) {
+    if (colorIndex != null) {
+      return (
+        accent: accentAt(colorIndex),
+        container: accentContainerAt(colorIndex),
+        onContainer: onAccentContainerAt(colorIndex),
+      );
+    }
+    final key = category?.trim() ?? '';
+    if (key.isEmpty) {
+      return (
+        accent: tint,
+        container: tintContainer,
+        onContainer: onTintContainer,
+      );
+    }
+    return (
+      accent: accentFor(key),
+      container: accentContainerFor(key),
+      onContainer: onAccentContainerFor(key),
+    );
+  }
+
+  /// Índice que a categoria receberia por derivação, quando ninguém escolheu
+  /// cor. Exposto para os editores poderem pré-selecionar essa cor no seletor
+  /// — assim o que o usuário vê antes de salvar é o que a grade vai mostrar.
+  int defaultIndexFor(String key) => _indexFor(key);
+
   int _indexFor(String key) {
     if (key.isEmpty) return 0;
     // hashCode do Dart não é estável entre execuções (varia com o hash seed),

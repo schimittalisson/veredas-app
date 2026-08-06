@@ -143,6 +143,12 @@ class EventRows extends Table {
   TextColumn get category => text().nullable()();
   TextColumn get coverImageUrl => text().nullable()();
   TextColumn get createdBy => text().nullable()();
+  /// Índice escolhido na paleta de acentos. Nulo = cor derivada da categoria.
+  ///
+  /// Guarda o índice, e não um hex, porque cada índice resolve para um trio
+  /// (traço, fundo, texto) com contraste verificado — e resolve diferente no
+  /// tema claro e no escuro. Um hex fixo ficaria ilegível num dos dois.
+  IntColumn get colorIndex => integer().nullable()();
   DateTimeColumn get updatedAt => dateTime()();
 
   @override
@@ -172,6 +178,10 @@ class WeeklySlotRows extends Table {
   TextColumn get notes => text().nullable()();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   IntColumn get ordering => integer().withDefault(const Constant(0))();
+
+  /// Ver `EventRows.colorIndex`.
+  IntColumn get colorIndex => integer().nullable()();
+
   DateTimeColumn get updatedAt => dateTime()();
 
   @override

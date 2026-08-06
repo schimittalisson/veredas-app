@@ -5,9 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/l10n/app_localizations.dart';
+import 'package:veredas/providers/agenda_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
-import 'package:veredas/ui/widgets/category_picker_row.dart';
+import 'package:veredas/ui/widgets/color_picker_row.dart';
 
 /// Editor de slot do cronograma semanal — cria ou edita.
 class WeeklySlotEditorScreen extends ConsumerStatefulWidget {
@@ -39,6 +40,30 @@ class _WeeklySlotEditorScreenState
   bool _saving = false;
 
   bool get _isEditing => widget.slotId != null;
+
+
+  /// Cor escolhida explicitamente. Nulo enquanto o usuário não mexeu.
+  int? _colorIndex;
+
+  /// Cor que o seletor exibe: a escolhida ou, na falta dela, a que a categoria
+  /// já usa nos outros registros. Se a categoria for nova, cai na derivação
+  /// pelo nome — que é o que a grade mostraria de qualquer forma.
+  ///
+  /// Sempre resolve para um índice concreto porque é isso que vai ser salvo:
+  /// gravar nulo faria a grade recair na derivação por hash, que pode ser uma
+  /// cor diferente da que o usuário acabou de ver na tela.
+  int get _effectiveColorIndex {
+    if (_colorIndex != null) return _colorIndex!;
+    final category = _categoryController.text.trim();
+    if (category.isEmpty) return 0;
+    final known = ref.read(categoryColorsProvider)[category.toLowerCase()];
+    return known ?? context.colors.defaultIndexFor(category);
+  }
+
+  /// Reavalia a sugestão a cada tecla, enquanto o usuário não escolheu cor.
+  void _onCategoryChanged(String _) {
+    if (_colorIndex == null) setState(() {});
+  }
 
   @override
   void dispose() {
@@ -142,12 +167,21 @@ class _WeeklySlotEditorScreenState
                     ),
                     style: AppTypography.body.copyWith(color: colors.label),
                   ),
-                  // A cor do bloco na agenda deriva da categoria, então
-                  // escolher categoria é escolher cor — ver CategoryPickerRow.
-                  CategoryPickerRow(
-                    value: _categoryController.text,
-                    onChanged: (v) =>
-                        setState(() => _categoryController.text = v),
+                  CupertinoTextFormFieldRow(
+                    controller: _categoryController,
+                    textAlign: TextAlign.end,
+                    prefix: Text(
+                      l.agenda_slot_category,
+                      style: AppTypography.body.copyWith(color: colors.label),
+                    ),
+                    style: AppTypography.body.copyWith(color: colors.label),
+                    // Ao trocar de categoria, o seletor de cor acompanha a cor
+                    // que aquela categoria já usa nos outros registros.
+                    onChanged: _onCategoryChanged,
+                  ),
+                  ColorPickerRow(
+                    value: _effectiveColorIndex,
+                    onChanged: (i) => setState(() => _colorIndex = i),
                   ),
                   CupertinoTextFormFieldRow(
                     controller: _notesController,
@@ -176,6 +210,10 @@ class _WeeklySlotEditorScreenState
         _weekday = row.weekday;
         _startsAtMinutes = row.startsAtMinutes;
         _endsAtMinutes = row.endsAtMinutes;
+        // Nulo aqui é registro antigo, anterior à coluna de cor: o
+        // seletor cai na sugestão pela categoria, que é a cor que a
+        // grade já vinha mostrando para ele.
+        _colorIndex = row.colorIndex;
         _loaded = true;
       });
     }
@@ -309,6 +347,7 @@ class _WeeklySlotEditorScreenState
           category: _categoryController.text.trim().isEmpty
               ? null
               : _categoryController.text.trim(),
+          colorIndex: _effectiveColorIndex,
           notes: _notesController.text.trim().isEmpty
               ? null
               : _notesController.text.trim(),
@@ -325,6 +364,7 @@ class _WeeklySlotEditorScreenState
           category: _categoryController.text.trim().isEmpty
               ? null
               : _categoryController.text.trim(),
+          colorIndex: _effectiveColorIndex,
           notes: _notesController.text.trim().isEmpty
               ? null
               : _notesController.text.trim(),

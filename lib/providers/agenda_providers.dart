@@ -54,29 +54,38 @@ final daysWithEventsProvider = Provider<Set<DateTime>>((ref) {
   }).toSet();
 });
 
-/// Categorias já em uso, em ordem alfabética.
+/// Cor que cada categoria já usa, para o editor sugerir sozinho.
 ///
-/// É a paleta oferecida nos editores. A cor de um registro **deriva da
-/// categoria** (`AppColors.accentFor`), então escolher a categoria é escolher
-/// a cor — e listar só as que já existem mantém a leitura da grade estável:
-/// "roxo é intercessão" continua valendo em todo lugar.
+/// Sem isso, criar um segundo "oracao" exigiria lembrar de escolher roxo de
+/// novo — e esquecer uma vez já quebra a leitura da grade. A chave é a
+/// categoria em minúsculas, para "Oracao" e "oracao" não divergirem.
 ///
-/// Junta cronograma e eventos de propósito: são a mesma linguagem visual para
-/// o obreiro, e separar as duas listas faria a mesma categoria receber cores
-/// diferentes em cada tela.
-final usedCategoriesProvider = Provider<List<String>>((ref) {
+/// Quando a mesma categoria aparece com cores diferentes (o usuário mudou de
+/// ideia num registro), vence a **mais frequente**: é a que representa o que
+/// ele quis dizer no conjunto.
+final categoryColorsProvider = Provider<Map<String, int>>((ref) {
   final slots = ref.watch(weeklySlotsProvider).value ?? const [];
   final events = ref.watch(allEventsProvider).value ?? const [];
 
-  final categories = <String>{
-    for (final s in slots)
-      if (s.category != null && s.category!.trim().isNotEmpty)
-        s.category!.trim(),
-    for (final e in events)
-      if (e.category != null && e.category!.trim().isNotEmpty)
-        e.category!.trim(),
-  }.toList()
-    ..sort();
+  final counts = <String, Map<int, int>>{};
+  void tally(String? category, int? colorIndex) {
+    if (category == null || colorIndex == null) return;
+    final key = category.trim().toLowerCase();
+    if (key.isEmpty) return;
+    final byColor = counts[key] ??= {};
+    byColor[colorIndex] = (byColor[colorIndex] ?? 0) + 1;
+  }
 
-  return categories;
+  for (final s in slots) {
+    tally(s.category, s.colorIndex);
+  }
+  for (final e in events) {
+    tally(e.category, e.colorIndex);
+  }
+
+  return {
+    for (final entry in counts.entries)
+      entry.key:
+          entry.value.entries.reduce((a, b) => b.value > a.value ? b : a).key,
+  };
 });

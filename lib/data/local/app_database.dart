@@ -37,7 +37,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -64,6 +64,14 @@ class AppDatabase extends _$AppDatabase {
           // emergência legítima: apagar tudo e ressincronizar (limpar
           // `syncStates` força um pull completo). Mas isso descarta a outbox
           // pendente, então só vale se a migration for realmente inviável.
+
+          // v2 — cor escolhida pelo usuário em eventos e no cronograma.
+          // Nula nas linhas existentes, o que mantém o comportamento antigo
+          // (cor derivada da categoria) até alguém escolher uma.
+          if (from < 2) {
+            await m.addColumn(eventRows, eventRows.colorIndex);
+            await m.addColumn(weeklySlotRows, weeklySlotRows.colorIndex);
+          }
         },
         beforeOpen: (details) async {
           // Sem isto o SQLite ignora as foreign keys — elas são declaradas mas

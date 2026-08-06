@@ -25,6 +25,7 @@ class AgendaRepository {
     bool allDay = false,
     String? location,
     String? category,
+    int? colorIndex,
     String? coverImageUrl,
   }) async {
     final id = _uuid.v4();
@@ -43,6 +44,7 @@ class AgendaRepository {
         'all_day': allDay,
         'location': location,
         'category': category,
+        'color_index': colorIndex,
         'cover_image_url': coverImageUrl,
       },
       applyChange: () async {
@@ -56,6 +58,7 @@ class AgendaRepository {
                 allDay: allDay,
                 location: location,
                 category: category,
+                colorIndex: colorIndex,
                 coverImageUrl: coverImageUrl,
                 updatedAt: now,
               ),
@@ -76,6 +79,7 @@ class AgendaRepository {
     bool allDay = false,
     String? location,
     String? category,
+    int? colorIndex,
     String? coverImageUrl,
   }) async {
     await OutboxHelper.update(
@@ -90,6 +94,7 @@ class AgendaRepository {
         'all_day': allDay,
         'location': location,
         'category': category,
+        'color_index': colorIndex,
         'cover_image_url': coverImageUrl,
       },
       applyChange: () async {
@@ -107,6 +112,7 @@ class AgendaRepository {
                 allDay: allDay,
                 location: Value(location),
                 category: Value(category),
+                colorIndex: Value(colorIndex),
                 coverImageUrl: Value(coverImageUrl),
                 updatedAt: DateTime.now().toUtc(),
               ),
@@ -154,6 +160,7 @@ class AgendaRepository {
     required String title,
     String? location,
     String? category,
+    int? colorIndex,
     String? notes,
     int ordering = 0,
   }) async {
@@ -172,6 +179,7 @@ class AgendaRepository {
         'title': title,
         'location': location,
         'category': category,
+        'color_index': colorIndex,
         'notes': notes,
         'ordering': ordering,
       },
@@ -187,6 +195,7 @@ class AgendaRepository {
                 category: category,
                 notes: notes,
                 ordering: ordering,
+                colorIndex: colorIndex,
                 isActive: true,
                 updatedAt: now,
               ),
@@ -206,6 +215,7 @@ class AgendaRepository {
     required String title,
     String? location,
     String? category,
+    int? colorIndex,
     String? notes,
     int ordering = 0,
   }) async {
@@ -220,6 +230,7 @@ class AgendaRepository {
         'title': title,
         'location': location,
         'category': category,
+        'color_index': colorIndex,
         'notes': notes,
         'ordering': ordering,
       },
@@ -239,6 +250,7 @@ class AgendaRepository {
                 category: Value(category),
                 notes: Value(notes),
                 ordering: ordering,
+                colorIndex: Value(colorIndex),
                 updatedAt: DateTime.now().toUtc(),
               ),
             );

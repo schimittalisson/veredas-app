@@ -164,6 +164,7 @@
   "agenda_event_category": "Categoria",
   "agenda_category_none": "Nenhuma",
   "agenda_category_new": "Outra…",
+  "agenda_color": "Cor",
   "agenda_event_saved": "Evento salvo.",
   "agenda_event_delete_confirm": "Excluir este evento?",
   "agenda_slot_title_label": "Título",

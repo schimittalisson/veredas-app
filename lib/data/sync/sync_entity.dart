@@ -104,6 +104,15 @@ int _intReq(dynamic j, {int d = 0}) {
   return d;
 }
 
+/// Inteiro opcional. Distingue "veio nulo" de "veio zero" — em `color_index`,
+/// nulo significa "sem cor escolhida" e 0 é a primeira cor da paleta.
+int? _int(dynamic j) {
+  if (j == null) return null;
+  if (j is int) return j;
+  if (j is String) return int.tryParse(j);
+  return null;
+}
+
 /// "06:00:00" ou "06:00:00.123456" → 360 (minutos desde meia-noite).
 int _timeToMinutes(dynamic j) {
   if (j is int) return j;
@@ -322,6 +331,7 @@ Future<void> _upsertEvent(AppDatabase db, Map<String, dynamic> j) async {
           category: j['category'] as String?,
           coverImageUrl: j['cover_image_url'] as String?,
           createdBy: j['created_by'] as String?,
+          colorIndex: _int(j['color_index']),
           updatedAt: _dtReq(j['updated_at']),
         ),
       );
@@ -357,6 +367,7 @@ Future<void> _upsertWeeklySlot(AppDatabase db, Map<String, dynamic> j) async {
           notes: j['notes'] as String?,
           isActive: _bool(j['is_active'], d: true),
           ordering: _intReq(j['ordering']),
+          colorIndex: _int(j['color_index']),
           updatedAt: _dtReq(j['updated_at']),
         ),
       );

@@ -433,19 +433,18 @@ class _SlotBlock extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
-    final category = slot.category ?? '';
 
-    // `accentFor`/`accentContainerFor` derivam uma cor estável da string da
-    // categoria (ver AppColors). O par container/onContainer já tem contraste
-    // verificado em AA.
-    final fill = category.isEmpty
-        ? colors.tintContainer
-        : colors.accentContainerFor(category);
-    final border =
-        category.isEmpty ? colors.tint : colors.accentFor(category);
-    final onFill = category.isEmpty
-        ? colors.onTintContainer
-        : colors.onAccentContainerFor(category);
+    // A precedência (cor escolhida > derivada da categoria > cor de marca)
+    // mora em AppColors.resolve, para grade, lista e editores concordarem —
+    // se cada tela decidisse por conta, o mesmo compromisso apareceria de
+    // cores diferentes.
+    final palette = colors.resolve(
+      colorIndex: slot.colorIndex,
+      category: slot.category,
+    );
+    final fill = palette.container;
+    final border = palette.accent;
+    final onFill = palette.onContainer;
 
     return GestureDetector(
       onTap: () => _showSlotDetails(context, ref, slot),

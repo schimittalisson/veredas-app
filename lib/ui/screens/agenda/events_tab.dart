@@ -306,11 +306,14 @@ class EventCard extends StatelessWidget {
       timeLabel = DateFormat.Hm().format(event.startsAt);
     }
 
-    // A cor sai do mesmo mecanismo da grade do cronograma: derivada da
-    // categoria, estável entre dispositivos e sem coluna de cor no banco.
+    // Mesma precedência da grade do cronograma: cor escolhida, senão
+    // derivada da categoria. Ver AppColors.resolve.
     final category = event.category ?? '';
-    final accent =
-        category.isEmpty ? colors.tint : colors.accentFor(category);
+    final palette = colors.resolve(
+      colorIndex: event.colorIndex,
+      category: event.category,
+    );
+    final accent = palette.accent;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -420,13 +423,13 @@ class EventCard extends StatelessWidget {
                         vertical: 3,
                       ),
                       decoration: BoxDecoration(
-                        color: colors.accentContainerFor(category),
+                        color: palette.container,
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
                         category,
                         style: AppTypography.caption.copyWith(
-                          color: colors.onAccentContainerFor(category),
+                          color: palette.onContainer,
                         ),
                       ),
                     ),
