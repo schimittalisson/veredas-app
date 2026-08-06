@@ -7,6 +7,7 @@ import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
+import 'package:veredas/ui/widgets/category_picker_row.dart';
 
 /// Editor de evento — cria ou edita.
 class EventEditorScreen extends ConsumerStatefulWidget {
@@ -148,14 +149,12 @@ class _EventEditorScreenState extends ConsumerState<EventEditorScreen> {
                     ),
                     style: AppTypography.body.copyWith(color: colors.label),
                   ),
-                  CupertinoTextFormFieldRow(
-                    controller: _categoryController,
-                    textAlign: TextAlign.end,
-                    prefix: Text(
-                      l.agenda_event_category,
-                      style: AppTypography.body.copyWith(color: colors.label),
-                    ),
-                    style: AppTypography.body.copyWith(color: colors.label),
+                  // A cor do bloco na agenda deriva da categoria, então
+                  // escolher categoria é escolher cor — ver CategoryPickerRow.
+                  CategoryPickerRow(
+                    value: _categoryController.text,
+                    onChanged: (v) =>
+                        setState(() => _categoryController.text = v),
                   ),
                 ],
               ),

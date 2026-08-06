@@ -53,3 +53,30 @@ final daysWithEventsProvider = Provider<Set<DateTime>>((ref) {
     return DateTime(s.year, s.month, s.day);
   }).toSet();
 });
+
+/// Categorias já em uso, em ordem alfabética.
+///
+/// É a paleta oferecida nos editores. A cor de um registro **deriva da
+/// categoria** (`AppColors.accentFor`), então escolher a categoria é escolher
+/// a cor — e listar só as que já existem mantém a leitura da grade estável:
+/// "roxo é intercessão" continua valendo em todo lugar.
+///
+/// Junta cronograma e eventos de propósito: são a mesma linguagem visual para
+/// o obreiro, e separar as duas listas faria a mesma categoria receber cores
+/// diferentes em cada tela.
+final usedCategoriesProvider = Provider<List<String>>((ref) {
+  final slots = ref.watch(weeklySlotsProvider).value ?? const [];
+  final events = ref.watch(allEventsProvider).value ?? const [];
+
+  final categories = <String>{
+    for (final s in slots)
+      if (s.category != null && s.category!.trim().isNotEmpty)
+        s.category!.trim(),
+    for (final e in events)
+      if (e.category != null && e.category!.trim().isNotEmpty)
+        e.category!.trim(),
+  }.toList()
+    ..sort();
+
+  return categories;
+});
