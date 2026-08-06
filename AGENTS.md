@@ -100,6 +100,28 @@ Hot reload (`r`) continua confiável para mudança de layout e estilo. Dá para
 distinguir pelo log: um reload de verdade imprime `compile`/`reload`/`reassemble`
 com tempos; um restart que não fez nada só imprime "Restarted application".
 
+**Acentuação não funciona digitando pelo teclado do computador.** O AVD vem
+com `hw.keyboard=yes`, e nesse modo o emulador recebe os códigos de tecla
+brutos do host e não mostra o teclado do Android. A composição por tecla morta
+(`´` + `a` → `á`) é feita pelo IME do host, que o emulador não usa — chega só a
+vogal. O sintoma é digitar "Conversão" e salvar "Conversao", o que parece bug
+do app e não é: texto acentuado vindo do banco aparece certo, e não há
+normalização de string em lugar nenhum do código.
+
+Usuário real não passa por isso — no celular o teclado é o do Android. Para
+testar acentuação no emulador, uma das duas:
+
+```bash
+# 1) Desligar o teclado de hardware e usar o teclado na tela (long-press na
+#    vogal abre as variantes). Exige reiniciar o emulador.
+sed -i 's/^hw.keyboard=yes/hw.keyboard=no/' ~/.android/avd/Medium_Phone.avd/config.ini
+
+# 2) Ou copiar o texto acentuado no host e colar no emulador (o clipboard é
+#    compartilhado), sem mexer na configuração.
+```
+
+`adb shell input text` **também não serve**: descarta não-ASCII.
+
 **Conferir a UI sem depender de descrição** (útil também para o agente):
 
 ```bash
