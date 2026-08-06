@@ -8,6 +8,7 @@ import 'package:veredas/core/theme/app_colors.dart';
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/data/local/app_database.dart';
+import 'package:veredas/data/models/profile.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/home_providers.dart';
@@ -113,7 +114,7 @@ class _Greeting extends ConsumerWidget {
             ),
           ),
           if (isAdmin) ...[
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
             Semantics(
               // CupertinoButton não tem `tooltip`; a dica de acessibilidade
               // vira label semântico, que é o que o VoiceOver lê.
@@ -140,9 +141,115 @@ class _Greeting extends ConsumerWidget {
               ),
             ),
           ],
+          const SizedBox(width: 8),
+          _AccountButton(profile: profile, isAdmin: isAdmin),
         ],
       ),
     );
+  }
+}
+
+/// Avatar que abre o menu da conta.
+///
+/// Existe porque faltavam duas portas no app:
+///
+/// - **Sair.** O `signOut` só era alcançável pela tela "aguardando aprovação".
+///   Quem já estava aprovado não tinha como trocar de conta no aparelho — e a
+///   base compartilha celular entre obreiros.
+/// - **Administração.** As telas de Membros, Convites e Responsáveis existiam
+///   e estavam roteadas, mas nada no app navegava até `/admin`.
+///
+/// O avatar no canto superior direito é onde o iOS costuma pôr a conta, e a
+/// folha de ações acomoda os dois itens sem gastar espaço na tela.
+class _AccountButton extends ConsumerWidget {
+  const _AccountButton({required this.profile, required this.isAdmin});
+
+  final Profile? profile;
+  final bool isAdmin;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l = AppLocalizations.of(context);
+    final colors = context.colors;
+
+    return Semantics(
+      label: profile?.fullName ?? l.home_greeting_fallback,
+      button: true,
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        minimumSize: Size.zero,
+        onPressed: () => _showMenu(context, ref),
+        child: Container(
+          width: 38,
+          height: 38,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: colors.tint,
+            shape: BoxShape.circle,
+          ),
+          child: Text(
+            _initials(profile?.fullName),
+            style: AppTypography.footnoteEmphasis.copyWith(color: colors.onTint),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Iniciais do nome: primeira letra do primeiro e do último nome.
+  static String _initials(String? name) {
+    final parts = (name ?? '').trim().split(RegExp(r'\s+'))
+      ..removeWhere((p) => p.isEmpty);
+    if (parts.isEmpty) return '?';
+    if (parts.length == 1) return parts.first[0].toUpperCase();
+    return (parts.first[0] + parts.last[0]).toUpperCase();
+  }
+
+  Future<void> _showMenu(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context);
+
+    final action = await showCupertinoModalPopup<String>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        title: Text(profile?.fullName ?? l.home_greeting_fallback),
+        message: profile?.email == null ? null : Text(profile!.email!),
+        actions: [
+          if (isAdmin)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(sheetContext).pop('admin'),
+              child: Text(l.admin_title),
+            ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(sheetContext).pop('signout'),
+            isDestructiveAction: true,
+            child: Text(l.auth_pending_sign_out),
+          ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          isDefaultAction: true,
+          child: Text(l.action_cancel),
+        ),
+      ),
+    );
+
+    if (!context.mounted) return;
+
+    switch (action) {
+      case 'admin':
+        await context.push(Routes.admin);
+      case 'signout':
+        final confirmed = await ConfirmDialog.show(
+          context,
+          title: l.auth_pending_sign_out,
+          message: l.auth_sign_out_confirm,
+          isDestructive: false,
+        );
+        if (!confirmed) return;
+        // Não navega daqui: o redirect do router leva para /login assim que o
+        // authStateProvider emite a sessão nula.
+        await ref.read(authActionsProvider.notifier).signOut();
+    }
   }
 }
 
