@@ -139,14 +139,119 @@ class _ViewSegment extends StatelessWidget {
 // Grade semanal — "estilo planilha" com scroll horizontal.
 // ---------------------------------------------------------------------------
 
+/// Altura de uma faixa de uma hora. Define a escala da grade inteira.
+const double _kHourHeight = 56;
+
+/// Largura de uma coluna de dia.
+const double _kDayWidth = 96;
+
+/// Largura da régua de horários à esquerda.
+const double _kGutterWidth = 56;
+
+/// Altura do cabeçalho com os nomes dos dias.
+const double _kHeaderHeight = 40;
+
+/// Um slot já resolvido em coordenadas de tela.
+///
+/// [column] e [columnCount] resolvem sobreposição: quando dois compromissos
+/// dividem o mesmo horário, cada um ocupa uma fração da largura do dia, em vez
+/// de um esconder o outro.
+class _LaidOutSlot {
+  const _LaidOutSlot({
+    required this.slot,
+    required this.top,
+    required this.height,
+    required this.column,
+    required this.columnCount,
+  });
+
+  final WeeklySlotRow slot;
+  final double top;
+  final double height;
+  final int column;
+  final int columnCount;
+}
+
 class _WeeklyGrid extends StatelessWidget {
   const _WeeklyGrid({required this.slots});
 
   final List<WeeklySlotRow> slots;
 
+  /// Fim efetivo de um slot: sem hora de término, assume 1 hora.
+  static int _endOf(WeeklySlotRow s) => s.endsAtMinutes ?? s.startsAtMinutes + 60;
+
+  /// Distribui os slots de um dia em colunas para que os que se sobrepõem
+  /// apareçam lado a lado.
+  ///
+  /// Agrupa em "clusters" de horários que se tocam e, dentro de cada cluster,
+  /// põe cada slot na primeira coluna livre. Todos os slots do mesmo cluster
+  /// recebem o mesmo `columnCount`, para terem a mesma largura — senão a grade
+  /// ficaria com blocos de larguras diferentes na mesma faixa de horário.
+  static List<_LaidOutSlot> _layoutDay(
+    List<WeeklySlotRow> daySlots,
+    int gridStartMinutes,
+  ) {
+    if (daySlots.isEmpty) return const [];
+
+    final sorted = [...daySlots]
+      ..sort((a, b) => a.startsAtMinutes.compareTo(b.startsAtMinutes));
+
+    final result = <_LaidOutSlot>[];
+    var cluster = <WeeklySlotRow>[];
+    var clusterEnd = -1;
+
+    void flush() {
+      if (cluster.isEmpty) return;
+      // Colunas do cluster: cada uma guarda o fim do último slot que recebeu.
+      final columnEnds = <int>[];
+      final assigned = <WeeklySlotRow, int>{};
+      for (final s in cluster) {
+        var col = columnEnds.indexWhere((end) => end <= s.startsAtMinutes);
+        if (col == -1) {
+          columnEnds.add(_endOf(s));
+          col = columnEnds.length - 1;
+        } else {
+          columnEnds[col] = _endOf(s);
+        }
+        assigned[s] = col;
+      }
+      for (final s in cluster) {
+        final start = s.startsAtMinutes - gridStartMinutes;
+        final duration = _endOf(s) - s.startsAtMinutes;
+        result.add(_LaidOutSlot(
+          slot: s,
+          top: start * _kHourHeight / 60,
+          // Piso de 22 dp: um slot de poucos minutos viraria um risco
+          // intocável.
+          height: (duration * _kHourHeight / 60).clamp(22.0, double.infinity),
+          column: assigned[s]!,
+          columnCount: columnEnds.length,
+        ));
+      }
+      cluster = [];
+      clusterEnd = -1;
+    }
+
+    for (final s in sorted) {
+      if (cluster.isEmpty || s.startsAtMinutes < clusterEnd) {
+        cluster.add(s);
+        final end = _endOf(s);
+        if (end > clusterEnd) clusterEnd = end;
+      } else {
+        flush();
+        cluster.add(s);
+        clusterEnd = _endOf(s);
+      }
+    }
+    flush();
+
+    return result;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
+    final colors = context.colors;
 
     // Filtra slots ativos e agrupa por dia.
     final byDay = <int, List<WeeklySlotRow>>{};
@@ -161,8 +266,12 @@ class _WeeklyGrid extends StatelessWidget {
     for (final slot in slots) {
       if (!slot.isActive) continue;
       if (slot.startsAtMinutes < minMinutes) minMinutes = slot.startsAtMinutes;
-      final end = slot.endsAtMinutes ?? slot.startsAtMinutes + 60;
+      final end = _endOf(slot);
       if (end > maxMinutes) maxMinutes = end;
+    }
+    if (minMinutes > maxMinutes) {
+      minMinutes = 6 * 60;
+      maxMinutes = 22 * 60;
     }
     // Arredonda para a hora cheia mais próxima.
     minMinutes = (minMinutes ~/ 60) * 60;
@@ -172,6 +281,7 @@ class _WeeklyGrid extends StatelessWidget {
     for (int m = minMinutes; m < maxMinutes; m += 60) {
       hours.add(m);
     }
+    final bodyHeight = hours.length * _kHourHeight;
 
     final dayLabels = [
       l.agenda_weekday_mon,
@@ -183,30 +293,39 @@ class _WeeklyGrid extends StatelessWidget {
       l.agenda_weekday_sun,
     ];
 
-    final colors = context.colors;
-
     return SingleChildScrollView(
       scrollDirection: Axis.vertical,
+      // A folga no topo existe porque o rótulo da primeira hora é desenhado
+      // 7 dp acima da sua linha — sem ela, "06:00" nasce cortado pela borda.
+      padding: const EdgeInsets.only(top: 10, bottom: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Coluna fixa de horários (56 dp).
+          // Régua de horários. Os rótulos ficam **no topo** de cada faixa,
+          // alinhados com a linha da hora — é o que permite ler que um bloco
+          // começa na metade de uma faixa.
           SizedBox(
-            width: 56,
+            width: _kGutterWidth,
             child: Column(
               children: [
-                // Célula de canto (vazia, alinha com o cabeçalho dos dias).
+                const SizedBox(height: _kHeaderHeight),
                 SizedBox(
-                  height: 40,
-                  child: Center(
-                    child: Text(
-                      'h',
-                      style: AppTypography.caption
-                          .copyWith(color: colors.secondaryLabel),
-                    ),
+                  height: bodyHeight,
+                  child: Stack(
+                    children: [
+                      for (int i = 0; i < hours.length; i++)
+                        Positioned(
+                          top: i * _kHourHeight - 7,
+                          right: 6,
+                          child: Text(
+                            _formatMinutes(hours[i]),
+                            style: AppTypography.caption
+                                .copyWith(color: colors.secondaryLabel),
+                          ),
+                        ),
+                    ],
                   ),
                 ),
-                ...hours.map((m) => _HourCell(minutes: m)),
               ],
             ),
           ),
@@ -221,39 +340,77 @@ class _WeeklyGrid extends StatelessWidget {
           Expanded(
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Cabeçalho dos dias.
-                  Row(
-                    children: [
-                      for (int day = 1; day <= 7; day++)
-                        SizedBox(
-                          width: 96,
-                          height: 40,
-                          child: Center(
-                            child: Text(
-                              dayLabels[day - 1],
-                              style: AppTypography.footnoteEmphasis
-                                  .copyWith(color: colors.label),
+              child: SizedBox(
+                width: _kDayWidth * 7,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Cabeçalho dos dias.
+                    SizedBox(
+                      height: _kHeaderHeight,
+                      child: Row(
+                        children: [
+                          for (int day = 1; day <= 7; day++)
+                            SizedBox(
+                              width: _kDayWidth,
+                              child: Center(
+                                child: Text(
+                                  dayLabels[day - 1],
+                                  style: AppTypography.footnoteEmphasis
+                                      .copyWith(color: colors.label),
+                                ),
+                              ),
                             ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  // Linhas de hora.
-                  for (final hour in hours)
-                    Row(
-                      children: [
-                        for (int day = 1; day <= 7; day++)
-                          _DayHourCell(
-                            day: day,
-                            hourMinutes: hour,
-                            slots: byDay[day] ?? const [],
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
-                ],
+                    // Corpo: linhas de hora ao fundo e os blocos posicionados
+                    // por minuto em cima. Era uma célula por hora, o que
+                    // arredondava tudo para a hora cheia e escondia
+                    // sobreposição — só cabia um slot por célula.
+                    SizedBox(
+                      height: bodyHeight,
+                      child: Stack(
+                        children: [
+                          for (int i = 0; i <= hours.length; i++)
+                            Positioned(
+                              top: i * _kHourHeight,
+                              left: 0,
+                              right: 0,
+                              child: Container(
+                                height: 0.5,
+                                color: colors.separator,
+                              ),
+                            ),
+                          for (int day = 1; day <= 7; day++)
+                            Positioned(
+                              top: 0,
+                              bottom: 0,
+                              left: day * _kDayWidth - 0.5,
+                              child: Container(
+                                width: 0.5,
+                                color: colors.separator,
+                              ),
+                            ),
+                          for (int day = 1; day <= 7; day++)
+                            for (final laid in _layoutDay(
+                              byDay[day] ?? const [],
+                              minMinutes,
+                            ))
+                              Positioned(
+                                top: laid.top,
+                                height: laid.height,
+                                left: (day - 1) * _kDayWidth +
+                                    laid.column *
+                                        (_kDayWidth / laid.columnCount),
+                                width: _kDayWidth / laid.columnCount,
+                                child: _SlotBlock(slot: laid.slot),
+                              ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -263,69 +420,24 @@ class _WeeklyGrid extends StatelessWidget {
   }
 }
 
-class _HourCell extends StatelessWidget {
-  const _HourCell({required this.minutes});
+/// Bloco de um compromisso na grade.
+///
+/// Posicionado e dimensionado pelo [_WeeklyGrid]: aqui só entram a aparência
+/// e o toque. Antes era uma célula fixa de uma hora, que arredondava tudo
+/// para a hora cheia; agora a altura vem da duração real.
+class _SlotBlock extends ConsumerWidget {
+  const _SlotBlock({required this.slot});
 
-  final int minutes;
-
-  @override
-  Widget build(BuildContext context) {
-    final h = minutes ~/ 60;
-    return SizedBox(
-      height: 56,
-      child: Center(
-        child: Text(
-          '${h.toString().padLeft(2, '0')}h',
-          style: AppTypography.footnote
-              .copyWith(color: context.colors.secondaryLabel),
-        ),
-      ),
-    );
-  }
-}
-
-class _DayHourCell extends ConsumerWidget {
-  const _DayHourCell({
-    required this.day,
-    required this.hourMinutes,
-    required this.slots,
-  });
-
-  final int day;
-  final int hourMinutes;
-  final List<WeeklySlotRow> slots;
+  final WeeklySlotRow slot;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final colors = context.colors;
-
-    // Encontra o slot que cobre esta hora.
-    final slot = slots.where((s) {
-      final end = s.endsAtMinutes ?? s.startsAtMinutes + 60;
-      return s.startsAtMinutes <= hourMinutes && end > hourMinutes;
-    }).firstOrNull;
-
-    if (slot == null) {
-      return Container(
-        width: 96,
-        height: 56,
-        margin: const EdgeInsets.all(1),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: colors.separator,
-            width: 0.5,
-          ),
-        ),
-      );
-    }
-
     final category = slot.category ?? '';
+
     // `accentFor`/`accentContainerFor` derivam uma cor estável da string da
-    // categoria (ver AppColors). Trocamos a cadeia de `if`s por elas porque
-    // no Cupertino não existe `tertiaryContainer`: mapear os três ramos para
-    // `tintContainer` deixaria todas as categorias com a mesma cor, perdendo
-    // justamente a informação que a cor carrega na grade. O par
-    // container/onContainer já tem contraste verificado em AA.
+    // categoria (ver AppColors). O par container/onContainer já tem contraste
+    // verificado em AA.
     final fill = category.isEmpty
         ? colors.tintContainer
         : colors.accentContainerFor(category);
@@ -338,10 +450,9 @@ class _DayHourCell extends ConsumerWidget {
     return GestureDetector(
       onTap: () => _showSlotDetails(context, ref, slot),
       child: Container(
-        width: 96,
-        height: 56,
-        margin: const EdgeInsets.all(1),
+        margin: const EdgeInsets.fromLTRB(1.5, 1, 1.5, 1),
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        clipBehavior: Clip.hardEdge,
         decoration: BoxDecoration(
           color: fill,
           borderRadius: BorderRadius.circular(4),
@@ -349,7 +460,7 @@ class _DayHourCell extends ConsumerWidget {
         ),
         child: Text(
           slot.title,
-          maxLines: 2,
+          maxLines: 3,
           overflow: TextOverflow.ellipsis,
           style: AppTypography.caption.copyWith(color: onFill),
         ),
