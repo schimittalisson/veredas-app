@@ -106,7 +106,7 @@
   },
   "home_greeting_fallback": "Equipe",
   "home_greeting_subtitle": "Bem-vindo ao seu portal de trabalho",
-  "home_hero_title": "Juntos somos melhores",
+  "home_hero_title": "Em Joinville e além!",
   "home_hero_subtitle": "Confira abaixo as informações e perguntas frequentes.",
   "home_hero_placeholder": "Foto da equipe",
 
@@ -136,6 +136,10 @@
   "agenda_no_events_day": "Nenhum evento neste dia.",
   "agenda_no_events_upcoming": "Nenhum evento próximo.",
   "agenda_upcoming_section": "Próximos eventos",
+  "agenda_day_events_section": "Eventos do Dia — {day}",
+  "@agenda_day_events_section": {
+    "placeholders": { "day": { "type": "String" } }
+  },
   "agenda_all_day": "Dia inteiro",
   "agenda_no_schedule": "Nenhum cronograma cadastrado.",
   "agenda_view_grid": "Grade",
@@ -198,7 +202,7 @@
   "scales_slot_label": "Área",
 
   "prayer_search_hint": "Buscar por título...",
-  "prayer_composer_hint": "Compartilhe um pedido de oração...",
+  "prayer_composer_hint": "Compartilhe sua oração...",
   "prayer_new": "Novo pedido",
   "prayer_anonymous": "Anônimo",
   "prayer_praying": "orando",
@@ -210,13 +214,12 @@
   "prayer_answered": "Respondido",
   "prayer_edit": "Editar",
   "prayer_delete": "Excluir",
-  "prayer_delete_confirm": "Excluir este pedido de oração?",
+  "prayer_delete_confirm": "Excluir esta oração?",
   "prayer_mark_answered": "Marcar como respondido",
   "prayer_title_label": "Título",
-  "prayer_body_label": "Pedido",
-  "prayer_anonymous": "Anônimo",
-  "prayer_saved": "Pedido salvo.",
-  "prayer_no_posts": "Nenhum pedido de oração ainda.",
+  "prayer_body_label": "Oração",
+  "prayer_saved": "Oração salva.",
+  "prayer_no_posts": "Nenhuma oração foi adicionada ainda.",
   "prayer_no_results": "Nenhum resultado para \"{query}\".",
   "@prayer_no_results": {
     "placeholders": { "query": { "type": "String" } }

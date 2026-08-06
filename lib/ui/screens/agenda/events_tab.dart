@@ -57,102 +57,116 @@ class _EventsTabState extends ConsumerState<EventsTab> {
 
     return ListView(
       children: [
-        // O TableCalendar usa InkWell internamente e exige um ancestral
-        // Material, que não existe sob CupertinoApp. A ilha de Material
-        // fica restrita a ele — ver material_compat.dart.
-        MaterialCompat(
-          colors: colors,
-          brightness: CupertinoTheme.brightnessOf(context),
-          child: TableCalendar<EventRow>(
-            firstDay: DateTime.utc(2020),
-            lastDay: DateTime.utc(2030),
-            focusedDay: _focusedDay,
-            locale: 'pt_BR',
-            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-            onDaySelected: (selected, focused) {
-              setState(() {
-                _selectedDay = selected;
-                _focusedDay = focused;
-              });
-            },
-            calendarFormat: _calendarFormat,
-            onFormatChanged: (format) {
-              setState(() => _calendarFormat = format);
-            },
-            // TODO l10n: agenda_calendar_format_month / agenda_calendar_format_week
-            availableCalendarFormats: const {
-              CalendarFormat.month: 'Mês',
-              CalendarFormat.week: 'Semana',
-            },
-            eventLoader: (day) {
-              final normalized = _normalize(day);
-              // O eventLoader recebe um DateTime; filtramos os eventos cujo
-              // startsAt cai neste dia. O daysWithEventsProvider já tem o
-              // conjunto de dias; aqui usamos o allEventsProvider para obter
-              // os eventos completos.
-              if (!daysWithEvents.contains(normalized)) return const [];
-              final events = ref.read(allEventsProvider).value ?? const [];
-              return events.where((e) {
-                final s = e.startsAt;
-                return s.year == day.year &&
-                    s.month == day.month &&
-                    s.day == day.day;
-              }).toList();
-            },
-            headerStyle: HeaderStyle(
-              titleCentered: true,
-              titleTextStyle: AppTypography.headline.copyWith(color: colors.label),
-              formatButtonTextStyle:
-                  AppTypography.footnoteEmphasis.copyWith(color: colors.tint),
-              formatButtonDecoration: BoxDecoration(
-                color: colors.fill,
-                borderRadius: BorderRadius.circular(8),
+        // O calendário mora num cartão arredondado, e não solto sobre o fundo:
+        // ele é uma unidade de conteúdo fechada, e o contorno é o que separa a
+        // grade de dias da lista de eventos logo abaixo.
+        Container(
+          margin: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            color: colors.surface,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          // O TableCalendar usa InkWell internamente e exige um ancestral
+          // Material, que não existe sob CupertinoApp. A ilha de Material
+          // fica restrita a ele — ver material_compat.dart.
+          child: MaterialCompat(
+            colors: colors,
+            brightness: CupertinoTheme.brightnessOf(context),
+            child: TableCalendar<EventRow>(
+              firstDay: DateTime.utc(2020),
+              lastDay: DateTime.utc(2030),
+              focusedDay: _focusedDay,
+              locale: 'pt_BR',
+              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+              onDaySelected: (selected, focused) {
+                setState(() {
+                  _selectedDay = selected;
+                  _focusedDay = focused;
+                });
+              },
+              calendarFormat: _calendarFormat,
+              onFormatChanged: (format) {
+                setState(() => _calendarFormat = format);
+              },
+              // TODO l10n: agenda_calendar_format_month / agenda_calendar_format_week
+              availableCalendarFormats: const {
+                CalendarFormat.month: 'Mês',
+                CalendarFormat.week: 'Semana',
+              },
+              eventLoader: (day) {
+                final normalized = _normalize(day);
+                // O eventLoader recebe um DateTime; filtramos os eventos cujo
+                // startsAt cai neste dia. O daysWithEventsProvider já tem o
+                // conjunto de dias; aqui usamos o allEventsProvider para obter
+                // os eventos completos.
+                if (!daysWithEvents.contains(normalized)) return const [];
+                final events = ref.read(allEventsProvider).value ?? const [];
+                return events.where((e) {
+                  final s = e.startsAt;
+                  return s.year == day.year &&
+                      s.month == day.month &&
+                      s.day == day.day;
+                }).toList();
+              },
+              headerStyle: HeaderStyle(
+                titleCentered: true,
+                titleTextStyle: AppTypography.headline.copyWith(color: colors.label),
+                formatButtonTextStyle:
+                    AppTypography.footnoteEmphasis.copyWith(color: colors.tint),
+                formatButtonDecoration: BoxDecoration(
+                  color: colors.fill,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                formatButtonPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                // Chevrons do iOS no lugar das setas do Material.
+                leftChevronIcon: Icon(CupertinoIcons.chevron_left,
+                    size: 20, color: colors.tint),
+                rightChevronIcon: Icon(CupertinoIcons.chevron_right,
+                    size: 20, color: colors.tint),
               ),
-              formatButtonPadding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              // Chevrons do iOS no lugar das setas do Material.
-              leftChevronIcon: Icon(CupertinoIcons.chevron_left,
-                  size: 20, color: colors.tint),
-              rightChevronIcon: Icon(CupertinoIcons.chevron_right,
-                  size: 20, color: colors.tint),
-            ),
-            daysOfWeekStyle: DaysOfWeekStyle(
-              weekdayStyle:
-                  AppTypography.caption.copyWith(color: colors.secondaryLabel),
-              weekendStyle:
-                  AppTypography.caption.copyWith(color: colors.tertiaryLabel),
-            ),
-            calendarStyle: CalendarStyle(
-              // Toda cor sai de context.colors — nada hardcodado, e o tema
-              // escuro passa a valer também dentro do calendário.
-              defaultTextStyle:
-                  AppTypography.subheadline.copyWith(color: colors.label),
-              weekendTextStyle:
-                  AppTypography.subheadline.copyWith(color: colors.secondaryLabel),
-              outsideTextStyle:
-                  AppTypography.subheadline.copyWith(color: colors.tertiaryLabel),
-              disabledTextStyle:
-                  AppTypography.subheadline.copyWith(color: colors.tertiaryLabel),
-              todayTextStyle:
-                  AppTypography.subheadlineEmphasis.copyWith(color: colors.tint),
-              todayDecoration: BoxDecoration(
-                color: colors.tintContainer,
-                shape: BoxShape.circle,
+              daysOfWeekStyle: DaysOfWeekStyle(
+                weekdayStyle:
+                    AppTypography.caption.copyWith(color: colors.secondaryLabel),
+                weekendStyle:
+                    AppTypography.caption.copyWith(color: colors.tertiaryLabel),
               ),
-              selectedTextStyle:
-                  AppTypography.subheadlineEmphasis.copyWith(color: colors.onTint),
-              selectedDecoration: BoxDecoration(
-                color: colors.tint,
-                shape: BoxShape.circle,
-              ),
-              markerDecoration: BoxDecoration(
-                color: colors.tint,
-                shape: BoxShape.circle,
+              calendarStyle: CalendarStyle(
+                // Toda cor sai de context.colors — nada hardcodado, e o tema
+                // escuro passa a valer também dentro do calendário.
+                defaultTextStyle:
+                    AppTypography.subheadline.copyWith(color: colors.label),
+                weekendTextStyle:
+                    AppTypography.subheadline.copyWith(color: colors.secondaryLabel),
+                outsideTextStyle:
+                    AppTypography.subheadline.copyWith(color: colors.tertiaryLabel),
+                disabledTextStyle:
+                    AppTypography.subheadline.copyWith(color: colors.tertiaryLabel),
+                todayTextStyle:
+                    AppTypography.subheadlineEmphasis.copyWith(color: colors.tint),
+                todayDecoration: BoxDecoration(
+                  color: colors.tintContainer,
+                  shape: BoxShape.circle,
+                ),
+                selectedTextStyle:
+                    AppTypography.subheadlineEmphasis.copyWith(color: colors.onTint),
+                selectedDecoration: BoxDecoration(
+                  color: colors.tint,
+                  shape: BoxShape.circle,
+                ),
+                markerDecoration: BoxDecoration(
+                  color: colors.tint,
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
           ),
         ),
-        Container(height: 0.5, color: colors.separator),
+        // Sem separador aqui: ele existia quando o calendário ia de borda a
+        // borda. Agora o próprio contorno do cartão faz a separação, e a linha
+        // só cortava a tela logo abaixo dele.
         _SelectedDayEvents(selectedDay: _selectedDay!),
       ],
     );
@@ -197,10 +211,25 @@ class _SelectedDayEvents extends ConsumerWidget {
               compact: true,
             );
           }
+          // Cabeçalho com o dia por extenso: sem ele, a lista fica órfã do
+          // calendário e não se sabe a que data os eventos pertencem depois
+          // de rolar a tela.
+          final dayLabel = DateFormat("EEEE d", 'pt_BR').format(selectedDay);
           return Column(
-            children: data
-                .map((event) => EventCard(event: event))
-                .toList(),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Text(
+                  l.agenda_day_events_section(
+                    dayLabel[0].toUpperCase() + dayLabel.substring(1),
+                  ),
+                  style: AppTypography.headline
+                      .copyWith(color: context.colors.label),
+                ),
+              ),
+              ...data.map((event) => EventCard(event: event)),
+            ],
           );
         },
       ),
@@ -246,7 +275,17 @@ class _UpcomingEvents extends ConsumerWidget {
   }
 }
 
-/// Cartão de evento na lista do dia.
+/// Linha de evento na lista do dia.
+///
+/// **Compacta de propósito.** A versão anterior abria com uma capa 16:9 — e,
+/// quando o evento não tinha imagem, com um retângulo cinza e um ícone
+/// gigante. Três eventos já ocupavam a tela inteira, e o espaço era gasto com
+/// um placeholder que não informa nada.
+///
+/// Agora cada evento é uma linha de ~64 dp: barra colorida da categoria,
+/// título, horário, e a categoria como pílula à direita. A capa, quando
+/// existe, vira uma miniatura — a informação não se perde, só deixa de mandar
+/// no layout. A imagem em tamanho cheio é assunto da tela de detalhe.
 class EventCard extends StatelessWidget {
   const EventCard({required this.event, super.key});
 
@@ -267,11 +306,14 @@ class EventCard extends StatelessWidget {
       timeLabel = DateFormat.Hm().format(event.startsAt);
     }
 
+    // A cor sai do mesmo mecanismo da grade do cronograma: derivada da
+    // categoria, estável entre dispositivos e sem coluna de cor no banco.
+    final category = event.category ?? '';
+    final accent =
+        category.isEmpty ? colors.tint : colors.accentFor(category);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      // O `Card` do Material vira um contêiner arredondado sobre o fundo
-      // agrupado — a mesma leitura visual, sem elevação (o iOS separa por
-      // contraste de superfície, não por sombra).
       child: GestureDetector(
         onTap: () {
           // TODO: tela de detalhe do evento (/evento/:id) com mapa e anexos.
@@ -284,138 +326,117 @@ class EventCard extends StatelessWidget {
             color: colors.surface,
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Capa 16:9 quando houver URL; placeholder com ícone otherwise.
-              if (event.coverImageUrl != null &&
-                  event.coverImageUrl!.isNotEmpty)
-                AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: CachedNetworkImage(
-                    imageUrl: event.coverImageUrl!,
-                    fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      color: colors.fill,
-                      child: Icon(
-                        CupertinoIcons.photo,
-                        size: 48,
-                        color: colors.secondaryLabel,
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
-                      color: colors.fill,
-                      child: Icon(
-                        CupertinoIcons.exclamationmark_triangle,
-                        size: 48,
-                        color: colors.secondaryLabel,
-                      ),
-                    ),
-                  ),
-                )
-              else
-                AspectRatio(
-                  aspectRatio: 16 / 9,
-                  child: Container(
-                    color: colors.fill,
-                    child: Icon(
-                      _categoryIcon(event.category),
-                      size: 48,
-                      color: colors.secondaryLabel,
-                    ),
-                  ),
-                ),
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      event.title,
-                      style:
-                          AppTypography.headline.copyWith(color: colors.label),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          CupertinoIcons.clock,
-                          size: 16,
-                          color: colors.secondaryLabel,
+          child: IntrinsicHeight(
+            child: Row(
+              children: [
+                // Barra da categoria: ocupa a altura toda da linha, que é o
+                // que o IntrinsicHeight garante.
+                Container(width: 4, color: accent),
+                if (event.coverImageUrl != null &&
+                    event.coverImageUrl!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 10),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: CachedNetworkImage(
+                        imageUrl: event.coverImageUrl!,
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) =>
+                            ColoredBox(color: colors.fill),
+                        errorWidget: (context, url, error) => ColoredBox(
+                          color: colors.fill,
+                          child: Icon(
+                            CupertinoIcons.photo,
+                            size: 18,
+                            color: colors.tertiaryLabel,
+                          ),
                         ),
-                        const SizedBox(width: 4),
+                      ),
+                    ),
+                  ),
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                         Text(
-                          timeLabel,
-                          style: AppTypography.footnote
-                              .copyWith(color: colors.secondaryLabel),
+                          event.title,
+                          style: AppTypography.subheadlineEmphasis
+                              .copyWith(color: colors.label),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Icon(
+                              CupertinoIcons.clock,
+                              size: 13,
+                              color: colors.secondaryLabel,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              timeLabel,
+                              style: AppTypography.caption
+                                  .copyWith(color: colors.secondaryLabel),
+                            ),
+                            // O local entra na mesma linha do horário: numa
+                            // linha compacta ele não merece uma terceira.
+                            if (event.location != null &&
+                                event.location!.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Icon(
+                                CupertinoIcons.location,
+                                size: 13,
+                                color: colors.secondaryLabel,
+                              ),
+                              const SizedBox(width: 3),
+                              Expanded(
+                                child: Text(
+                                  event.location!,
+                                  style: AppTypography.caption
+                                      .copyWith(color: colors.secondaryLabel),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                       ],
                     ),
-                    if (event.location != null &&
-                        event.location!.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                            CupertinoIcons.location,
-                            size: 16,
-                            color: colors.secondaryLabel,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              event.location!,
-                              style: AppTypography.footnote
-                                  .copyWith(color: colors.secondaryLabel),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                    if (event.category != null &&
-                        event.category!.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      // Chip do Material → pílula simples sobre `fill`.
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 10,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: colors.fill,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: Text(
-                          event.category!,
-                          style: AppTypography.caption
-                              .copyWith(color: colors.secondaryLabel),
-                        ),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
-              ),
-            ],
+                if (category.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 10),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colors.accentContainerFor(category),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        category,
+                        style: AppTypography.caption.copyWith(
+                          color: colors.onAccentContainerFor(category),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  IconData _categoryIcon(String? category) {
-    if (category == null) return CupertinoIcons.calendar;
-    final c = category.toLowerCase();
-    if (c.contains('culto') || c.contains('reuniao')) {
-      return CupertinoIcons.person_3;
-    }
-    if (c.contains('treinamento') || c.contains('curso')) {
-      return CupertinoIcons.book;
-    }
-    if (c.contains('viagem') || c.contains('saida')) {
-      return CupertinoIcons.bus;
-    }
-    return CupertinoIcons.calendar;
-  }
 }

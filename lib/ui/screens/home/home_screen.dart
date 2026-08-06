@@ -153,13 +153,13 @@ class _Greeting extends ConsumerWidget {
 /// Cartão de destaque com a foto da equipe e o texto sobreposto.
 ///
 /// A imagem ainda não existe: o arquivo será colocado em
-/// `assets/images/equipe.jpg`. Até lá o `errorBuilder` mostra um espaço
+/// `assets/images/equipe.jpeg`. Até lá o `errorBuilder` mostra um espaço
 /// reservado — assim a tela já tem o formato final e basta soltar o arquivo na
 /// pasta para a foto aparecer, sem tocar em código.
 class _HeroCard extends StatelessWidget {
   const _HeroCard();
 
-  static const String _asset = 'assets/images/equipe.jpg';
+  static const String _asset = 'assets/images/equipe.jpeg';
 
   @override
   Widget build(BuildContext context) {
