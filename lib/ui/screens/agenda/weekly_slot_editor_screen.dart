@@ -101,7 +101,11 @@ class _WeeklySlotEditorScreenState
                   ),
                   CupertinoTextFormFieldRow(
                     controller: _titleController,
-                    placeholder: l.agenda_slot_title_label,
+                    textAlign: TextAlign.end,
+                    prefix: Text(
+                      l.agenda_slot_title_label,
+                      style: AppTypography.body.copyWith(color: colors.label),
+                    ),
                     style: AppTypography.body.copyWith(color: colors.label),
                     validator: (v) => v == null || v.trim().isEmpty
                         ? l.agenda_slot_title_label
@@ -130,12 +134,20 @@ class _WeeklySlotEditorScreenState
                 children: [
                   CupertinoTextFormFieldRow(
                     controller: _locationController,
-                    placeholder: l.agenda_slot_location,
+                    textAlign: TextAlign.end,
+                    prefix: Text(
+                      l.agenda_slot_location,
+                      style: AppTypography.body.copyWith(color: colors.label),
+                    ),
                     style: AppTypography.body.copyWith(color: colors.label),
                   ),
                   CupertinoTextFormFieldRow(
                     controller: _categoryController,
-                    placeholder: l.agenda_slot_category,
+                    textAlign: TextAlign.end,
+                    prefix: Text(
+                      l.agenda_slot_category,
+                      style: AppTypography.body.copyWith(color: colors.label),
+                    ),
                     style: AppTypography.body.copyWith(color: colors.label),
                   ),
                   CupertinoTextFormFieldRow(

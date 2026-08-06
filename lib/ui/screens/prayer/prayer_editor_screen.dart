@@ -75,7 +75,11 @@ class _PrayerEditorScreenState extends ConsumerState<PrayerEditorScreen> {
                 children: [
                   CupertinoTextFormFieldRow(
                     controller: _titleController,
-                    placeholder: l.prayer_title_label,
+                    textAlign: TextAlign.end,
+                    prefix: Text(
+                      l.prayer_title_label,
+                      style: AppTypography.body.copyWith(color: colors.label),
+                    ),
                     style: AppTypography.body.copyWith(color: colors.label),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {

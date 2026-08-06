@@ -90,7 +90,11 @@ class _AnnouncementEditorScreenState
                 children: [
                   CupertinoTextFormFieldRow(
                     controller: _titleController,
-                    placeholder: l.home_announcement_title_label,
+                    textAlign: TextAlign.end,
+                    prefix: Text(
+                      l.home_announcement_title_label,
+                      style: AppTypography.body.copyWith(color: colors.label),
+                    ),
                     style: AppTypography.body.copyWith(color: colors.label),
                   ),
                   CupertinoTextFormFieldRow(

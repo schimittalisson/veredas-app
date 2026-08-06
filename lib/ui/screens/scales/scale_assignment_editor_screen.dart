@@ -116,7 +116,11 @@ class _ScaleAssignmentEditorScreenState
                     ),
                   CupertinoTextFormFieldRow(
                     controller: _taskController,
-                    placeholder: l.scales_assignment_task,
+                    textAlign: TextAlign.end,
+                    prefix: Text(
+                      l.scales_assignment_task,
+                      style: AppTypography.body.copyWith(color: colors.label),
+                    ),
                     style: AppTypography.body.copyWith(color: colors.label),
                   ),
                 ],
@@ -148,7 +152,11 @@ class _ScaleAssignmentEditorScreenState
                   ),
                   CupertinoTextFormFieldRow(
                     controller: _assigneeNameController,
-                    placeholder: l.scales_assignment_assignee_name,
+                    textAlign: TextAlign.end,
+                    prefix: Text(
+                      l.scales_assignment_assignee_name,
+                      style: AppTypography.body.copyWith(color: colors.label),
+                    ),
                     style: AppTypography.body.copyWith(color: colors.label),
                   ),
                 ],

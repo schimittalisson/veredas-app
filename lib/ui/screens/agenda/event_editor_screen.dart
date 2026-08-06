@@ -80,7 +80,11 @@ class _EventEditorScreenState extends ConsumerState<EventEditorScreen> {
                 children: [
                   CupertinoTextFormFieldRow(
                     controller: _titleController,
-                    placeholder: l.agenda_event_title_label,
+                    textAlign: TextAlign.end,
+                    prefix: Text(
+                      l.agenda_event_title_label,
+                      style: AppTypography.body.copyWith(color: colors.label),
+                    ),
                     style: AppTypography.body.copyWith(color: colors.label),
                     validator: (v) => v == null || v.trim().isEmpty
                         ? l.agenda_event_title_label
@@ -137,12 +141,20 @@ class _EventEditorScreenState extends ConsumerState<EventEditorScreen> {
                 children: [
                   CupertinoTextFormFieldRow(
                     controller: _locationController,
-                    placeholder: l.agenda_event_location,
+                    textAlign: TextAlign.end,
+                    prefix: Text(
+                      l.agenda_event_location,
+                      style: AppTypography.body.copyWith(color: colors.label),
+                    ),
                     style: AppTypography.body.copyWith(color: colors.label),
                   ),
                   CupertinoTextFormFieldRow(
                     controller: _categoryController,
-                    placeholder: l.agenda_event_category,
+                    textAlign: TextAlign.end,
+                    prefix: Text(
+                      l.agenda_event_category,
+                      style: AppTypography.body.copyWith(color: colors.label),
+                    ),
                     style: AppTypography.body.copyWith(color: colors.label),
                   ),
                 ],
