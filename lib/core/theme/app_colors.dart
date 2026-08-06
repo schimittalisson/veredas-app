@@ -175,12 +175,20 @@ class AppColors {
     success: Color(0xFF2E7D4F),
     warning: Color(0xFF9A6B00),
     pendingSync: Color(0xFF7A6A5C),
+    // 10 acentos: os 5 do vitral mais 5 harmonizados na mesma tonalidade.
+    // Cinco cores não bastavam — com 6 categorias em uso, três caíam no mesmo
+    // amarelo, e a cor deixava de distinguir o que deveria distinguir.
     accents: [
       VeredasPalette.teal,
       VeredasPalette.blue,
       VeredasPalette.orange,
       VeredasPalette.yellow,
       VeredasPalette.purple,
+      Color(0xFF6FB86A), // verde
+      Color(0xFFE27BA8), // rosa
+      Color(0xFF7B7FD4), // índigo
+      Color(0xFFC4703F), // terracota
+      Color(0xFF4FB3C4), // ciano
     ],
     // Cada acento misturado a 18% sobre o creme. Os pares abaixo foram
     // verificados em >= 4.5:1 (WCAG AA para texto normal), não estimados.
@@ -190,6 +198,11 @@ class AppColors {
       Color(0xFFF4D7CB),
       Color(0xFFF6E7CA),
       Color(0xFFE3CFD7),
+      Color(0xFFDCE7D2),
+      Color(0xFFF3D9E3),
+      Color(0xFFDCDCEF),
+      Color(0xFFEEDCCF),
+      Color(0xFFD2E5E9),
     ],
     onAccentContainers: [
       Color(0xFF266C64), // 4.60:1
@@ -197,6 +210,11 @@ class AppColors {
       Color(0xFF9A4934), // 4.57:1
       Color(0xFF7E6326), // 4.65:1
       Color(0xFF893E8E), // 4.51:1
+      Color(0xFF3F6B37), // 4.87:1
+      Color(0xFF9B3F63), // 4.82:1
+      Color(0xFF4A4E96), // 5.50:1
+      Color(0xFF8A4A25), // 5.11:1
+      Color(0xFF2A6C77), // 4.59:1
     ],
   );
 
@@ -229,6 +247,11 @@ class AppColors {
       Color(0xFFFF9378),
       Color(0xFFFFD371),
       Color(0xFFB365B7),
+      Color(0xFF8FD98A), // verde
+      Color(0xFFF09BC0), // rosa
+      Color(0xFFA0A3E8), // índigo
+      Color(0xFFE0996B), // terracota
+      Color(0xFF74CBD9), // ciano
     ],
     accentContainers: [
       Color(0xFF26443D),
@@ -236,6 +259,11 @@ class AppColors {
       Color(0xFF5B3226),
       Color(0xFF604C25),
       Color(0xFF40243B),
+      Color(0xFF2C4429),
+      Color(0xFF4E2B3B),
+      Color(0xFF33355C),
+      Color(0xFF4A2E1C),
+      Color(0xFF22454C),
     ],
     onAccentContainers: [
       Color(0xFF52BAAD), // 4.55:1
@@ -243,6 +271,11 @@ class AppColors {
       Color(0xFFF28D73), // 4.58:1
       Color(0xFFFCC64C), // 5.21:1
       Color(0xFFBF7EC4), // 4.56:1
+      Color(0xFF7FC97A), // 5.36:1
+      Color(0xFFE68CB2), // 5.06:1
+      Color(0xFF9EA1E4), // 4.81:1
+      Color(0xFFD89463), // 4.91:1
+      Color(0xFF63C0CF), // 4.93:1
     ],
   );
 }
