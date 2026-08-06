@@ -6,6 +6,7 @@ import 'package:veredas/core/theme/app_colors.dart';
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/ui/navigation/app_router.dart';
+import 'package:veredas/ui/widgets/sync_coordinator.dart';
 
 class VeredasApp extends ConsumerWidget {
   const VeredasApp({super.key});
@@ -40,7 +41,12 @@ class VeredasApp extends ConsumerWidget {
           data: cupertinoThemeFor(colors, brightness),
           child: AppTheme(
             colors: colors,
-            child: child ?? const SizedBox.shrink(),
+            // Acima do router e fora de qualquer tela: o Riverpod 3 pausa
+            // providers fora de tela, e um gatilho de sync preso a uma aba
+            // pararia de disparar quando o usuário trocasse de aba.
+            child: SyncCoordinator(
+              child: child ?? const SizedBox.shrink(),
+            ),
           ),
         );
       },

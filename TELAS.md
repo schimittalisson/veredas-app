@@ -205,7 +205,7 @@ Não há mockup — especificado a partir do requisito.
 `is_active = true`), com `isScrollable: true` (5 abas não cabem fixas em 360 dp):
 
 ```
-Servir ao Todo │ Lixo │ Café da Manhã │ Intercessões │ Café da Gratidão
+Servir ao Todo │ Lixo │ Café da Manhã │ Intercessão │ Café da Gratidão
 ```
 
 > Nunca hardcode as abas. Adicionar uma escala nova deve ser um `INSERT` no
@@ -221,7 +221,7 @@ Servir ao Todo │ Lixo │ Café da Manhã │ Intercessões │ Café da Grati
    - `adhoc`: sem navegador; lista as próximas atribuições e um `ExpansionTile`
      "Anteriores".
 2. **Corpo**, conforme o tipo ter `slots` ou não:
-   - **Com `slots`** (Servir ao Todo, Café da Manhã, Intercessões): tabela
+   - **Com `slots`** (Servir ao Todo, Café da Manhã, Intercessão): tabela
      compacta — linhas = slots/áreas, células = responsável. `Card` com `Table`
      ou `DataTable` (largura `Expanded`, sem scroll horizontal se couber).
    - **Sem `slots`** (Lixo): lista simples por dia da semana:

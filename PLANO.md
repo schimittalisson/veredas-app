@@ -26,7 +26,7 @@ WhatsApp e planilhas soltas:
 |---|---|
 | **Início** | Avisos da liderança, links das redes sociais, dados institucionais da base |
 | **Agenda** | Eventos pontuais (com data/hora/local) + cronograma semanal fixo em formato de grade |
-| **Escalas** | Abas por tipo de escala: Servir ao Todo, Lixo, Café da Manhã, Intercessões, Café da Gratidão |
+| **Escalas** | Abas por tipo de escala: Servir ao Todo, Lixo, Café da Manhã, Intercessão, Café da Gratidão |
 | **Oração** | Mural de pedidos de oração no estilo feed, com busca por título |
 
 Autenticação por e-mail/senha **com código de convite**, e permissões

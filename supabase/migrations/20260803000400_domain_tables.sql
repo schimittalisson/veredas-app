@@ -51,7 +51,7 @@ create index scale_managers_user_idx on public.scale_managers (user_id);
 --   Servir ao Todo   -> task = área ("Cozinha", "Banheiros")
 --   Lixo             -> sem task, um responsável por dia/semana
 --   Café da Manhã    -> slot = turno, task opcional
---   Intercessões     -> slot = horário ("06:00-07:00")
+--   Intercessão     -> slot = horário ("06:00-07:00")
 --   Café da Gratidão -> evento pontual, cadence 'adhoc'
 create table public.scale_assignments (
   id            uuid primary key default gen_random_uuid(),

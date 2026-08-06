@@ -743,6 +743,20 @@ sync é derivado de múltiplas fontes (conectividade, outbox pendente, erro do
 permite expor métodos. O `Notifier` observa os providers de infra via
 `ref.watch` no `build()` e expõe `pullAll()` e `clearError()`.
 
+**O sync precisa de um gatilho, e ele mora no `app.dart`.** A Fase 4 entregou
+`SyncService` e `OutboxWorker` testados, mas **nada chamava `pullAll()`** — o
+app parecia funcionar e não sincronizava. Alterações feitas no servidor nunca
+chegavam ao cache, e escritas ficavam presas na outbox para sempre, porque
+`drain()` só roda dentro de `pullAll()`.
+
+O `SyncCoordinator` (`ui/widgets/sync_coordinator.dart`) fecha esse buraco.
+Fica acima do router, no `builder` do `CupertinoApp` — **não mova para dentro
+de uma tela**: o Riverpod 3 pausa providers fora de tela, e o gatilho pararia
+de disparar ao trocar de aba. Sincroniza na abertura, no login, ao voltar a
+conexão e ao retornar do segundo plano. O portão é a **sessão**, não a
+aprovação: gatear por `isApproved` daria impasse, já que o perfil só entra no
+cache pelo próprio pull.
+
 **`OfflineBanner` é uma faixa persistente, não um toast.** O banner precisa
 ficar visível enquanto durar o estado e não ser descartável — um toast some
 sozinho e o usuário perde a informação de que está offline. Era um
