@@ -67,6 +67,47 @@ flutter build apk --debug
 flutter build appbundle --release --dart-define-from-file=env/prod.json
 ```
 
+### Emulador Android
+
+`flutter` está no PATH; **`adb` e `emulator` não**. Eles vivem no SDK do Android:
+
+```bash
+export PATH="$HOME/Android/Sdk/platform-tools:$HOME/Android/Sdk/emulator:$PATH"
+```
+
+```bash
+flutter emulators                        # lista os AVDs (há um: Medium_Phone)
+flutter emulators --launch Medium_Phone
+flutter devices                          # fica "offline" por ~20s enquanto sobe
+flutter run -d emulator-5554 --dart-define-from-file=env/dev.json
+```
+
+Sem passar pelo Flutter, direto pelo SDK: `emulator -avd Medium_Phone &`.
+
+**`R` (hot restart) não é confiável para mudança estrutural** — troca do widget
+raiz, do tema ou do tipo de um widget. O `flutter run` reporta "Restarted
+application" e a tela continua com o código antigo; já custou duas rodadas de
+teste em cima de código que já estava corrigido. O sintoma é o app na tela não
+bater com o fonte. Nesse caso, reinstale:
+
+```bash
+adb shell am force-stop br.com.veredas.app
+adb uninstall br.com.veredas.app     # apaga a sessão salva — exige login de novo
+flutter run -d emulator-5554 --dart-define-from-file=env/dev.json
+```
+
+Hot reload (`r`) continua confiável para mudança de layout e estilo. Dá para
+distinguir pelo log: um reload de verdade imprime `compile`/`reload`/`reassemble`
+com tempos; um restart que não fez nada só imprime "Restarted application".
+
+**Conferir a UI sem depender de descrição** (útil também para o agente):
+
+```bash
+adb exec-out screencap -p > /tmp/tela.png   # screenshot
+adb shell input tap <x> <y>                 # tela do Medium_Phone: 1080x2400
+adb shell input swipe <x1> <y1> <x2> <y2> <ms>
+```
+
 `env/dev.json` (gitignored; commitar `env/dev.example.json`):
 
 ```json
