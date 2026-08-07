@@ -135,6 +135,25 @@ class SupabaseAuthService implements AuthService {
   }
 
   @override
+  Future<void> deleteOwnAccount() async {
+    try {
+      await _client.rpc('delete_own_account');
+    } catch (e) {
+      // CANNOT_DELETE_LAST_ADMIN vem como PostgrestException com a mensagem
+      // crua do `raise exception`. Traduzir aqui, e não na tela, mantém a
+      // regra do AGENTS.md §6.6: exceção do Postgres não chega à UI.
+      if (e.toString().contains('CANNOT_DELETE_LAST_ADMIN')) {
+        throw const AppException(AppErrorCode.forbidden);
+      }
+      rethrow;
+    }
+    // A sessão precisa cair junto: o perfil já está marcado como removido, e
+    // continuar logado deixaria o usuário preso na tela de "aguardando
+    // aprovação" sem entender por quê.
+    await _client.auth.signOut();
+  }
+
+  @override
   Future<void> resetPassword(String email) async {
     try {
       await _client.auth.resetPasswordForEmail(

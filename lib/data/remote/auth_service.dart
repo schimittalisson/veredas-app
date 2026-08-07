@@ -83,6 +83,18 @@ abstract class AuthService {
   /// Logout.
   Future<void> signOut();
 
+  /// Apaga a conta do usuário logado e encerra a sessão.
+  ///
+  /// Exigência da Google Play para apps com cadastro: o usuário precisa
+  /// conseguir sair do sistema sem depender de um administrador.
+  ///
+  /// Chama a RPC `delete_own_account`, que faz soft delete do perfil e do
+  /// conteúdo autoral (ver a migration e o `PRIVACIDADE.md` §6). Lança
+  /// `AppException` com `AppErrorCode.forbidden` quando o usuário é o único
+  /// administrador ativo — a base não pode ficar sem quem aprove novos
+  /// obreiros.
+  Future<void> deleteOwnAccount();
+
   /// Envia e-mail de recuperação de senha.
   ///
   /// O e-mail contém um deep link de volta para o app

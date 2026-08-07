@@ -430,6 +430,18 @@ class FakeAuthService implements AuthService {
     simulateUnauthenticated();
   }
 
+  /// Erro a lançar em `deleteOwnAccount`, para o teste do caso "último admin".
+  AppException? deleteAccountError;
+
+  @override
+  Future<void> deleteOwnAccount() async {
+    calls.add('deleteOwnAccount');
+    if (deleteAccountError != null) throw deleteAccountError!;
+    // O serviço real encerra a sessão depois de apagar; o fake espelha isso,
+    // senão o teste não veria o efeito que a UI depende (o redirect).
+    simulateUnauthenticated();
+  }
+
   @override
   Future<void> resetPassword(String email) async {
     calls.add('resetPassword:$email');

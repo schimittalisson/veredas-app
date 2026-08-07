@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:veredas/core/error/app_exception.dart';
 import 'package:veredas/core/theme/app_colors.dart';
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
@@ -221,8 +222,14 @@ class _AccountButton extends ConsumerWidget {
             ),
           CupertinoActionSheetAction(
             onPressed: () => Navigator.of(sheetContext).pop('signout'),
-            isDestructiveAction: true,
             child: Text(l.auth_pending_sign_out),
+          ),
+          // Exigência da Google Play: apps com cadastro precisam oferecer
+          // exclusão de conta dentro do próprio app, sem depender de admin.
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(sheetContext).pop('delete'),
+            isDestructiveAction: true,
+            child: Text(l.auth_delete_account),
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
@@ -249,6 +256,31 @@ class _AccountButton extends ConsumerWidget {
         // Não navega daqui: o redirect do router leva para /login assim que o
         // authStateProvider emite a sessão nula.
         await ref.read(authActionsProvider.notifier).signOut();
+
+      case 'delete':
+        // Confirmação própria, e não a genérica: o texto precisa dizer o que
+        // será apagado e o que fica. É o que a Play espera de um fluxo de
+        // exclusão, e é o mínimo antes de uma ação irreversível.
+        final confirmed = await ConfirmDialog.show(
+          context,
+          title: l.auth_delete_account,
+          message: l.auth_delete_account_confirm,
+          confirmLabel: l.action_delete,
+        );
+        if (!confirmed) return;
+
+        try {
+          await ref.read(authActionsProvider.notifier).deleteOwnAccount();
+        } on AppException catch (e) {
+          if (!context.mounted) return;
+          showAppToast(
+            context,
+            e.code == AppErrorCode.forbidden
+                ? l.auth_delete_account_last_admin
+                : l.error_generic,
+            isError: true,
+          );
+        }
     }
   }
 }

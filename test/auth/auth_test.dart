@@ -172,6 +172,40 @@ void main() {
           await waitForAuthState(container, (s) => !s.isAuthenticated);
       expect(state.isAuthenticated, false);
     });
+
+    test('deleteOwnAccount encerra a sessão', () async {
+      auth.simulateAuthenticated();
+      await waitForAuthState(container, (s) => s.isAuthenticated);
+
+      await container.read(authActionsProvider.notifier).deleteOwnAccount();
+
+      // A sessão precisa cair junto com a exclusão: sem isso o usuário fica
+      // preso na tela de "aguardando aprovação", porque o perfil já está
+      // marcado como removido mas o token continua válido.
+      final state =
+          await waitForAuthState(container, (s) => !s.isAuthenticated);
+      expect(state.isAuthenticated, false);
+      expect(auth.calls, contains('deleteOwnAccount'));
+    });
+
+    test('deleteOwnAccount do último admin propaga forbidden', () async {
+      auth.simulateAuthenticated();
+      await waitForAuthState(container, (s) => s.isAuthenticated);
+
+      // A RPC recusa quando sobraria a base sem nenhum admin ativo. A UI
+      // depende do código para escolher a mensagem certa, então o erro não
+      // pode chegar como PostgrestException cru.
+      auth.deleteAccountError = const AppException(AppErrorCode.forbidden);
+
+      await expectLater(
+        container.read(authActionsProvider.notifier).deleteOwnAccount(),
+        throwsA(isA<AppException>().having(
+          (e) => e.code,
+          'code',
+          AppErrorCode.forbidden,
+        )),
+      );
+    });
   });
 
   group('currentProfileProvider', () {

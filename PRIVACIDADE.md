@@ -54,15 +54,34 @@ Para exercer qualquer direito, contate a liderança da base ou use o botão
 
 ## 6. Exclusão de conta
 
-A exclusão de conta remove permanentemente:
+Você pode excluir a sua conta **dentro do app**, sem depender de um
+administrador: toque no seu avatar na tela Início e escolha
+*Excluir minha conta*.
 
-- Perfil (nome, e-mail, telefone, foto, bio).
-- Atribuições de escala futuras.
+A exclusão remove:
+
+- Perfil: nome, e-mail, telefone, foto e bio são apagados.
 - Posts e comentários no mural de oração.
-- Convites gerados pelo usuário.
+- Atribuições de escala futuras.
+- Convites que você gerou e que ninguém usou ainda.
 
-Atribuições de escala passadas podem ser mantidas para registro histórico,
-com o nome substituído por "Removido".
+Atribuições de escala **passadas** são mantidas para registro histórico da
+base, com o nome substituído por "Removido" — não é possível identificar você
+a partir delas.
+
+Convites seus que **já foram usados** por outra pessoa são mantidos, porque
+apagá-los destruiria o registro de como aquele obreiro entrou na base.
+
+A exclusão é imediata e encerra a sua sessão. O identificador de login fica
+retido por até 30 dias no sistema de autenticação, para o caso de exclusão
+acidental, e depois é apagado em definitivo.
+
+Se você for o **único administrador ativo**, o app não permite a exclusão até
+que outra pessoa seja promovida a administrador — sem isso a base ficaria sem
+ninguém capaz de aprovar novos obreiros.
+
+Para solicitar a exclusão sem acesso ao app, contate a liderança da Base
+Missionária JOCUM Veredas.
 
 ## 7. Segurança
 

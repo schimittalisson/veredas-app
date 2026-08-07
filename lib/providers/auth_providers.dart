@@ -121,6 +121,10 @@ class AuthActions extends Notifier<void> {
 
   Future<void> signOut() => _auth.signOut();
 
+  /// Apaga a conta do usuário logado. O redirect do router leva para /login
+  /// assim que a sessão cai.
+  Future<void> deleteOwnAccount() => _auth.deleteOwnAccount();
+
   Future<void> resetPassword(String email) => _auth.resetPassword(email);
 
   Future<void> resendEmailConfirmation(String email) =>
