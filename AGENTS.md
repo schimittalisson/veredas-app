@@ -67,6 +67,35 @@ flutter build apk --debug
 flutter build appbundle --release --dart-define-from-file=env/prod.json
 ```
 
+### Assinatura do Android
+
+A chave de upload **vive fora do repositório**, em
+`~/.android-keys/veredas-upload.jks` (PKCS12, RSA 2048, validade 10.000 dias).
+Fora e não dentro porque `.gitignore` protege contra o acidente comum, não
+contra um `git add -f`; o que não está na árvore não tem como ser commitado.
+
+`android/key.properties` (gitignored, modo 600) aponta para ela. **Sem esse
+arquivo o `flutter build appbundle --release` não falha** — ele cai nas debug
+keys e produz um AAB que a Play recusa, sem avisar. Depois de qualquer build
+de release destinado à loja, confirme quem assinou:
+
+```bash
+/usr/lib/jvm/java-17-openjdk-amd64/bin/jarsigner -verify -certs \
+  build/app/outputs/bundle/release/app-release.aab | grep "Signed by"
+# esperado: CN=Base Missionaria JOCUM Veredas, ...
+# se aparecer "Android Debug", o key.properties não foi lido
+```
+
+Use o `keytool` do **JDK 17**. O que está no PATH é do GraalVM Java 8 e gera
+keystore no formato JKS antigo.
+
+**Isto é uma chave de _upload_, não a de assinatura do app.** Com o Play App
+Signing (obrigatório para apps novos desde ago/2021), quem guarda a chave de
+assinatura é o Google; esta aqui só autentica o envio. Perdê-la é chato — exige
+pedir reset ao suporte da Play — mas **não** impede atualizar o app, ao
+contrário do que valia no modelo antigo. Ainda assim: faça backup do `.jks` e
+da senha (que está no `key.properties`) num gerenciador de senhas.
+
 ### Emulador Android
 
 `flutter` está no PATH; **`adb` e `emulator` não**. Eles vivem no SDK do Android:
