@@ -89,6 +89,16 @@ de release destinado à loja, confirme quem assinou:
 Use o `keytool` do **JDK 17**. O que está no PATH é do GraalVM Java 8 e gera
 keystore no formato JKS antigo.
 
+**A permissão `INTERNET` mora no manifesto `main`.** O template do Flutter só
+a declara em `debug` e `profile`, onde existe para o hot reload. Se sair do
+`main`, o release instala, abre e não alcança o Supabase — e o teste no
+emulador não pega, porque ali roda debug. Confira no artefato, não no fonte:
+
+```bash
+unzip -p build/app/outputs/bundle/release/app-release.aab \
+  base/manifest/AndroidManifest.xml | strings | grep permission.INTERNET
+```
+
 **Isto é uma chave de _upload_, não a de assinatura do app.** Com o Play App
 Signing (obrigatório para apps novos desde ago/2021), quem guarda a chave de
 assinatura é o Google; esta aqui só autentica o envio. Perdê-la é chato — exige

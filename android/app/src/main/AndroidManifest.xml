@@ -1,6 +1,17 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      O template do Flutter só declara INTERNET nos manifestos de `debug` e
+      `profile`, onde ela existe para o hot reload conversar com o app. Em
+      release ela precisa estar AQUI: sem isto o app instala, abre e não
+      alcança o Supabase — nem login funciona.
+
+      A armadilha é não aparecer em teste: no emulador roda-se debug, que tem
+      a permissão pelo outro manifesto.
+    -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
-        android:label="veredas"
+        android:label="JOCUM Veredas"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity
