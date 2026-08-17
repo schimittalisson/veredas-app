@@ -54,6 +54,7 @@ class _EventsTabState extends ConsumerState<EventsTab> {
   Widget build(BuildContext context) {
     final daysWithEvents = ref.watch(daysWithEventsProvider);
     final colors = context.colors;
+    final l = AppLocalizations.of(context);
 
     return ListView(
       children: [
@@ -90,10 +91,9 @@ class _EventsTabState extends ConsumerState<EventsTab> {
               onFormatChanged: (format) {
                 setState(() => _calendarFormat = format);
               },
-              // TODO l10n: agenda_calendar_format_month / agenda_calendar_format_week
-              availableCalendarFormats: const {
-                CalendarFormat.month: 'Mês',
-                CalendarFormat.week: 'Semana',
+              availableCalendarFormats: {
+                CalendarFormat.month: l.agenda_calendar_format_month,
+                CalendarFormat.week: l.agenda_calendar_format_week,
               },
               eventLoader: (day) {
                 final normalized = _normalize(day);

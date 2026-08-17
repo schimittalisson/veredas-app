@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Veredas</string>
+	<string>JOCUM Veredas</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -36,7 +36,7 @@
 			<string>br.com.veredas.app</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>veredas</string>
+				<string>br.com.veredas.app</string>
 			</array>
 		</dict>
 	</array>

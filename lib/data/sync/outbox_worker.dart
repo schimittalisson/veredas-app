@@ -254,6 +254,12 @@ class OutboxWorker {
     // `count().watchSingle()` emite `Stream<int>` — o count da tabela inteira.
     return db.outboxEntries.count().watchSingle().map((c) => c > 0);
   }
+
+  /// Stream que emite o número de entradas pendentes na outbox. Usado pelo
+  /// banner offline para mostrar "N alterações aguardando envio".
+  Stream<int> watchPendingCount() {
+    return db.outboxEntries.count().watchSingle();
+  }
 }
 
 Future<bool> _defaultConnectivityCheck() async {

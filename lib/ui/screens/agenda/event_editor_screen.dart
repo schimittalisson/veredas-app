@@ -323,9 +323,7 @@ class _EventEditorScreenState extends ConsumerState<EventEditorScreen> {
                 alignment: Alignment.centerRight,
                 child: CupertinoButton(
                   onPressed: () => Navigator.of(sheetContext).pop(true),
-                  // TODO l10n: action_done ("Pronto") — não existe no .arb,
-                  // action_save é o rótulo mais próximo.
-                  child: Text(l.action_save),
+                  child: Text(l.action_done),
                 ),
               ),
               Expanded(child: child),

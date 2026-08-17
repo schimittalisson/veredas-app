@@ -1,0 +1,134 @@
+# Codemagic CI/CD — build iOS na nuvem sem precisar de Mac.
+#
+# Plano gratuito: 500 minutos/mês de macOS M2 (conta pessoal).
+# Um build de iOS release consome ~15-20 min, então dá para ~25 builds/mês.
+#
+# COMO USAR:
+# 1. Crie conta em https://codemagic.io (login com GitHub)
+# 2. Conecte o repositório (pode ser privado)
+# 3. O codemagic.yaml na raiz é detectado automaticamente
+# 4. Comece pelo workflow `ios-unsigned` para validar que compila
+# 5. Para o workflow `ios-release` (signed), suba os certificados Apple:
+#    - App Settings > Code signing > iOS
+#    - Upload do .p12 (exportado do Keychain Access de um Mac, ou gerado
+#      via developer.apple.com) e do provisioning profile
+#    - Reference name: "veredas_distribution"
+#    - Distribution type: app_store
+# 6. Para publicar na App Store, configure App Store Connect API key
+#    (Users and Access > Keys > Generate API key) e adicione como
+#    environment variable group `app_store_credentials` no Codemagic.
+
+definitions:
+  env_versions: &env_versions
+    flutter: stable
+    xcode: latest
+    cocoapods: default
+
+workflows:
+  # -----------------------------------------------------------------------
+  # Workflow 1: iOS unsigned — valida que o projeto compila na nuvem.
+  # Rode este PRIMEIRO, antes de configurar certificados.
+  # -----------------------------------------------------------------------
+  ios-unsigned:
+    name: iOS (unsigned, validação)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      <<: *env_versions
+      vars:
+        # O env/prod.json está gitignored, então não vem no repositório.
+        # No Codemagic, crie estas variáveis em App Settings > Environment:
+        #   SUPABASE_URL  = https://vwstkxemtkdlsagricsh.supabase.co
+        #   SUPABASE_ANON_KEY = eyJ... (anon key do prod.json)
+        # O script abaixo recria env/prod.json a partir delas.
+        SUPABASE_URL: $SUPABASE_URL
+        SUPABASE_ANON_KEY: $SUPABASE_ANON_KEY
+    scripts:
+      - name: Recriar env/prod.json (gitignored)
+        script: |
+          mkdir -p env
+          cat > env/prod.json << EOF
+          {
+            "SUPABASE_URL": "$SUPABASE_URL",
+            "SUPABASE_ANON_KEY": "$SUPABASE_ANON_KEY"
+          }
+          EOF
+      - name: Flutter packages
+        script: flutter pub get
+      - name: Build iOS debug sem assinatura
+        script: flutter build ios --debug --no-codesign --dart-define-from-file=env/prod.json
+    artifacts:
+      - build/ios/iphoneos/Runner.app
+      - /tmp/xcodebuild_logs/*.log
+
+  # -----------------------------------------------------------------------
+  # Workflow 2: iOS release signed — gera .ipa para TestFlight/App Store.
+  # Requer certificados Apple configurados no Codemagic (ver instruções
+  # no topo do arquivo).
+  # -----------------------------------------------------------------------
+  ios-release:
+    name: iOS (release assinado)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      <<: *env_versions
+      groups:
+        - app_store_credentials
+      vars:
+        SUPABASE_URL: $SUPABASE_URL
+        SUPABASE_ANON_KEY: $SUPABASE_ANON_KEY
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: br.com.veredas.app
+    scripts:
+      - name: Recriar env/prod.json (gitignored)
+        script: |
+          mkdir -p env
+          cat > env/prod.json << EOF
+          {
+            "SUPABASE_URL": "$SUPABASE_URL",
+            "SUPABASE_ANON_KEY": "$SUPABASE_ANON_KEY"
+          }
+          EOF
+      - name: Flutter packages
+        script: flutter pub get
+      - name: Build IPA release
+        script: flutter build ipa --release --dart-define-from-file=env/prod.json --export-options-plist=ios/ExportOptions.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      # Publica no TestFlight automaticamente após o build.
+      # Requer APP_STORE_CONNECT_PRIVATE_KEY, APP_STORE_CONNECT_KEY_IDENTIFIER,
+      # APP_STORE_CONNECT_ISSUER_ID no grupo app_store_credentials.
+      app_store_connect:
+        auth: authorization
+
+  # -----------------------------------------------------------------------
+  # Workflow 3: Android release AAB — equivalente ao build local.
+  # -----------------------------------------------------------------------
+  android-release:
+    name: Android (release AAB)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    environment:
+      <<: *env_versions
+      vars:
+        SUPABASE_URL: $SUPABASE_URL
+        SUPABASE_ANON_KEY: $SUPABASE_ANON_KEY
+    scripts:
+      - name: Recriar env/prod.json (gitignored)
+        script: |
+          mkdir -p env
+          cat > env/prod.json << EOF
+          {
+            "SUPABASE_URL": "$SUPABASE_URL",
+            "SUPABASE_ANON_KEY": "$SUPABASE_ANON_KEY"
+          }
+          EOF
+      - name: Flutter packages
+        script: flutter pub get
+      - name: Build AAB release
+        script: flutter build appbundle --release --dart-define-from-file=env/prod.json
+    artifacts:
+      - build/app/outputs/bundle/release/*.aab

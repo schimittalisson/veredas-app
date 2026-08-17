@@ -25,7 +25,7 @@ values
 
   -- O `slug` permanece no plural de propósito: ele é a chave estável do tipo
   -- de escala. Renomear a exibição não deve mexer na chave.
-  ('intercessoes', 'Intercessão',
+  ('intercessao', 'Intercessão',
    'Turnos de intercessão.', 'volunteer_activism', 'weekly',
    array['06:00-07:00','12:00-13:00','18:00-19:00','21:00-22:00'], 4),
 

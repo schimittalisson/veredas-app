@@ -134,11 +134,10 @@ class _ScaleAssignmentEditorScreenState
                 ),
                 // O `helperText` do campo Material vira o rodapé da seção: é
                 // onde o iOS coloca a explicação de um grupo de células.
-                // TODO l10n: scales_assignment_assignee_name_helper
                 footer: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
-                    'Use se a pessoa não tem conta no app',
+                    l.scales_assignment_assignee_name_helper,
                     style: AppTypography.footnote
                         .copyWith(color: colors.secondaryLabel),
                   ),
@@ -290,9 +289,7 @@ class _ScaleAssignmentEditorScreenState
                 alignment: Alignment.centerRight,
                 child: CupertinoButton(
                   onPressed: () => Navigator.of(sheetContext).pop(true),
-                  // TODO l10n: action_done ("Pronto") — não existe no .arb,
-                  // action_save é o rótulo mais próximo.
-                  child: Text(l.action_save),
+                  child: Text(l.action_done),
                 ),
               ),
               Expanded(child: child),
@@ -310,20 +307,20 @@ class _ScaleAssignmentEditorScreenState
   }
 
   Future<void> _save() async {
+    final l = AppLocalizations.of(context);
+
     // Valida: precisa de assigneeId OU assigneeName.
     if (_assigneeId == null &&
         _assigneeNameController.text.trim().isEmpty) {
-      // TODO l10n: scales_assignment_assignee_required
       showAppToast(
         context,
-        'Selecione um obreiro ou digite um nome.',
+        l.scales_assignment_assignee_required,
         isError: true,
       );
       return;
     }
 
     setState(() => _saving = true);
-    final l = AppLocalizations.of(context);
     final repo = ref.read(scalesRepositoryProvider);
 
     try {

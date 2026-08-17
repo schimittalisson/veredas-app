@@ -12,12 +12,19 @@ import 'package:veredas/data/models/app_role.dart';
 import 'package:veredas/data/remote/auth_service.dart';
 import 'package:veredas/data/sync/remote_source.dart';
 
+// Silencia o warning de "múltiplas instâncias do banco" — cada teste cria
+// seu próprio NativeDatabase.memory(), então não há risco de corrida.
+void _silenceDriftWarnings() {
+  driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
+}
+
 /// Banco drift em memória, isolado por teste.
 ///
 /// `NativeDatabase.memory()` usa a `libsqlite3` do sistema — por isso o
 /// `libsqlite3-dev` é requisito para rodar os testes no desktop
 /// (`sudo apt install libsqlite3-dev`).
 AppDatabase createTestDatabase() {
+  _silenceDriftWarnings();
   return AppDatabase.forTesting(NativeDatabase.memory());
 }
 

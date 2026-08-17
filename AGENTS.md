@@ -38,7 +38,12 @@ export PATH="$HOME/development/flutter/bin:$PATH"
 - `libsqlite3-dev` instalado para rodar testes de drift no desktop:
   `sudo apt install libsqlite3-dev`
 - iOS **não compila no Linux**. Configure os arquivos (`Info.plist`, `Podfile`,
-  deep links) e documente; o build só roda em macOS com Xcode.
+  deep links) e documente; o build só roda em macOS com Xcode 15+ (Flutter 3.44
+  exige Xcode 15, que exige macOS Ventura 13.5+, que exige Mac 2017+).
+  **Alternativa sem Mac**: Codemagic CI/CD (ver `codemagic.yaml` na raiz).
+  Plano gratuito: 500 min/mês de macOS M2 na nuvem. Comece pelo workflow
+  `ios-unsigned` para validar, depois configure certificados Apple para o
+  `ios-release` gerar o `.ipa` assinado para TestFlight/App Store.
 
 ---
 
@@ -470,44 +475,47 @@ Atualize esta seção ao concluir cada fase.
       providers de infra, `syncStatusProvider`, `OfflineBanner`,
       `connectivity_plus`. 56 testes (sync, outbox, error_mapper, schema).
       Os 5 aceites do plano + o caso 0-linhas cobertos.
-- [~] Fase 5 — Tela Início — aviso fixado, redes sociais, dados da base,
-      avisos anteriores. FAB só admin. TODO: editores (aviso, base_info),
-      lista completa de avisos, nome do autor no aviso.
-- [~] Fase 6 — Tela Agenda — abas Eventos (TableCalendar + lista do dia +
-      próximos) e Cronograma (grade semanal + lista por dia). FAB só admin.
-      TODO: editores (evento, slot), detalhe do evento, cached_network_image.
-- [~] Fase 7 — Tela Escalas — TabBar dinâmica de scale_types, seletor de
+- [x] Fase 5 — Tela Início — aviso fixado, redes sociais, dados da base,
+      avisos anteriores. FAB só admin. Editor de avisos implementado
+      (`announcement_editor_screen.dart`). Nome do autor denormalizado
+      (`authorName` em `AnnouncementRow`, exibido na UI). TODO: lista
+      completa de avisos (rota `/avisos`), editor de base_info
+      (`BaseDataScreen`).
+- [x] Fase 6 — Tela Agenda — abas Eventos (TableCalendar + lista do dia +
+      próximos, `cached_network_image` para capas) e Cronograma (grade
+      semanal proporcional + lista por dia). FAB só admin. Editores de
+      evento e slot implementados com seletor de cor (`color_index`).
+      TODO: detalhe do evento.
+- [x] Fase 7 — Tela Escalas — TabBar dinâmica de scale_types, seletor de
       período (weekly/monthly/adhoc), tabela com slots / lista sem slots,
       destaque "Você" (primaryContainer + Chip), resumo "N× no período".
-      FAB só se canEditScale. TODO: editor de atribuição, duplicar semana,
+      FAB só se canEditScale. Editor de atribuição implementado
+      (`scale_assignment_editor_screen.dart`). TODO: duplicar semana,
       seleção múltipla com exclusão em lote.
-- [~] Fase 8 — Mural de Oração — feed com busca por título (debounce 400ms),
+- [x] Fase 8 — Mural de Oração — feed com busca por título (debounce 400ms),
       composer inline, PrayerCard (avatar, timeago, "estou orando" toggle
       otimista, badge "Respondido", popup Editar/Excluir/Marcar respondido),
-      texto expansível (3 linhas + ver mais). FAB novo pedido. TODO: tela
-      de detalhe, composer, outbox do toggle, paginação.
-- [~] Fase 9 — Administração — AdminScreen (menu), MembrosScreen (lista com
+      texto expansível (3 linhas + ver mais). FAB novo pedido. Editor
+      implementado (`prayer_editor_screen.dart`). TODO: tela de detalhe,
+      paginação.
+- [x] Fase 9 — Administração — AdminScreen (menu), MembrosScreen (lista com
       busca, pendentes no topo, popup Aprovar/Revogar/Promover/Rebaixar/
       Remover, proteção auto-rebaixamento), ConvitesScreen (lista + FAB criar
       diálogo com código gerado sem 0/O/1/I, copiar, revogar),
       ResponsaveisScreen (ExpansionTile por scale_type, adicionar/remover).
-      Rotas de admin + guard no router (não-admin → /inicio). TODO: RPCs
-      (set_approval, set_role, create_invite, revoke_invite,
-      add/remove_scale_manager), BaseDataScreen.
+      Rotas de admin + guard no router (não-admin → /inicio). Todas as 6
+      RPCs implementadas (`supabase_admin_service.dart`). TODO: BaseDataScreen.
 - [x] Fase 10 — Qualidade, iOS e lançamento — flutter_launcher_icons (logo
       900x900), ProGuard + minify/shrink + signing config via key.properties
       (gitignored), Info.plist (CFBundleLocalizations pt/pt-BR,
       CFBundleURLTypes deep link, NSCameraUsageDescription,
       NSPhotoLibraryUsageDescription), política de privacidade LGPD
-      (PRIVACIDADE.md), `flutter analyze` limpo, 69 testes passando, AAB
-      release assinado (64.6MB). iOS não compila no Linux — arquivos
-      configurados, build requer macOS + Xcode.
-- [ ] Fase 5 — Tela Início
-- [ ] Fase 6 — Tela Agenda
-- [ ] Fase 7 — Tela Escalas
-- [ ] Fase 8 — Mural de Oração
-- [ ] Fase 9 — Administração
-- [ ] Fase 10 — Qualidade, iOS e lançamento
+      (PRIVACIDADE.md), `flutter analyze` limpo, 77 testes passando
+      (71 unit/integração + 6 widget), APK release assinado (66MB).
+      Migrado para Cupertino (CupertinoApp.router, CupertinoTabBar, widgets
+      iOS). Seletor de cor para eventos/slots. Exclusão de conta
+      (RPC `delete_own_account` + proteção último admin). iOS não compila
+      no Linux — arquivos configurados, build requer macOS + Xcode.
 
 ### Decisões tomadas durante a execução
 
@@ -894,10 +902,11 @@ removido", não "você não tem permissão".
 **Pendências que dependem do solicitante**
 
 - ~~Salvar a logo~~ — feito: `assets/images/logo.jpg`. As cores do tema foram
-  amostradas dele. Falta gerar o launcher icon (`flutter_launcher_icons`) e usar
-  na splash/login.
-- **Aplicar as migrations no projeto Supabase** (`vwstkxemtkdlsagricsh`). O
-  projeto existe e o Auth responde, mas as tabelas ainda não foram criadas.
+  amostradas dele. ~~Falta gerar o launcher icon~~ — feito:
+  `flutter_launcher_icons` configurado e ícones gerados em
+  `android/app/src/main/res/mipmap-*/ic_launcher.png`.
+- ~~Aplicar as migrations no projeto Supabase~~ — feito. Todas as migrations
+  aplicadas no projeto `vwstkxemtkdlsagricsh`. RLS ativo, seeds carregados.
 - ~~Dados de `base_info` e `social_links`~~ — feito pelo solicitante no
   `seed.sql`.
 - **Cronograma semanal**: o seed tem um MODELO de 40 slots baseado no ritmo

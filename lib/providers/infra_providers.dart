@@ -137,3 +137,9 @@ final outboxWorkerProvider = Provider<OutboxWorker>((ref) {
 final hasPendingOutboxProvider = StreamProvider<bool>((ref) {
   return ref.watch(outboxWorkerProvider).watchPending();
 });
+
+/// Stream que emite o número de entradas pendentes na outbox. Usado pelo
+/// banner offline para mostrar "N alterações aguardando envio".
+final pendingOutboxCountProvider = StreamProvider<int>((ref) {
+  return ref.watch(outboxWorkerProvider).watchPendingCount();
+});

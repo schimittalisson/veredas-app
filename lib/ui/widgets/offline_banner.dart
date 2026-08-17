@@ -61,11 +61,11 @@ class _PendingBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // O número de pendentes vem da outbox. O StreamProvider pode não ter
-    // resolvido ainda no primeiro frame; usa false como fallback (o banner
+    // resolvido ainda no primeiro frame; usa 0 como fallback (o banner
     // aparece quando o stream emite).
-    final hasPending = ref.watch(hasPendingOutboxProvider).value ?? false;
+    final count = ref.watch(pendingOutboxCountProvider).value ?? 0;
 
-    if (!hasPending) {
+    if (count == 0) {
       // Sincronizando sem pendentes: é um pull em andamento.
       return _Banner(
         leading: const CupertinoActivityIndicator(radius: 7),
@@ -75,7 +75,7 @@ class _PendingBanner extends ConsumerWidget {
 
     return _Banner(
       icon: CupertinoIcons.arrow_up_circle,
-      text: l.offline_pending_changes(1),
+      text: l.offline_pending_changes(count),
     );
   }
 }

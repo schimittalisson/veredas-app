@@ -637,6 +637,7 @@ class _PreviousSectionState extends State<_PreviousSection> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l = AppLocalizations.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -649,8 +650,7 @@ class _PreviousSectionState extends State<_PreviousSection> {
             children: [
               Expanded(
                 child: Text(
-                  // TODO l10n: scales_previous
-                  'Anteriores',
+                  l.scales_previous,
                   style: AppTypography.subheadlineEmphasis
                       .copyWith(color: colors.label),
                 ),

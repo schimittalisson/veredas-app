@@ -109,10 +109,9 @@ class _PrayerEditorScreenState extends ConsumerState<PrayerEditorScreen> {
                       style: AppTypography.body.copyWith(color: colors.label),
                     ),
                     helper: Text(
-                      // TODO l10n: prayer_anonymous_on / prayer_anonymous_off
                       _isAnonymous
-                          ? 'Seu nome não será exibido'
-                          : 'Seu nome será exibido',
+                          ? l.prayer_anonymous_on
+                          : l.prayer_anonymous_off,
                       style: AppTypography.footnote
                           .copyWith(color: colors.secondaryLabel),
                     ),
