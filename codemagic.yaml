@@ -55,10 +55,15 @@ workflows:
           EOF
       - name: Flutter packages
         script: flutter pub get
-      - name: Build iOS debug sem assinatura
-        script: flutter build ios --debug --no-codesign --dart-define-from-file=env/prod.json
+      - name: Build iOS debug sem assinatura (simulador)
+        # --simulator evita a exigência de Development Team/Provisioning
+        # Profile que o build para dispositivo físico teria mesmo com
+        # --no-codesign. Isto só valida que o projeto compila; para
+        # instalar no iPhone de verdade é preciso o workflow ios-release
+        # com certificados Apple configurados.
+        script: flutter build ios --simulator --no-codesign --dart-define-from-file=env/prod.json
     artifacts:
-      - build/ios/iphoneos/Runner.app
+      - build/ios/iphonesimulator/Runner.app
       - /tmp/xcodebuild_logs/*.log
 
   # -----------------------------------------------------------------------
