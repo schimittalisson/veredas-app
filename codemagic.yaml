@@ -102,7 +102,7 @@ workflows:
       # Requer APP_STORE_CONNECT_PRIVATE_KEY, APP_STORE_CONNECT_KEY_IDENTIFIER,
       # APP_STORE_CONNECT_ISSUER_ID no grupo app_store_credentials.
       app_store_connect:
-        auth: authorization
+        auth: integration
 
   # -----------------------------------------------------------------------
   # Workflow 3: Android release AAB — equivalente ao build local.
