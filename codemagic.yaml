@@ -55,6 +55,13 @@ workflows:
           EOF
       - name: Flutter packages
         script: flutter pub get
+      - name: Gerar código (l10n, drift, freezed, json_serializable)
+        # lib/l10n/app_localizations*.dart e todos os *.g.dart são
+        # gitignored (ver .gitignore) — precisam ser gerados aqui, senão
+        # o compilador não encontra AppDatabase.into/delete/etc.
+        script: |
+          flutter gen-l10n
+          dart run build_runner build
       - name: Build iOS debug sem assinatura (simulador)
         # --simulator evita a exigência de Development Team/Provisioning
         # Profile que o build para dispositivo físico teria mesmo com
@@ -102,6 +109,10 @@ workflows:
           EOF
       - name: Flutter packages
         script: flutter pub get
+      - name: Gerar código (l10n, drift, freezed, json_serializable)
+        script: |
+          flutter gen-l10n
+          dart run build_runner build
       - name: Build IPA release
         script: flutter build ipa --release --dart-define-from-file=env/prod.json --export-options-plist=ios/ExportOptions.plist
     artifacts:
@@ -138,6 +149,10 @@ workflows:
           EOF
       - name: Flutter packages
         script: flutter pub get
+      - name: Gerar código (l10n, drift, freezed, json_serializable)
+        script: |
+          flutter gen-l10n
+          dart run build_runner build
       - name: Build AAB release
         script: flutter build appbundle --release --dart-define-from-file=env/prod.json
     artifacts:
