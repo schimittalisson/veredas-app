@@ -70,6 +70,11 @@ workflows:
     name: iOS (release assinado)
     max_build_duration: 60
     instance_type: mac_mini_m2
+    integrations:
+      # Nome da integração App Store Connect cadastrada em
+      # Codemagic > Team settings > Integrations > App Store Connect.
+      # Troque "veredas_app_store_connect" pelo nome que você der lá.
+      app_store_connect: veredas_app_store_connect
     environment:
       <<: *env_versions
       groups:
