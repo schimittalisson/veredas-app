@@ -51,6 +51,16 @@ enum AppErrorCode {
   conflict,
   validation,
 
+  // --- Dispositivo ---
+  /// O armazenamento seguro do aparelho recusou a operação (Keychain no iOS,
+  /// EncryptedSharedPreferences no Android).
+  ///
+  /// Separado de [unknown] porque a causa é local, não do servidor: no iOS o
+  /// caso clássico é `-34018 errSecMissingEntitlement`, um build sem a
+  /// capability de Keychain Sharing. Sem este código, uma falha de Keychain
+  /// chega à UI como "erro inesperado", indistinguível de um problema de rede.
+  deviceStorage,
+
   /// Nada previsto casou. A UI mostra uma mensagem genérica.
   unknown,
 }

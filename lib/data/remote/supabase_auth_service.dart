@@ -42,23 +42,29 @@ class SupabaseAuthService implements AuthService {
   Future<void> signIn({required String email, required String password}) async {
     try {
       await _client.auth.signInWithPassword(email: email, password: password);
-
-      // Após o login bem-sucedido, verifica se há um convite pendente
-      // (cadastro que exigiu confirmação de e-mail).
-      final pendingCode = await getPendingInviteCode();
-      if (pendingCode != null) {
-        try {
-          await redeemPendingInvite(pendingCode);
-          await clearPendingInvite();
-        } on AppException {
-          // O convite pendente falhou (expirou, foi revogado etc.). O usuário
-          // está logado mas não aprovado — a tela /aguardando oferece
-          // "Tenho um código de convite" para tentar de novo. Não relança:
-          // o login em si foi bem-sucedido.
-        }
-      }
     } catch (e) {
       throw mapError(e);
+    }
+
+    // Daqui para baixo o login **já aconteceu**: a sessão existe e o router vai
+    // reagir a ela. Por isso nada abaixo pode relançar — um erro aqui viraria
+    // "Ocorreu um erro inesperado" na tela de login de um usuário que, na
+    // verdade, está autenticado.
+    //
+    // Foi esse o bug do primeiro beta no TestFlight: `getPendingInviteCode`
+    // lê o Keychain, o build iOS não tinha a entitlement de Keychain Sharing,
+    // e a PlatformException derrubava o login inteiro. No Android, que usa
+    // EncryptedSharedPreferences, nunca aconteceu.
+    try {
+      final pendingCode = await getPendingInviteCode();
+      if (pendingCode != null) {
+        await redeemPendingInvite(pendingCode);
+        await clearPendingInvite();
+      }
+    } catch (_) {
+      // Convite expirado/revogado, ou storage seguro indisponível. Nos dois
+      // casos o usuário está logado mas não aprovado, e a tela /aguardando
+      // oferece "Tenho um código de convite" para tentar de novo.
     }
   }
 
@@ -88,7 +94,15 @@ class SupabaseAuthService implements AuthService {
       } else {
         // Email confirmation ativado: não há sessão. Guarda o código para
         // resgatar no primeiro login.
-        await _secureStorage.write(key: _pendingInviteKey, value: inviteCode);
+        //
+        // Falha de storage aqui não invalida o cadastro — a conta foi criada.
+        // Relançar mostraria "erro" para um cadastro que deu certo. O usuário
+        // digita o código de novo na tela /aguardando.
+        try {
+          await _secureStorage.write(key: _pendingInviteKey, value: inviteCode);
+        } catch (_) {
+          // Sem convite guardado: o /aguardando pede o código de novo.
+        }
       }
     } catch (e) {
       // Se o signUp falhou, não há nada a limpar — o usuário não foi criado.

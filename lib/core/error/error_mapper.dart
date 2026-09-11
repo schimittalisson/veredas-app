@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/services.dart'
+    show MissingPluginException, PlatformException;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:veredas/core/error/app_exception.dart';
@@ -25,6 +27,30 @@ AppException mapError(Object error, [StackTrace? stackTrace]) {
           ? AppErrorCode.permissionDenied
           : AppErrorCode.unknown,
       debugMessage: 'Storage ${error.statusCode}',
+      cause: error,
+      stackTrace: stackTrace,
+    );
+  }
+
+  // Falha de um plugin nativo. Na prática é sempre o armazenamento seguro:
+  // no iOS o Keychain devolve `-34018 errSecMissingEntitlement` quando o build
+  // não tem a capability de Keychain Sharing, e o flutter_secure_storage
+  // repassa isso como PlatformException. Manter o `code` do plugin no
+  // debugMessage é o que permite distinguir isso de um erro de rede no log.
+  if (error is PlatformException) {
+    return AppException(
+      AppErrorCode.deviceStorage,
+      debugMessage: 'PlatformException ${error.code}',
+      cause: error,
+      stackTrace: stackTrace,
+    );
+  }
+  // O plugin não foi registrado no build (acontece em teste de widget sem
+  // mock, e em builds onde o registrant não incluiu o plugin).
+  if (error is MissingPluginException) {
+    return AppException(
+      AppErrorCode.deviceStorage,
+      debugMessage: 'MissingPluginException',
       cause: error,
       stackTrace: stackTrace,
     );

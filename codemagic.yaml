@@ -7,14 +7,20 @@
 # 1. Crie conta em https://codemagic.io (login com GitHub)
 # 2. Conecte o repositório (pode ser privado)
 # 3. O codemagic.yaml na raiz é detectado automaticamente
-# 4. Comece pelo workflow `ios-unsigned` para validar que compila
-# 5. Para o workflow `ios-release` (signed), suba os certificados Apple:
+# 4. Crie o grupo de variáveis `supabase_credentials`
+#    (App Settings > Environment variables > Group: supabase_credentials):
+#      SUPABASE_URL      = https://vwstkxemtkdlsagricsh.supabase.co
+#      SUPABASE_ANON_KEY = eyJ... (a mesma do env/prod.json local)
+#    O env/prod.json é gitignored, então não vem no repositório — o script
+#    `write_env_prod` abaixo o recria a partir dessas variáveis.
+# 5. Comece pelo workflow `ios-unsigned` para validar que compila
+# 6. Para o workflow `ios-release` (signed), suba os certificados Apple:
 #    - App Settings > Code signing > iOS
 #    - Upload do .p12 (exportado do Keychain Access de um Mac, ou gerado
 #      via developer.apple.com) e do provisioning profile
 #    - Reference name: "veredas_distribution"
 #    - Distribution type: app_store
-# 6. Para publicar na App Store, configure App Store Connect API key
+# 7. Para publicar na App Store, configure App Store Connect API key
 #    (Users and Access > Keys > Generate API key) e adicione como
 #    environment variable group `app_store_credentials` no Codemagic.
 
@@ -23,6 +29,52 @@ definitions:
     flutter: stable
     xcode: latest
     cocoapods: default
+
+  # NÃO redeclare SUPABASE_URL/SUPABASE_ANON_KEY em `vars:`.
+  #
+  # O Codemagic não expande `$VAR` dentro de `vars:` — uma linha
+  # `SUPABASE_URL: $SUPABASE_URL` grava a **string literal** `$SUPABASE_URL` e
+  # ainda sobrescreve o valor real vindo do grupo. O app compila, sobe com uma
+  # URL inválida, e todo login morre num erro genérico. A fonte das
+  # credenciais é só o grupo `supabase_credentials`.
+  write_env_prod: &write_env_prod
+    name: Recriar env/prod.json (gitignored)
+    script: |
+      set -e
+      if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+        echo "ERRO: SUPABASE_URL/SUPABASE_ANON_KEY vazias."
+        echo "Defina as duas no grupo 'supabase_credentials' em"
+        echo "App Settings > Environment variables e rode de novo."
+        exit 1
+      fi
+      case "$SUPABASE_URL" in
+        https://*) ;;
+        *)
+          echo "ERRO: SUPABASE_URL não parece uma URL: '$SUPABASE_URL'"
+          echo "Se isso saiu literalmente como '\$SUPABASE_URL', a variável"
+          echo "foi redeclarada em 'vars:' — remova de lá."
+          exit 1
+          ;;
+      esac
+      mkdir -p env
+      cat > env/prod.json << EOF
+      {
+        "SUPABASE_URL": "$SUPABASE_URL",
+        "SUPABASE_ANON_KEY": "$SUPABASE_ANON_KEY"
+      }
+      EOF
+      echo "env/prod.json gerado apontando para $SUPABASE_URL"
+
+  # lib/l10n/app_localizations*.dart e todos os *.g.dart são gitignored (ver
+  # .gitignore) — precisam ser gerados aqui, senão o compilador não encontra
+  # AppDatabase.into/delete/etc.
+  flutter_codegen: &flutter_codegen
+    name: Dependências e geração de código (l10n, drift, freezed, json)
+    script: |
+      set -e
+      flutter pub get
+      flutter gen-l10n
+      dart run build_runner build --delete-conflicting-outputs
 
 workflows:
   # -----------------------------------------------------------------------
@@ -35,33 +87,11 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       <<: *env_versions
-      vars:
-        # O env/prod.json está gitignored, então não vem no repositório.
-        # No Codemagic, crie estas variáveis em App Settings > Environment:
-        #   SUPABASE_URL  = https://vwstkxemtkdlsagricsh.supabase.co
-        #   SUPABASE_ANON_KEY = eyJ... (anon key do prod.json)
-        # O script abaixo recria env/prod.json a partir delas.
-        SUPABASE_URL: $SUPABASE_URL
-        SUPABASE_ANON_KEY: $SUPABASE_ANON_KEY
+      groups:
+        - supabase_credentials
     scripts:
-      - name: Recriar env/prod.json (gitignored)
-        script: |
-          mkdir -p env
-          cat > env/prod.json << EOF
-          {
-            "SUPABASE_URL": "$SUPABASE_URL",
-            "SUPABASE_ANON_KEY": "$SUPABASE_ANON_KEY"
-          }
-          EOF
-      - name: Flutter packages
-        script: flutter pub get
-      - name: Gerar código (l10n, drift, freezed, json_serializable)
-        # lib/l10n/app_localizations*.dart e todos os *.g.dart são
-        # gitignored (ver .gitignore) — precisam ser gerados aqui, senão
-        # o compilador não encontra AppDatabase.into/delete/etc.
-        script: |
-          flutter gen-l10n
-          dart run build_runner build
+      - *write_env_prod
+      - *flutter_codegen
       - name: Build iOS debug sem assinatura (simulador)
         # --simulator evita a exigência de Development Team/Provisioning
         # Profile que o build para dispositivo físico teria mesmo com
@@ -90,30 +120,19 @@ workflows:
     environment:
       <<: *env_versions
       groups:
+        - supabase_credentials
         - app_store_credentials
-      vars:
-        SUPABASE_URL: $SUPABASE_URL
-        SUPABASE_ANON_KEY: $SUPABASE_ANON_KEY
       ios_signing:
         distribution_type: app_store
         bundle_identifier: br.com.veredas.app
     scripts:
-      - name: Recriar env/prod.json (gitignored)
-        script: |
-          mkdir -p env
-          cat > env/prod.json << EOF
-          {
-            "SUPABASE_URL": "$SUPABASE_URL",
-            "SUPABASE_ANON_KEY": "$SUPABASE_ANON_KEY"
-          }
-          EOF
-      - name: Flutter packages
-        script: flutter pub get
-      - name: Gerar código (l10n, drift, freezed, json_serializable)
-        script: |
-          flutter gen-l10n
-          dart run build_runner build
+      - *write_env_prod
+      - *flutter_codegen
       - name: Configurar assinatura iOS
+        # Aplica o provisioning profile ao Runner. O target declara
+        # CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements
+        # (keychain-access-groups), necessário para o flutter_secure_storage
+        # conseguir ler o Keychain num build de distribuição.
         script: xcode-project use-profiles
       - name: Build IPA release
         script: flutter build ipa --release --dart-define-from-file=env/prod.json --export-options-plist=/Users/builder/export_options.plist
@@ -136,25 +155,11 @@ workflows:
     instance_type: mac_mini_m2
     environment:
       <<: *env_versions
-      vars:
-        SUPABASE_URL: $SUPABASE_URL
-        SUPABASE_ANON_KEY: $SUPABASE_ANON_KEY
+      groups:
+        - supabase_credentials
     scripts:
-      - name: Recriar env/prod.json (gitignored)
-        script: |
-          mkdir -p env
-          cat > env/prod.json << EOF
-          {
-            "SUPABASE_URL": "$SUPABASE_URL",
-            "SUPABASE_ANON_KEY": "$SUPABASE_ANON_KEY"
-          }
-          EOF
-      - name: Flutter packages
-        script: flutter pub get
-      - name: Gerar código (l10n, drift, freezed, json_serializable)
-        script: |
-          flutter gen-l10n
-          dart run build_runner build
+      - *write_env_prod
+      - *flutter_codegen
       - name: Build AAB release
         script: flutter build appbundle --release --dart-define-from-file=env/prod.json
     artifacts:
