@@ -103,7 +103,7 @@ class OutboxWorker {
         // o PostgREST lança PostgrestException → mapError → conflict →
         // requiresRollback.
         await remote.insert(
-          table: entity.remoteTable,
+          table: entity.writeTable,
           payload: payload,
         );
 
@@ -112,7 +112,7 @@ class OutboxWorker {
         // (linha sumiu ou RLS filtrou). Não é erro do PostgREST, mas é uma
         // negação implícita — tratamos como permissionDeniedOrStale.
         final result = await remote.update(
-          table: entity.remoteTable,
+          table: entity.writeTable,
           payload: payload,
           eqColumn: entity.eqColumn,
           eqValue: entry.rowId,
@@ -129,7 +129,7 @@ class OutboxWorker {
         // o RLS negou deixaria o cache local sem a linha enquanto o servidor
         // ainda a tem. Então tratamos como negação e revertemos.
         final result = await remote.delete(
-          table: entity.remoteTable,
+          table: entity.writeTable,
           eqColumn: entity.eqColumn,
           eqValue: entry.rowId,
         );

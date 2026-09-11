@@ -11,6 +11,7 @@ import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/scales_providers.dart';
 import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
+import 'package:veredas/ui/widgets/pull_to_refresh.dart';
 
 /// Conteúdo de uma aba de escala.
 ///
@@ -223,37 +224,43 @@ class _PeriodBody extends ConsumerWidget {
     final currentUserId = ref.watch(currentUserIdProvider);
 
     return assignments.when(
-      loading: () => const Center(child: CupertinoActivityIndicator()),
-      error: (_,_) => EmptyState(
-        title: l.scales_no_assignments,
-        icon: CupertinoIcons.doc_text,
+      loading: () => const RefreshableBox(
+        child: Center(child: CupertinoActivityIndicator()),
+      ),
+      error: (_,_) => RefreshableBox(
+        child: EmptyState(
+          title: l.scales_no_assignments,
+          icon: CupertinoIcons.doc_text,
+        ),
       ),
       data: (data) {
         if (data.isEmpty) {
-          return EmptyState(
-            title: l.scales_no_assignments,
-            icon: CupertinoIcons.doc_text,
-            action: canEdit
-                ? CupertinoButton.filled(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 10,
-                    ),
-                    onPressed: () => context.push(
-                      '${Routes.escalaAtribuicaoNovo}?scaleTypeId=${scaleType.id}',
-                    ),
-                    // CupertinoButton não tem slot de ícone: o par ícone+texto
-                    // do FilledButton.icon vira uma Row explícita.
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(CupertinoIcons.add, size: 18),
-                        const SizedBox(width: 6),
-                        Text(l.scales_mount),
-                      ],
-                    ),
-                  )
-                : null,
+          return RefreshableBox(
+            child: EmptyState(
+              title: l.scales_no_assignments,
+              icon: CupertinoIcons.doc_text,
+              action: canEdit
+                  ? CupertinoButton.filled(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 10,
+                      ),
+                      onPressed: () => context.push(
+                        '${Routes.escalaAtribuicaoNovo}?scaleTypeId=${scaleType.id}',
+                      ),
+                      // CupertinoButton não tem slot de ícone: o par
+                      // ícone+texto do FilledButton.icon vira uma Row.
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(CupertinoIcons.add, size: 18),
+                          const SizedBox(width: 6),
+                          Text(l.scales_mount),
+                        ],
+                      ),
+                    )
+                  : null,
+            ),
           );
         }
 
@@ -331,8 +338,12 @@ class _SlotsTable extends StatelessWidget {
 
     final slots = scaleType.slots;
 
-    return SingleChildScrollView(
-      child: Container(
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        const SyncRefreshControl(),
+        SliverToBoxAdapter(
+          child: Container(
         // O Card do Material vira um retângulo arredondado sobre o fundo
         // agrupado — é a forma de "cartão" do iOS.
         margin: const EdgeInsets.all(8),
@@ -381,7 +392,9 @@ class _SlotsTable extends StatelessWidget {
             ],
           ),
         ),
-      ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -483,24 +496,30 @@ class _SimpleList extends StatelessWidget {
 
     final fmt = DateFormat.EEEE('pt_BR');
 
-    return ListView(
-      children: [
-        for (int day = 0; day < days; day++)
-          if (byDay[day] != null) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Text(
-                fmt.format(periodStart.add(Duration(days: day))),
-                style: AppTypography.subheadlineEmphasis
-                    .copyWith(color: colors.label),
-              ),
-            ),
-            for (final a in byDay[day]!)
-              _AssignmentListTile(
-                assignment: a,
-                isMe: a.assigneeId == currentUserId,
-              ),
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        const SyncRefreshControl(),
+        SliverList.list(
+          children: [
+            for (int day = 0; day < days; day++)
+              if (byDay[day] != null) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                  child: Text(
+                    fmt.format(periodStart.add(Duration(days: day))),
+                    style: AppTypography.subheadlineEmphasis
+                        .copyWith(color: colors.label),
+                  ),
+                ),
+                for (final a in byDay[day]!)
+                  _AssignmentListTile(
+                    assignment: a,
+                    isMe: a.assigneeId == currentUserId,
+                  ),
+              ],
           ],
+        ),
       ],
     );
   }
@@ -575,16 +594,22 @@ class _AdhocView extends ConsumerWidget {
     final currentUserId = ref.watch(currentUserIdProvider);
 
     return assignments.when(
-      loading: () => const Center(child: CupertinoActivityIndicator()),
-      error: (_,_) => EmptyState(
-        title: l.scales_no_assignments,
-        icon: CupertinoIcons.doc_text,
+      loading: () => const RefreshableBox(
+        child: Center(child: CupertinoActivityIndicator()),
+      ),
+      error: (_,_) => RefreshableBox(
+        child: EmptyState(
+          title: l.scales_no_assignments,
+          icon: CupertinoIcons.doc_text,
+        ),
       ),
       data: (data) {
         if (data.isEmpty) {
-          return EmptyState(
-            title: l.scales_no_assignments,
-            icon: CupertinoIcons.doc_text,
+          return RefreshableBox(
+            child: EmptyState(
+              title: l.scales_no_assignments,
+              icon: CupertinoIcons.doc_text,
+            ),
           );
         }
 
@@ -594,18 +619,24 @@ class _AdhocView extends ConsumerWidget {
         final past = data.where((a) => a.startsOn.isBefore(now)).toList()
           ..sort((a, b) => b.startsOn.compareTo(a.startsOn));
 
-        return ListView(
-          children: [
-            for (final a in upcoming.take(10))
-              _AssignmentListTile(
-                assignment: a,
-                isMe: a.assigneeId == currentUserId,
-              ),
-            if (past.isNotEmpty)
-              _PreviousSection(
-                assignments: past.take(20).toList(),
-                currentUserId: currentUserId,
-              ),
+        return CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            const SyncRefreshControl(),
+            SliverList.list(
+              children: [
+                for (final a in upcoming.take(10))
+                  _AssignmentListTile(
+                    assignment: a,
+                    isMe: a.assigneeId == currentUserId,
+                  ),
+                if (past.isNotEmpty)
+                  _PreviousSection(
+                    assignments: past.take(20).toList(),
+                    currentUserId: currentUserId,
+                  ),
+              ],
+            ),
           ],
         );
       },

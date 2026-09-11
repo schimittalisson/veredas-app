@@ -56,11 +56,18 @@ class SyncStatusNotifier extends Notifier<SyncStatus> {
     state = SyncStatus.syncing;
 
     try {
+      // **Drena ANTES de puxar.** A ordem importa:
+      //
+      // 1. Um pull `fullReplace` (é o caso de `prayer_feed`) faz `clear()` na
+      //    tabela local. Se o pull vier primeiro, ele apaga a linha otimista
+      //    que ainda não subiu — a oração recém-criada desaparecia da tela e
+      //    só reaparecia no sync seguinte, quando já estava no servidor.
+      // 2. Enviar primeiro e puxar depois deixa o cache com o estado
+      //    autoritativo do servidor no mesmo ciclo (contadores, nome do autor
+      //    e o que mais a view calcula), corrigindo o otimismo de imediato.
+      await ref.read(outboxWorkerProvider).drain();
       await ref.read(syncServiceProvider).pullAll();
       _lastError = null;
-      // Após o pull, drena a outbox (escritas pendentes podem ter sido
-      // criadas enquanto offline).
-      await ref.read(outboxWorkerProvider).drain();
     } on AppException catch (e) {
       _lastError = e.code;
     } finally {

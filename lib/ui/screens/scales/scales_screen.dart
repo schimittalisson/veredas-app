@@ -19,6 +19,7 @@ import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/screens/scales/scale_tab_view.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
+import 'package:veredas/ui/widgets/pull_to_refresh.dart';
 
 /// Tela Escalas — terceira tab.
 ///
@@ -40,21 +41,28 @@ class ScalesScreen extends ConsumerWidget {
     // barra de abas) e o caso com dados delega tudo — navigation bar incluída —
     // para _ScalesBody, que é quem detém o controller.
     return scaleTypes.when(
-      loading: () => _ScalesScaffold(title: l.tab_escalas, body: const LoadingState()),
+      loading: () => _ScalesScaffold(
+        title: l.tab_escalas,
+        body: const RefreshableBox(child: LoadingState()),
+      ),
       error: (_,_) => _ScalesScaffold(
         title: l.tab_escalas,
-        body: EmptyState(
-          title: l.scales_no_types,
-          icon: CupertinoIcons.doc_text,
+        body: RefreshableBox(
+          child: EmptyState(
+            title: l.scales_no_types,
+            icon: CupertinoIcons.doc_text,
+          ),
         ),
       ),
       data: (data) {
         if (data.isEmpty) {
           return _ScalesScaffold(
             title: l.tab_escalas,
-            body: EmptyState(
-              title: l.scales_no_types,
-              icon: CupertinoIcons.doc_text,
+            body: RefreshableBox(
+              child: EmptyState(
+                title: l.scales_no_types,
+                icon: CupertinoIcons.doc_text,
+              ),
             ),
           );
         }

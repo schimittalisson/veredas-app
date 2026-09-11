@@ -1,11 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
+import 'package:veredas/core/error/app_exception.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/data/models/app_role.dart';
 import 'package:veredas/data/models/profile.dart';
 import 'package:veredas/data/remote/auth_service.dart';
 import 'package:veredas/data/remote/supabase_auth_service.dart';
+import 'package:veredas/data/sync/sync_entity.dart';
 import 'package:veredas/providers/infra_providers.dart';
 
 /// Provider do [AuthService]. Em testes, override com `FakeAuthService`.
@@ -63,6 +65,47 @@ final currentProfileProvider = StreamProvider<Profile?>((ref) {
       .watchSingleOrNull()
       .map((row) => row?.toDomain());
 });
+
+/// Espera o perfil do usuário logado chegar ao cache antes de o router decidir
+/// entre `/aguardando` e `/inicio`.
+///
+/// **O bug que isto corrige.** O `currentProfileProvider` observa o drift, que
+/// responde em milissegundos; o pull do servidor leva ~1-2s. Numa instalação
+/// nova o cache está vazio no momento do login, então o stream emite `null` —
+/// e `null` não é `isLoading`, é um dado. O router lia isso como "não
+/// aprovado", mandava para `/aguardando`, e corrigia para `/inicio` quando o
+/// pull terminava: a tela "aguardando aprovação" piscava por ~2 segundos para
+/// um usuário aprovado.
+///
+/// Enquanto este provider está `isLoading`, o router mantém a splash.
+///
+/// Puxa só `profiles`, e não `pullAll()`: as 11 entidades são pulled em
+/// sequência e a decisão de rota não depende das outras. O `SyncCoordinator`
+/// continua responsável pelo pull completo.
+final profileBootstrapProvider = FutureProvider<void>((ref) async {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return;
+
+  final db = ref.watch(appDatabaseProvider);
+  final cached = await (db.select(db.profileRows)
+        ..where((t) => t.id.equals(userId)))
+      .getSingleOrNull();
+  // Já há perfil em cache: decidir na hora é correto, inclusive offline.
+  if (cached != null) return;
+
+  final entity = syncEntityByName('profiles');
+  if (entity == null) return;
+
+  try {
+    await ref.read(syncServiceProvider).pull(entity);
+  } on AppException {
+    // Offline, ou o servidor negou. Não sabemos se está aprovado, e prender o
+    // usuário na splash por falha de rede é pior do que deixar o router
+    // decidir com o cache que existe — o /aguardando tem "verificar novamente".
+  }
+  // retry desabilitado: este provider é um portão de navegação. Um retry com
+  // backoff manteria `isLoading` alternando e a splash presa na tela.
+}, retry: (count, error) => null);
 
 /// Extensão que converte `ProfileRow` (drift) para `Profile` (freezed, domínio).
 ///

@@ -40,6 +40,8 @@ enum OutboxOp { insert, update, delete }
 ///   otimista quando o servidor recusa a escrita.
 class SyncEntity {
   final String name;
+
+  /// Tabela ou view consultada no **pull** (leitura).
   final String remoteTable;
   final SyncMode mode;
   final int order;
@@ -48,6 +50,23 @@ class SyncEntity {
   /// Default: `'id'`. Entidades com PK composta ou chave diferente
   /// (ex.: `prayer_interactions` filtra por `post_id`) precisam sobrescrever.
   final String eqColumn;
+
+  /// Tabela usada pelo OutboxWorker na **escrita**. Default: [remoteTable].
+  ///
+  /// Existe separada porque ler e escrever nem sempre é o mesmo objeto:
+  /// `prayer_feed` é uma view de leitura e **não aceita INSERT/UPDATE/DELETE**.
+  /// Duas razões independentes, no servidor:
+  ///
+  /// 1. A view faz `join public.profiles` para trazer o nome do autor. Uma view
+  ///    com mais de uma entrada no `FROM` não é auto-updatable no Postgres —
+  ///    um INSERT devolve 55000 ("cannot insert into view").
+  /// 2. A migration 0500 só concede `grant select on public.prayer_feed`.
+  ///
+  /// As escritas de post, portanto, vão para a tabela `prayer_posts`.
+  final String? writeTableOverride;
+
+  /// Tabela de destino da escrita. Use esta, não [remoteTable], no OutboxWorker.
+  String get writeTable => writeTableOverride ?? remoteTable;
 
   final Future<void> Function(AppDatabase db, Map<String, dynamic> json) upsert;
   final Future<void> Function(AppDatabase db, String id) remove;
@@ -65,6 +84,7 @@ class SyncEntity {
     required this.clear,
     required this.restore,
     this.eqColumn = 'id',
+    this.writeTableOverride,
   });
 }
 
@@ -559,6 +579,37 @@ Future<void> _restoreSocialLink(AppDatabase db, Map<String, dynamic> j) async {
       .insertOnConflictUpdate(SocialLinkRow.fromJson(j));
 }
 
+// --- documents -------------------------------------------------------------
+
+Future<void> _upsertDocument(AppDatabase db, Map<String, dynamic> j) async {
+  await db.into(db.documentRows).insertOnConflictUpdate(
+        DocumentRow(
+          id: j['id'] as String,
+          title: j['title'] as String,
+          description: j['description'] as String?,
+          // `?? 'link'` cobre uma linha gravada antes da coluna existir.
+          sourceType: j['source_type'] as String? ?? 'link',
+          url: j['url'] as String?,
+          storagePath: j['storage_path'] as String?,
+          createdBy: j['created_by'] as String?,
+          createdAt: _dtReq(j['created_at']),
+          updatedAt: _dtReq(j['updated_at']),
+        ),
+      );
+}
+
+Future<void> _removeDocument(AppDatabase db, String id) async {
+  await (db.delete(db.documentRows)..where((t) => t.id.equals(id))).go();
+}
+
+Future<void> _clearDocument(AppDatabase db) async {
+  await db.delete(db.documentRows).go();
+}
+
+Future<void> _restoreDocument(AppDatabase db, Map<String, dynamic> j) async {
+  await db.into(db.documentRows).insertOnConflictUpdate(DocumentRow.fromJson(j));
+}
+
 // ---------------------------------------------------------------------------
 // Registro das entidades — ordem respeita dependências de FK.
 //
@@ -641,6 +692,9 @@ final List<SyncEntity> syncEntities = [
   const SyncEntity(
     name: 'prayer_feed',
     remoteTable: 'prayer_feed',
+    // Lê da view (que traz autor e contadores), escreve na tabela. A view não
+    // aceita escrita — ver o doc de `writeTableOverride`.
+    writeTableOverride: 'prayer_posts',
     mode: SyncMode.fullReplace,
     order: 1,
     upsert: _upsertPrayerFeed,
@@ -687,6 +741,25 @@ final List<SyncEntity> syncEntities = [
     remove: _removeSocialLink,
     clear: _clearSocialLink,
     restore: _restoreSocialLink,
+  ),
+  // documents: order 1 porque referencia profiles (created_by).
+  //
+  // **fullReplace, não incremental.** A policy `documents_select` filtra
+  // `deleted_at is null`, então um documento removido simplesmente para de
+  // aparecer na consulta — o cliente nunca recebe a linha com `deleted_at`
+  // preenchido que o pull incremental usaria para limpar o cache. Com
+  // incremental, um arquivo apagado ficaria visível para sempre nos aparelhos
+  // que já o tinham sincronizado. O catálogo tem dezenas de linhas, então
+  // baixar tudo a cada sync é barato e sempre correto.
+  const SyncEntity(
+    name: 'documents',
+    remoteTable: 'documents',
+    mode: SyncMode.fullReplace,
+    order: 1,
+    upsert: _upsertDocument,
+    remove: _removeDocument,
+    clear: _clearDocument,
+    restore: _restoreDocument,
   ),
   // prayer_interactions não é cacheada (é DELETE físico, sem tombstones).
   // Está registrada apenas para o OutboxWorker saber enviá-la. As funções

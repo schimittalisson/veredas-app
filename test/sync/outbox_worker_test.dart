@@ -540,4 +540,87 @@ void main() {
       expect(insertCalls[1].extra!['id'], 'a2');
     });
   });
+
+  // O mural de oração lê da view `prayer_feed` e escreve na tabela
+  // `prayer_posts`. Enviar a escrita para a view falha no servidor — ela tem
+  // `join profiles` (view com mais de uma entrada no FROM não é
+  // auto-updatable) e só recebeu `grant select`. O sintoma era uma oração
+  // criada no celular que nunca chegava ao Supabase e desaparecia do aparelho
+  // na próxima drenagem da fila.
+  group('OutboxWorker — entidade que lê de view e escreve em tabela', () {
+    Future<void> enqueuePrayerPost(String op, {
+      Map<String, dynamic>? payload,
+      Map<String, dynamic>? previousRow,
+    }) async {
+      await enqueueOutboxEntry(
+        db,
+        entity: 'prayer_feed',
+        op: op,
+        rowId: 'post-1',
+        payload: payload ?? const {},
+        previousRow: previousRow,
+      );
+    }
+
+    test('insert de oração vai para prayer_posts, não para a view', () async {
+      await enqueuePrayerPost('insert', payload: {
+        'id': 'post-1',
+        'title': 'Pela família',
+        'body': 'Peço oração pela minha família.',
+        'is_anonymous': false,
+        'author_id': 'u1',
+      });
+
+      await worker.drain();
+
+      expect(remote.insertedPayloads['prayer_posts']?.length, 1);
+      expect(remote.insertedPayloads['prayer_feed'], isNull);
+      expect(await db.outboxEntries.count().getSingle(), 0);
+    });
+
+    test('update de oração vai para prayer_posts', () async {
+      await db.into(db.prayerFeedRows).insert(
+            PrayerFeedRowsCompanion.insert(
+              id: 'post-1',
+              authorId: 'u1',
+              title: 'Original',
+              body: 'Corpo',
+              createdAt: DateTime.utc(2026, 1, 1),
+              updatedAt: DateTime.utc(2026, 1, 1),
+            ),
+          );
+      await enqueuePrayerPost('update', payload: {'title': 'Editado'});
+
+      await worker.drain();
+
+      expect(remote.updatedPayloads['prayer_posts']?.length, 1);
+      expect(remote.updatedPayloads['prayer_feed'], isNull);
+    });
+
+    test('delete de oração vai para prayer_posts', () async {
+      await enqueuePrayerPost('delete');
+
+      await worker.drain();
+
+      final deletes = remote.calls.where((c) => c.method == 'delete');
+      expect(deletes.map((c) => c.table), ['prayer_posts']);
+    });
+
+    test('writeTable cai em remoteTable para as demais entidades', () {
+      // Guarda contra o inverso do bug: alguém apontar writeTable à toa e
+      // quebrar uma entidade que sempre escreveu na própria tabela.
+      for (final entity in syncEntities) {
+        if (entity.name == 'prayer_feed') {
+          expect(entity.writeTable, 'prayer_posts');
+          expect(entity.remoteTable, 'prayer_feed');
+        } else {
+          expect(
+            entity.writeTable,
+            entity.remoteTable,
+            reason: '${entity.name} não deveria ter writeTable próprio',
+          );
+        }
+      }
+    });
+  });
 }

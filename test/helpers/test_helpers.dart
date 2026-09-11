@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
@@ -10,6 +11,7 @@ import 'package:veredas/core/error/app_exception.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/data/models/app_role.dart';
 import 'package:veredas/data/remote/auth_service.dart';
+import 'package:veredas/data/sync/connectivity_monitor.dart';
 import 'package:veredas/data/sync/remote_source.dart';
 
 // Silencia o warning de "múltiplas instâncias do banco" — cada teste cria
@@ -148,6 +150,52 @@ class FakeRemoteSource implements RemoteSource {
     insertedPayloads.clear();
     updatedPayloads.clear();
   }
+}
+
+// ---------------------------------------------------------------------------
+// FakeConnectivityMonitor — conectividade controlada para testes.
+//
+// Mantém `current()` e `changes()` separados de propósito: é exatamente essa
+// distinção que o bug de conectividade explorava. Um monitor que só entrega
+// `changes()` (o que o provider fazia antes) deixa o app sem saber se há rede.
+// ---------------------------------------------------------------------------
+
+class FakeConnectivityMonitor implements ConnectivityMonitor {
+  FakeConnectivityMonitor({
+    this.currentResult = const [ConnectivityResult.wifi],
+  });
+
+  /// O que `current()` devolve.
+  List<ConnectivityResult> currentResult;
+
+  /// Quantas vezes `current()` foi chamado — o provider deve consultá-lo.
+  int currentCalls = 0;
+
+  // Controller de assinatura única, e **não** broadcast: um broadcast descarta
+  // eventos emitidos enquanto não há assinante, e o assinante aqui é um
+  // `async*` que só chega ao `yield* changes()` depois de resolver o
+  // `current()`. Um `emit()` logo após o estado inicial caía nessa janela e o
+  // teste passava ou falhava conforme o que houvesse de `await` no meio. Com
+  // assinatura única os eventos ficam bufferizados até a inscrição.
+  final StreamController<List<ConnectivityResult>> _changes =
+      StreamController<List<ConnectivityResult>>();
+
+  @override
+  Future<List<ConnectivityResult>> current() async {
+    currentCalls++;
+    return currentResult;
+  }
+
+  @override
+  Stream<List<ConnectivityResult>> changes() => _changes.stream;
+
+  /// Simula uma mudança de rede vinda do sistema.
+  void emit(List<ConnectivityResult> result) {
+    currentResult = result;
+    _changes.add(result);
+  }
+
+  void dispose() => _changes.close();
 }
 
 // ---------------------------------------------------------------------------

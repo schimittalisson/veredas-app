@@ -14,6 +14,7 @@ import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/confirm_dialog.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
+import 'package:veredas/ui/widgets/pull_to_refresh.dart';
 
 /// Formata minutos desde a meia-noite como `HH:mm`.
 ///
@@ -83,16 +84,22 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab> {
         Container(height: 0.5, color: colors.separator),
         Expanded(
           child: slots.when(
-            loading: () => const LoadingState(),
-            error: (_,_) => EmptyState(
-              title: l.agenda_no_schedule,
-              icon: CupertinoIcons.calendar,
+            // Cada estado sem lista ganha o arrasto por um RefreshableBox —
+            // é com o cronograma vazio que o usuário mais quer atualizar.
+            loading: () => const RefreshableBox(child: LoadingState()),
+            error: (_,_) => RefreshableBox(
+              child: EmptyState(
+                title: l.agenda_no_schedule,
+                icon: CupertinoIcons.calendar,
+              ),
             ),
             data: (data) {
               if (data.isEmpty) {
-                return EmptyState(
-                  title: l.agenda_no_schedule,
-                  icon: CupertinoIcons.calendar,
+                return RefreshableBox(
+                  child: EmptyState(
+                    title: l.agenda_no_schedule,
+                    icon: CupertinoIcons.calendar,
+                  ),
                 );
               }
               return _view == _ScheduleView.grid
@@ -293,12 +300,21 @@ class _WeeklyGrid extends StatelessWidget {
       l.agenda_weekday_sun,
     ];
 
-    return SingleChildScrollView(
+    // Um `CustomScrollView` de um único sliver equivale ao
+    // `SingleChildScrollView` que estava aqui, e é o que permite encaixar o
+    // pull-to-refresh. O scroll horizontal interno da grade é outro eixo, então
+    // os dois não competem.
+    return CustomScrollView(
       scrollDirection: Axis.vertical,
-      // A folga no topo existe porque o rótulo da primeira hora é desenhado
-      // 7 dp acima da sua linha — sem ela, "06:00" nasce cortado pela borda.
-      padding: const EdgeInsets.only(top: 10, bottom: 8),
-      child: Row(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        const SyncRefreshControl(),
+        SliverPadding(
+          // A folga no topo existe porque o rótulo da primeira hora é desenhado
+          // 7 dp acima da sua linha — sem ela, "06:00" nasce cortado pela borda.
+          padding: const EdgeInsets.only(top: 10, bottom: 8),
+          sliver: SliverToBoxAdapter(
+            child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Régua de horários. Os rótulos ficam **no topo** de cada faixa,
@@ -414,8 +430,11 @@ class _WeeklyGrid extends StatelessWidget {
               ),
             ),
           ),
-        ],
-      ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -632,16 +651,22 @@ class _WeeklyList extends StatelessWidget {
       (byDay[slot.weekday] ??= []).add(slot);
     }
 
-    return ListView(
-      children: [
-        for (int day = 1; day <= 7; day++)
-          _DaySection(
-            title: dayLabels[day - 1],
-            initiallyExpanded: day == DateTime.now().weekday,
-            children: (byDay[day] ?? const [])
-                .map((slot) => _SlotListTile(slot: slot))
-                .toList(),
-          ),
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        const SyncRefreshControl(),
+        SliverList.list(
+          children: [
+            for (int day = 1; day <= 7; day++)
+              _DaySection(
+                title: dayLabels[day - 1],
+                initiallyExpanded: day == DateTime.now().weekday,
+                children: (byDay[day] ?? const [])
+                    .map((slot) => _SlotListTile(slot: slot))
+                    .toList(),
+              ),
+          ],
+        ),
       ],
     );
   }

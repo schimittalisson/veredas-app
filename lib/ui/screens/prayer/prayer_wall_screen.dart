@@ -17,6 +17,7 @@ import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/confirm_dialog.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
+import 'package:veredas/ui/widgets/pull_to_refresh.dart';
 
 /// Mural de Oração — quarta tab.
 ///
@@ -115,18 +116,30 @@ class _PrayerWallScreenState extends ConsumerState<PrayerWallScreen> {
             // Feed.
             Expanded(
               child: feed.isEmpty
-                  ? (searchQuery.isNotEmpty
-                      ? EmptyState(
-                          title: l.prayer_no_results(searchQuery),
-                          icon: CupertinoIcons.search,
-                        )
-                      : EmptyState(
-                          title: l.prayer_no_posts,
-                          icon: CupertinoIcons.heart,
-                        ))
-                  : ListView.builder(
-                      itemCount: feed.length,
-                      itemBuilder: (context, i) => PrayerCard(post: feed[i]),
+                  // O estado vazio também arrasta para atualizar: é
+                  // exatamente quando o usuário quer buscar novidade (uma
+                  // oração criada em outro aparelho, por exemplo).
+                  ? RefreshableBox(
+                      child: searchQuery.isNotEmpty
+                          ? EmptyState(
+                              title: l.prayer_no_results(searchQuery),
+                              icon: CupertinoIcons.search,
+                            )
+                          : EmptyState(
+                              title: l.prayer_no_posts,
+                              icon: CupertinoIcons.heart,
+                            ),
+                    )
+                  : CustomScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      slivers: [
+                        const SyncRefreshControl(),
+                        SliverList.builder(
+                          itemCount: feed.length,
+                          itemBuilder: (context, i) =>
+                              PrayerCard(post: feed[i]),
+                        ),
+                      ],
                     ),
             ),
           ],

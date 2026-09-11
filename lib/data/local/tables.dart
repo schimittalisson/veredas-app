@@ -285,6 +285,33 @@ class SocialLinkRows extends Table {
   Set<Column<Object>> get primaryKey => {id};
 }
 
+/// Espelho de `public.documents` — o catálogo da aba Arquivos.
+@DataClassName('DocumentRow')
+class DocumentRows extends Table {
+  TextColumn get id => text()();
+  TextColumn get title => text()();
+  TextColumn get description => text().nullable()();
+
+  /// `'link'` (atalho externo) ou `'file'` (arquivo no Storage).
+  ///
+  /// Fica como texto e não como `textEnum` de propósito: o servidor é a
+  /// autoridade do domínio (há um check constraint lá), e um valor novo vindo
+  /// de um servidor atualizado não deve estourar o parse de um app antigo — com
+  /// `textEnum` o `byName` lançaria e derrubaria o pull inteiro.
+  TextColumn get sourceType => text().withDefault(const Constant('link'))();
+  TextColumn get url => text().nullable()();
+  TextColumn get storagePath => text().nullable()();
+
+  TextColumn get createdBy => text().nullable()();
+
+  /// Guardado porque a tela ordena por "adicionados recentemente".
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
 // ===========================================================================
 // Tabelas de controle — não existem no servidor.
 // ===========================================================================

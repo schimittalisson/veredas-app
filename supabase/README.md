@@ -112,6 +112,32 @@ select c.relname from pg_class c
 **Deve retornar 0 linhas.** Qualquer tabela listada aqui está pública para a
 `anon key`, ou seja, para qualquer pessoa com o APK.
 
+### Migrations incrementais (aplicar depois das 9 acima)
+
+A lista acima é o schema inicial. O que veio depois entra na mesma ordem
+cronológica do nome do arquivo — **um ambiente novo precisa destas também**, e
+sem elas o app compila mas quebra em funcionalidades específicas:
+
+| # | Arquivo | O que adiciona | Sem ela |
+|---|---|---|---|
+| 10 | `20260804000100_admin_rpcs.sql` | RPCs de administração (gerar convite etc.) | Telas de admin falham |
+| 11 | `20260806000100_color_index.sql` | `color_index` em eventos e cronograma | Cor escolhida não salva |
+| 12 | `20260807000100_delete_own_account.sql` | RPC `delete_own_account` | Exclusão de conta falha (exigência da Play) |
+| 13 | `20260828000100_documents.sql` | tabela `documents` (aba Arquivos) | **O sync inteiro passa a falhar** — ver abaixo |
+
+> **A 13 precisa ser aplicada ANTES de distribuir a versão do app que tem a aba
+> Arquivos.** O `SyncService.pullAll()` para no primeiro erro, então uma tabela
+> que o app espera e o banco não tem derruba o ciclo de sync e deixa o banner
+> vermelho de erro permanente na tela. A ordem correta é: migration primeiro,
+> app depois.
+
+Para reconferir tudo sem tocar no Supabase, o harness local aplica as migrations
+numa base limpa e roda as asserções de RLS:
+
+```bash
+./supabase/local_test/run.sh
+```
+
 ---
 
 ## Passo 5 — Aplicar os seeds

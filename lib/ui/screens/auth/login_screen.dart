@@ -117,8 +117,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // PNG e não o JPEG: esta tela tem fundo creme, e o JPEG não
+                  // tem canal alpha — o branco dele virava um quadrado visível
+                  // em volta da marca.
                   Image.asset(
-                    'assets/images/logo.jpg',
+                    'assets/images/logo.png',
                     width: 96,
                     height: 96,
                     fit: BoxFit.contain,

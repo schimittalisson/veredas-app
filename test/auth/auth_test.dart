@@ -65,17 +65,20 @@ Future<Profile?> waitForProfile(
 void main() {
   late AppDatabase db;
   late FakeAuthService auth;
+  late FakeRemoteSource remote;
   late ProviderContainer container;
 
   setUp(() {
     db = createTestDatabase();
     auth = FakeAuthService();
+    remote = FakeRemoteSource();
     container = ProviderContainer(overrides: [
       appDatabaseProvider.overrideWith((ref) {
         ref.onDispose(db.close);
         return db;
       }),
       authServiceProvider.overrideWithValue(auth),
+      remoteSourceProvider.overrideWithValue(remote),
     ]);
   });
   tearDown(() {
@@ -249,6 +252,81 @@ void main() {
 
       final profile = container.read(currentProfileProvider).value;
       expect(profile, isNull);
+    });
+  });
+
+  // O bug: logo após o login numa instalação nova o cache está vazio, o
+  // stream do drift emite `null` em milissegundos e o router lia isso como
+  // "não aprovado" — mostrando /aguardando por ~2s antes de corrigir para
+  // /inicio. Estes testes fixam o contrato que o redirect usa para esperar.
+  group('profileBootstrapProvider', () {
+    test('sem usuário logado resolve imediatamente e não busca nada', () async {
+      await container.read(profileBootstrapProvider.future);
+
+      expect(remote.calls, isEmpty);
+    });
+
+    test('perfil já em cache resolve sem ir à rede', () async {
+      const userId = 'cached-user';
+      await db.into(db.profileRows).insert(
+            ProfileRowsCompanion.insert(
+              id: userId,
+              fullName: 'Maria Silva',
+              role: AppRole.obreiro,
+              isApproved: const Value(true),
+              updatedAt: DateTime.utc(2026, 1, 1),
+            ),
+          );
+
+      auth.simulateAuthenticated(userId: userId);
+      await waitForAuthState(container, (s) => s.isAuthenticated);
+
+      await container.read(profileBootstrapProvider.future);
+
+      // Ir à rede aqui atrasaria a navegação de quem já tem cache — e
+      // quebraria o login offline.
+      expect(remote.calls, isEmpty);
+    });
+
+    test('cache vazio: fica loading até o perfil chegar do servidor', () async {
+      const userId = 'fresh-user';
+      remote.fetchData['profiles'] = [
+        makeProfileJson(id: userId, fullName: 'Maria Silva', isApproved: true),
+      ];
+
+      auth.simulateAuthenticated(userId: userId);
+      await waitForAuthState(container, (s) => s.isAuthenticated);
+
+      // Estado exato em que o redirect precisa segurar a splash: perfil
+      // resolvido como null (não é isLoading) e bootstrap ainda pendente.
+      container.read(currentProfileProvider);
+      final pending = container.read(profileBootstrapProvider.future);
+      expect(container.read(profileBootstrapProvider).isLoading, true);
+
+      await pending;
+
+      final profile = await waitForProfile(container, (p) => p?.id == userId);
+      expect(profile?.isApproved, true);
+      expect(
+        remote.calls.where((c) => c.table == 'profiles' && c.method == 'fetch'),
+        hasLength(1),
+      );
+    });
+
+    test('cache vazio e rede falhando resolve em vez de travar', () async {
+      const userId = 'offline-user';
+      remote.fetchErrors['profiles'] = makeSocketException();
+
+      auth.simulateAuthenticated(userId: userId);
+      await waitForAuthState(container, (s) => s.isAuthenticated);
+
+      // Não pode lançar nem ficar pendente: prender o usuário na splash por
+      // falta de rede é pior do que mandá-lo para /aguardando, que tem o
+      // botão "verificar novamente".
+      await container.read(profileBootstrapProvider.future);
+
+      expect(container.read(profileBootstrapProvider).hasError, false);
+      expect(container.read(currentProfileProvider).value, isNull);
     });
   });
 

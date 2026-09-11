@@ -60,6 +60,25 @@ exception
 end;
 $$;
 
+-- Espera que a escrita seja recusada por um CHECK CONSTRAINT (23514).
+--
+-- Separado de expect_denied de propósito: aquele captura 42501 (RLS) e P0001
+-- (trigger). Se ele também aceitasse 23514, uma asserção de permissão passaria
+-- por engano quando o insert falhasse por um motivo sem relação com RLS —
+-- perderíamos justamente a precisão que faz o teste valer.
+create or replace function test.expect_check_violation(p_label text, p_sql text)
+returns void
+language plpgsql
+as $$
+begin
+  execute p_sql;
+  raise notice 'FAIL  % -> a escrita foi PERMITIDA', p_label;
+exception
+  when check_violation then
+    raise notice 'PASS  % (check recusou)', p_label;
+end;
+$$;
+
 -- Espera que a escrita seja PERMITIDA.
 create or replace function test.expect_allowed(p_label text, p_sql text)
 returns void
@@ -114,6 +133,7 @@ begin;
   select test.expect_count('nao aprovado: weekly_slots',       'select count(*) from public.weekly_slots', 0);
   select test.expect_count('nao aprovado: base_info',          'select count(*) from public.base_info', 0);
   select test.expect_count('nao aprovado: social_links',       'select count(*) from public.social_links', 0);
+  select test.expect_count('nao aprovado: documents',          'select count(*) from public.documents', 0);
   -- Precisa ver o proprio perfil, senao a tela /aguardando fica em limbo.
   select test.expect_count('nao aprovado: ve o proprio perfil','select count(*) from public.profiles', 1);
 rollback;
@@ -289,6 +309,75 @@ begin;
     'valor de base_info intacto apos as tentativas',
     $q$select count(*) from public.base_info
         where key='cep' and value='89204-620'$q$, 1);
+rollback;
+
+\echo ''
+\echo '=========== 7b. Arquivos (documents) ==========='
+-- O catálogo é publicado pela liderança e lido por todo aprovado. As duas
+-- pontas importam: se a leitura vazasse para não aprovado, um cadastro pendente
+-- veria material interno; se a escrita vazasse, qualquer obreiro mudaria o link
+-- de um treinamento para onde quisesse.
+begin;
+  -- Promove o gerente a admin, mesmo caminho da seção 9.
+  update public.profiles set role='admin', is_approved=true
+   where id = :'gerente';
+
+  select test.act_as(:'gerente');
+  select test.expect_allowed('admin cadastra arquivo',
+    $q$insert into public.documents (id, title, source_type, url)
+       values ('dddddddd-dddd-dddd-dddd-dddddddddddd','Manual de discipulado',
+               'link','https://drive.google.com/file/abc')$q$);
+  reset role;
+
+  select test.act_as(:'comum');
+  select test.expect_count('obreiro aprovado LE os arquivos',
+    $q$select count(*) from public.documents$q$, 1);
+  select test.expect_denied(
+    'obreiro NAO cadastra arquivo',
+    $q$insert into public.documents (title, source_type, url)
+       values ('Indevido','link','https://x.org/a')$q$);
+  select test.expect_rowcount(
+    'obreiro NAO edita arquivo (RLS filtra, 0 linhas)',
+    $q$update public.documents set url='https://malicioso.org'
+        where title='Manual de discipulado'$q$, 0);
+  select test.expect_rowcount(
+    'obreiro NAO exclui arquivo',
+    $q$delete from public.documents$q$, 0);
+  reset role;
+
+  select test.act_as(:'nao_aprovado');
+  select test.expect_count('nao aprovado NAO ve arquivo algum',
+    $q$select count(*) from public.documents$q$, 0);
+  reset role;
+
+  -- O soft delete é o que faz o item desaparecer para todos: o app manda um
+  -- UPDATE de deleted_at, e a policy de leitura filtra. Se este teste falhar, um
+  -- arquivo "excluído" continuaria aparecendo.
+  select test.act_as(:'gerente');
+  select test.expect_rowcount('admin exclui via deleted_at',
+    $q$update public.documents set deleted_at = now()
+        where title='Manual de discipulado'$q$, 1);
+  reset role;
+
+  select test.act_as(:'comum');
+  select test.expect_count('arquivo excluido desaparece para o obreiro',
+    $q$select count(*) from public.documents$q$, 0);
+rollback;
+
+-- O check constraint impede uma linha sem destino, que apareceria na lista como
+-- um item que simplesmente não abre.
+begin;
+  update public.profiles set role='admin', is_approved=true
+   where id = :'gerente';
+  select test.act_as(:'gerente');
+  select test.expect_check_violation(
+    'atalho sem url e rejeitado pelo check',
+    $q$insert into public.documents (title, source_type)
+       values ('Sem destino','link')$q$);
+  select test.expect_check_violation(
+    'arquivo sem storage_path e rejeitado pelo check',
+    $q$insert into public.documents (title, source_type, url)
+       values ('Sem caminho','file','https://x.org/a')$q$);
 rollback;
 
 \echo ''

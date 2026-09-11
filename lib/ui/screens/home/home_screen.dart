@@ -19,6 +19,7 @@ import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/confirm_dialog.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
+import 'package:veredas/ui/widgets/pull_to_refresh.dart';
 import 'package:veredas/ui/widgets/section_header.dart';
 
 /// Tela Início — a primeira tab.
@@ -27,9 +28,18 @@ import 'package:veredas/ui/widgets/section_header.dart';
 /// 1. Cumprimento ao usuário (faz as vezes de cabeçalho)
 /// 2. Imagem da equipe, com o texto sobreposto
 /// 3. Aviso fixado, no formato de faixa de destaque
-/// 4. Perguntas Frequentes — é onde vivem os dados da base
-/// 5. Redes sociais
-/// 6. Avisos anteriores
+/// 4. Avisos anteriores
+/// 5. Perguntas Frequentes — é onde vivem os dados da base
+/// 6. Redes sociais
+///
+/// **Os avisos vêm logo depois da imagem, e não no fim.** Eles são o conteúdo
+/// que muda e que o obreiro precisa ver ao abrir o app; as Perguntas Frequentes
+/// e as redes são referência estável, que se procura quando se precisa. Antes
+/// os avisos ficavam por último e exigiam rolar a tela inteira.
+///
+/// As duas seções de aviso são disjuntas: `pinnedAnnouncementProvider` pega o
+/// fixado e `recentAnnouncementsProvider` filtra os fixados fora. Ficarem
+/// adjacentes não duplica nada.
 ///
 /// **Não tem `CupertinoNavigationBar`.** O cumprimento é o cabeçalho, e ele
 /// rola junto com o conteúdo — uma barra fixa por cima repetiria a informação
@@ -46,20 +56,30 @@ class HomeScreen extends ConsumerWidget {
       backgroundColor: colors.groupedBackground,
       child: SafeArea(
         bottom: false,
-        child: ListView(
-          // O padding inferior vem do `RootScaffold`, que soma o espaço da
-          // barra flutuante ao `MediaQuery`. Assim o conteúdo passa por baixo
-          // da pílula ao rolar, mas o último item continua alcançável.
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.paddingOf(context).bottom,
-          ),
-          children: const [
-            _Greeting(),
-            _HeroCard(),
-            _PinnedAnnouncement(),
-            _BaseInfoSection(),
-            _SocialLinks(),
-            _RecentAnnouncements(),
+        child: CustomScrollView(
+          // `alwaysScrollable` para o gesto de atualizar existir mesmo quando o
+          // conteúdo cabe na tela (sem overscroll não há pull-to-refresh).
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            const SyncRefreshControl(),
+            SliverPadding(
+              // O padding inferior vem do `RootScaffold`, que soma o espaço da
+              // barra flutuante ao `MediaQuery`. Assim o conteúdo passa por
+              // baixo da pílula ao rolar, mas o último item continua alcançável.
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.paddingOf(context).bottom,
+              ),
+              sliver: const SliverList(
+                delegate: SliverChildListDelegate.fixed([
+                  _Greeting(),
+                  _HeroCard(),
+                  _PinnedAnnouncement(),
+                  _RecentAnnouncements(),
+                  _BaseInfoSection(),
+                  _SocialLinks(),
+                ]),
+              ),
+            ),
           ],
         ),
       ),
@@ -398,7 +418,7 @@ class _Placeholder extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// 1. Aviso fixado
+// 3. Aviso fixado
 // ---------------------------------------------------------------------------
 
 class _PinnedAnnouncement extends ConsumerWidget {
@@ -552,7 +572,7 @@ class _PinnedAnnouncement extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
-// 2. Redes sociais
+// 6. Redes sociais
 // ---------------------------------------------------------------------------
 
 class _SocialLinks extends ConsumerWidget {
@@ -660,7 +680,7 @@ class _SocialButton extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// 3. Dados da Base
+// 5. Dados da Base
 // ---------------------------------------------------------------------------
 
 class _BaseInfoSection extends ConsumerWidget {
@@ -884,16 +904,10 @@ class _RecentAnnouncements extends ConsumerWidget {
 
     return Column(
       children: [
-        SectionHeader(
-          title: l.home_announcements_section,
-          prominent: true,
-          actionLabel: l.action_see_all,
-          onAction: () {
-            // TODO: navegar para lista completa de avisos (rota /avisos)
-            // Por ora, não há tela de lista — o editor de cada aviso é
-            // acessível pela action sheet no aviso fixado.
-          },
-        ),
+        // Sem ação "Ver tudo": não existe tela de lista de avisos, e não é
+        // para existir — a seção mostra os avisos correntes, que os admins
+        // editam e apagam. Não há histórico a consultar.
+        SectionHeader(title: l.home_announcements_section, prominent: true),
         if (announcements.isEmpty)
           EmptyState(
             title: l.home_no_announcements,

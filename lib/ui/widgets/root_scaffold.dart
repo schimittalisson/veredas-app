@@ -18,7 +18,13 @@ const double _kBarBottomMargin = 12;
 /// escondido atrás dela.
 const double _kBarTotalSpace = _kBarHeight + _kBarBottomMargin * 2;
 
-/// Casca das 4 tabs, com uma barra flutuante arredondada.
+/// Casca das 5 tabs, com uma barra flutuante arredondada.
+///
+/// **Cinco é o teto.** O iOS não recomenda passar de cinco itens numa tab bar,
+/// e aqui há um limite físico além da diretriz: a pílula divide a largura
+/// igualmente entre os itens, então cada rótulo tem ~65 dp num aparelho de
+/// 360 dp e menos num estreito. Uma sexta aba, ou um rótulo longo como
+/// "Documentos", não cabe — foi por isso que a quinta virou "Arquivos".
 ///
 /// O `StatefulNavigationShell` do go_router mantém um `Navigator` por branch,
 /// então o estado de cada tab (posição de scroll, semana selecionada nas
@@ -101,6 +107,11 @@ class RootScaffold extends ConsumerWidget {
                   icon: CupertinoIcons.heart,
                   activeIcon: CupertinoIcons.heart_fill,
                   label: l.tab_oracao,
+                ),
+                (
+                  icon: CupertinoIcons.folder,
+                  activeIcon: CupertinoIcons.folder_fill,
+                  label: l.tab_arquivos,
                 ),
               ],
             ),

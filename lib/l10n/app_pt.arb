@@ -10,6 +10,10 @@
   "tab_agenda": "Agenda",
   "tab_escalas": "Escalas",
   "tab_oracao": "Oração",
+  "tab_arquivos": "Arquivos",
+  "@tab_arquivos": {
+    "description": "Quinta aba: catálogo de documentos da base. O rótulo é curto de propósito — são cinco abas dividindo a largura da pílula."
+  },
 
   "empty_default_title": "Nada por aqui",
   "@empty_default_title": {
@@ -118,7 +122,7 @@
   "home_pinned_section": "Aviso em destaque",
   "home_social_section": "Redes sociais",
   "home_base_info_section": "Perguntas Frequentes",
-  "home_announcements_section": "Avisos anteriores",
+  "home_announcements_section": "Aviso",
   "home_no_announcements": "Nenhum aviso no momento.",
   "home_no_base_info": "Nenhum dado da base cadastrado.",
   "home_no_social_links": "Nenhuma rede social cadastrada.",
@@ -135,6 +139,36 @@
   "home_base_info_value_label": "Valor",
   "home_link_open_error": "Não foi possível abrir o link.",
   "home_loading": "Carregando…",
+
+  "docs_no_documents": "Nenhum arquivo cadastrado ainda.",
+  "docs_new": "Novo arquivo",
+  "docs_new_title": "Novo atalho",
+  "docs_edit_title": "Editar atalho",
+  "docs_title_label": "Nome",
+  "docs_title_hint": "Manual de discipulado",
+  "docs_description_label": "Descrição",
+  "docs_description_hint": "Opcional",
+  "docs_url_label": "Link",
+  "docs_url_hint": "https://drive.google.com/…",
+  "docs_url_help": "Cole o link do documento. No Google Drive, use \"Compartilhar\" e deixe o acesso como \"qualquer pessoa com o link\", senão os obreiros não conseguirão abrir.",
+  "@docs_url_help": {
+    "description": "Aviso no editor. A permissão do Drive é o erro mais provável de quem cadastra um atalho."
+  },
+  "docs_title_required": "Informe um nome.",
+  "docs_url_required": "Informe o link.",
+  "docs_url_invalid": "Link inválido. Precisa começar com http:// ou https://",
+  "docs_saved": "Arquivo salvo.",
+  "docs_delete_confirm": "Excluir este arquivo?",
+  "docs_delete_message": "O atalho sai do app. O documento original não é apagado.",
+  "@docs_delete_message": {
+    "description": "Importante deixar claro que excluir o atalho não mexe no arquivo no Drive."
+  },
+  "docs_sort_label": "Ordenar",
+  "docs_sort_recently_updated": "Alterados recentemente",
+  "docs_sort_recently_added": "Adicionados recentemente",
+  "docs_sort_title_asc": "Nome (A–Z)",
+  "docs_sort_title_desc": "Nome (Z–A)",
+  "docs_error_permission": "Você não tem permissão para alterar os arquivos.",
 
   "agenda_tab_events": "Eventos",
   "agenda_tab_schedule": "Cronograma",

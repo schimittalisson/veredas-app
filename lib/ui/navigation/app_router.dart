@@ -17,6 +17,8 @@ import 'package:veredas/ui/screens/auth/cadastro_screen.dart';
 import 'package:veredas/ui/screens/auth/esqueci_senha_screen.dart';
 import 'package:veredas/ui/screens/auth/login_screen.dart';
 import 'package:veredas/ui/screens/auth/splash_screen.dart';
+import 'package:veredas/ui/screens/documents/document_editor_screen.dart';
+import 'package:veredas/ui/screens/documents/documents_screen.dart';
 import 'package:veredas/ui/screens/home/announcement_editor_screen.dart';
 import 'package:veredas/ui/screens/home/home_screen.dart';
 import 'package:veredas/ui/screens/prayer/prayer_editor_screen.dart';
@@ -34,6 +36,7 @@ class Routes {
   static const String agenda = '/agenda';
   static const String escalas = '/escalas';
   static const String oracao = '/oracao';
+  static const String arquivos = '/arquivos';
 
   // Rotas de autenticação.
   static const String login = '/login';
@@ -59,6 +62,8 @@ class Routes {
   static const String slotEditar = '/cronograma/editar';
   static const String escalaAtribuicaoNovo = '/escala/atribuicao/novo';
   static const String escalaAtribuicaoEditar = '/escala/atribuicao/editar';
+  static const String arquivoNovo = '/arquivo/novo';
+  static const String arquivoEditar = '/arquivo/editar';
 
   /// Rotas onde um usuário sem sessão pode estar. O `redirect` usa esta lista
   /// para não entrar em loop de redirecionamento.
@@ -112,6 +117,14 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
   ref.listen<AsyncValue<Profile?>>(
     currentProfileProvider,
+    (_,_) => refreshNotifier.refresh(),
+    fireImmediately: true,
+  );
+  // O bootstrap do perfil é um portão do redirect (regra 2.a). O
+  // `fireImmediately` também é o que o inicializa: sem alguém observando, o
+  // FutureProvider só começaria no primeiro `ref.read` dentro do redirect.
+  ref.listen<AsyncValue<void>>(
+    profileBootstrapProvider,
     (_,_) => refreshNotifier.refresh(),
     fireImmediately: true,
   );
@@ -222,6 +235,16 @@ final routerProvider = Provider<GoRouter>((ref) {
           assignmentId: state.uri.queryParameters['id'],
         ),
       ),
+      GoRoute(
+        path: Routes.arquivoNovo,
+        builder: (context, state) => const DocumentEditorScreen(),
+      ),
+      GoRoute(
+        path: Routes.arquivoEditar,
+        builder: (context, state) => DocumentEditorScreen(
+          documentId: state.uri.queryParameters['id'],
+        ),
+      ),
       StatefulShellRoute.indexedStack(
         // indexedStack mantém as 4 tabs vivas simultaneamente. Isso interage
         // com o Riverpod 3: providers fora de tela são pausados, mas as tabs
@@ -262,6 +285,14 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: Routes.arquivos,
+                builder: (context, state) => const DocumentsScreen(),
+              ),
+            ],
+          ),
         ],
       ),
     ],
@@ -278,8 +309,10 @@ final routerProvider = Provider<GoRouter>((ref) {
 /// 4. Caso contrário, null (segue o fluxo normal).
 ///
 /// O perfil pode ser null mesmo com sessão (ainda não sincronizado). Nesse
-/// caso, trata como "não aprovado" — o `/aguardando` tem um botão "verificar
-/// novamente" que refaz o fetch.
+/// caso o destino fica **indefinido**, não "não aprovado": o app espera na
+/// splash até o `profileBootstrapProvider` resolver. Se o pull falhar (offline)
+/// o perfil continua null e aí sim vale `/aguardando`, que tem o botão
+/// "verificar novamente".
 String? _redirect(Ref ref, String location) {
   final authAsync = ref.read(authStateProvider);
 
@@ -307,6 +340,18 @@ String? _redirect(Ref ref, String location) {
   //    stream emitir. Então: perfil ainda carregando = fica na splash.
   final profileAsync = ref.read(currentProfileProvider);
   if (profileAsync.isLoading) {
+    return location == Routes.splash ? null : Routes.splash;
+  }
+
+  // 2.a Cache ainda sem a linha do perfil.
+  //
+  //     Cobrir só o `isLoading` acima não bastava: o drift responde em
+  //     milissegundos e emite `null` (um dado, não "carregando") quando a
+  //     instalação é nova, enquanto o perfil só chega do servidor ~2s depois.
+  //     Era isso que fazia o /aguardando piscar para um usuário aprovado.
+  //     O bootstrap resolve quando o perfil entra no cache ou o pull falha.
+  if (profileAsync.value == null &&
+      ref.read(profileBootstrapProvider).isLoading) {
     return location == Routes.splash ? null : Routes.splash;
   }
 

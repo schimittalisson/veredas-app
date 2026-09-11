@@ -24,6 +24,7 @@ import 'package:veredas/providers/agenda_providers.dart';
 import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
+import 'package:veredas/ui/widgets/pull_to_refresh.dart';
 
 /// Aba Eventos da Agenda.
 ///
@@ -56,8 +57,13 @@ class _EventsTabState extends ConsumerState<EventsTab> {
     final colors = context.colors;
     final l = AppLocalizations.of(context);
 
-    return ListView(
-      children: [
+    return CustomScrollView(
+      // `alwaysScrollable` para o pull-to-refresh existir mesmo quando o
+      // conteúdo cabe na tela.
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        const SyncRefreshControl(),
+        SliverList.list(children: [
         // O calendário mora num cartão arredondado, e não solto sobre o fundo:
         // ele é uma unidade de conteúdo fechada, e o contorno é o que separa a
         // grade de dias da lista de eventos logo abaixo.
@@ -168,6 +174,7 @@ class _EventsTabState extends ConsumerState<EventsTab> {
         // borda. Agora o próprio contorno do cartão faz a separação, e a linha
         // só cortava a tela logo abaixo dele.
         _SelectedDayEvents(selectedDay: _selectedDay!),
+        ]),
       ],
     );
   }

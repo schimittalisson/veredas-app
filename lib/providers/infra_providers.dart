@@ -11,9 +11,11 @@ import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/data/remote/admin_service.dart';
 import 'package:veredas/data/remote/supabase_admin_service.dart';
 import 'package:veredas/data/repositories/agenda_repository.dart';
+import 'package:veredas/data/repositories/documents_repository.dart';
 import 'package:veredas/data/repositories/home_repository.dart';
 import 'package:veredas/data/repositories/prayer_repository.dart';
 import 'package:veredas/data/repositories/scales_repository.dart';
+import 'package:veredas/data/sync/connectivity_monitor.dart';
 import 'package:veredas/data/sync/outbox_worker.dart';
 import 'package:veredas/data/sync/remote_source.dart';
 import 'package:veredas/data/sync/sync_service.dart';
@@ -87,6 +89,10 @@ final scalesRepositoryProvider = Provider<ScalesRepository>(
   (ref) => ScalesRepository(ref.watch(appDatabaseProvider)),
 );
 
+final documentsRepositoryProvider = Provider<DocumentsRepository>(
+  (ref) => DocumentsRepository(ref.watch(appDatabaseProvider)),
+);
+
 // --- Remote source ---------------------------------------------------------
 
 final remoteSourceProvider = Provider<RemoteSource>((ref) {
@@ -104,10 +110,29 @@ final syncServiceProvider = Provider<SyncService>((ref) {
 
 // --- Connectivity ----------------------------------------------------------
 
-/// Stream de mudanças de conectividade. Emite `List<ConnectivityResult>`
-/// (pode ter múltiplas interfaces ativas).
+/// Monitor de conectividade. Em testes, override com `FakeConnectivityMonitor`.
+final connectivityMonitorProvider = Provider<ConnectivityMonitor>(
+  (ref) => PluginConnectivityMonitor(),
+);
+
+/// Stream de conectividade. Emite `List<ConnectivityResult>` (pode ter
+/// múltiplas interfaces ativas).
+///
+/// **O primeiro valor vem de `current()`, não do stream de mudanças.**
+/// `onConnectivityChanged` expõe apenas *mudanças*. Sem semear o estado atual, o
+/// provider fica sem valor até a rede oscilar, e `isOnlineProvider` trata "sem
+/// valor" como offline. As consequências não eram só cosméticas:
+///
+/// - o banner "sem conexão — mostrando dados salvos" aparecia com a internet
+///   funcionando normalmente;
+/// - e, pior, `OutboxWorker.drain()` começa com `if (!await isConnected())
+///   return`, então **nenhuma escrita saía do aparelho** enquanto isso durasse.
 final connectivityStreamProvider = StreamProvider<List<ConnectivityResult>>(
-  (ref) => Connectivity().onConnectivityChanged,
+  (ref) async* {
+    final monitor = ref.watch(connectivityMonitorProvider);
+    yield await monitor.current();
+    yield* monitor.changes();
+  },
 );
 
 /// `true` quando há qualquer conexão (não `none`).
