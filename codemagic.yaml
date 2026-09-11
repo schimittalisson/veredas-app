@@ -114,7 +114,7 @@ workflows:
           flutter gen-l10n
           dart run build_runner build
       - name: Configurar assinatura iOS
-        script: xcode-project use-profile
+        script: xcode-project use-profiles
       - name: Build IPA release
         script: flutter build ipa --release --dart-define-from-file=env/prod.json
     artifacts:
