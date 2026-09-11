@@ -121,7 +121,6 @@ workflows:
       <<: *env_versions
       groups:
         - supabase_credentials
-        - app_store_credentials
       ios_signing:
         distribution_type: app_store
         bundle_identifier: br.com.veredas.app
@@ -141,8 +140,12 @@ workflows:
       - /tmp/xcodebuild_logs/*.log
     publishing:
       # Publica no TestFlight automaticamente após o build.
-      # Requer APP_STORE_CONNECT_PRIVATE_KEY, APP_STORE_CONNECT_KEY_IDENTIFIER,
-      # APP_STORE_CONNECT_ISSUER_ID no grupo app_store_credentials.
+      #
+      # `auth: integration` pega a API key da integração declarada em
+      # `integrations:` acima — NÃO precisa (e não deve) listar um grupo
+      # app_store_credentials com APP_STORE_CONNECT_*. Um grupo que não
+      # existe faz o build falhar na validação do yaml, antes de rodar
+      # qualquer passo: "references to unknown variable group(s)".
       app_store_connect:
         auth: integration
 

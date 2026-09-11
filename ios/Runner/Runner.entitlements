@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- O flutter_secure_storage grava no Keychain. Sem um grupo de acesso
+	     declarado, um build assinado para distribuição pode falhar com
+	     -34018 (errSecMissingEntitlement) na primeira leitura — foi o que
+	     derrubou o login no primeiro beta do TestFlight.
+
+	     $(AppIdentifierPrefix)$(CFBundleIdentifier) é o grupo padrão do
+	     próprio app (nada é compartilhado com outros apps), então todo
+	     provisioning profile já o permite. -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)$(CFBundleIdentifier)</string>
+	</array>
+</dict>
+</plist>
