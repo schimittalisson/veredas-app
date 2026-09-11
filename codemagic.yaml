@@ -116,7 +116,7 @@ workflows:
       - name: Configurar assinatura iOS
         script: xcode-project use-profile
       - name: Build IPA release
-        script: flutter build ipa --release --dart-define-from-file=env/prod.json --export-options-plist=ios/ExportOptions.plist
+        script: flutter build ipa --release --dart-define-from-file=env/prod.json
     artifacts:
       - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
