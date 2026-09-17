@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:veredas/data/local/app_database.dart';
+import 'package:veredas/providers/admin_providers.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
 
@@ -50,12 +51,28 @@ final allAssignmentsProvider =
 
 /// Conta quantas atribuições o usuário logado tem num intervalo.
 ///
-/// Usado para o resumo "Você está escalado N× neste período".
+/// Usado para o resumo "Você está escalado N× neste período". Conta tanto
+/// estar na equipe quanto ser o responsável geral: quem lidera o grupo do
+/// almoço está escalado no almoço.
 final myAssignmentCountProvider =
     FutureProvider.family<int, AssignmentQuery>((ref, q) async {
   final userId = ref.watch(currentUserIdProvider);
   if (userId == null) return 0;
   final assignments =
       ref.watch(assignmentsProvider(q)).value ?? const [];
-  return assignments.where((a) => a.assigneeId == userId).length;
+  return assignments.where((a) => isAssignedTo(a, userId)).length;
 });
+
+/// Nome de exibição por id de perfil.
+///
+/// A equipe é guardada como lista de ids (`member_ids`), sem nome junto — o
+/// nome vive em `profiles` e mudá-lo lá tem de refletir em toda escala já
+/// montada. Esta é a tabela de tradução que as telas usam.
+final profileNamesProvider = Provider<Map<String, String>>((ref) {
+  final profiles = ref.watch(allProfilesProvider).value ?? const [];
+  return {for (final p in profiles) p.id: p.fullName};
+});
+
+/// O usuário está nesta atribuição — na equipe ou como responsável geral?
+bool isAssignedTo(ScaleAssignmentRow a, String userId) =>
+    a.assigneeId == userId || a.memberIds.contains(userId);

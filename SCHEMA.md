@@ -275,13 +275,21 @@ create table public.scale_managers (
 
 create index scale_managers_user_idx on public.scale_managers (user_id);
 
--- Uma atribuição = uma pessoa responsável por uma tarefa/turno em uma data.
--- Modelo deliberadamente genérico para servir aos 5 tipos de escala:
+-- Uma atribuição = uma EQUIPE responsável por uma tarefa/turno em uma data,
+-- com um responsável geral opcional sobre ela.
+-- Modelo deliberadamente genérico para servir aos 6 tipos de escala:
 --   Servir ao Todo   -> task = área ("Cozinha", "Banheiros")
 --   Lixo             -> sem task, um responsável por dia/semana
 --   Café da Manhã    -> slot = turno, task opcional
+--   Almoço           -> sem slot, a equipe do dia (+ responsável geral)
 --   Intercessão     -> slot = horário ("06:00-07:00")
 --   Café da Gratidão -> evento pontual, cadence 'adhoc'
+--
+-- A equipe é um par de arrays na própria linha, e não uma tabela filha: uma
+-- edição offline de quatro pessoas precisa ser UMA entrada na outbox, senão o
+-- rollback do cache otimista viraria transação distribuída no cliente. O preço
+-- é não ter FK por elemento (o Postgres não faz) — quem tira o uid das equipes
+-- ao apagar a conta é `delete_own_account()`.
 create table public.scale_assignments (
   id            uuid primary key default gen_random_uuid(),
   scale_type_id uuid not null references public.scale_types(id) on delete cascade,
@@ -289,15 +297,29 @@ create table public.scale_assignments (
   ends_on       date,
   slot          text,
   task          text,
+
+  -- Responsável GERAL (opcional), não "a pessoa escalada" — a equipe está
+  -- logo abaixo. Os nomes das colunas ficaram por compatibilidade: o app
+  -- anterior às equipes lê `assignee_name` para desenhar a escala, e renomear
+  -- derrubaria esses aparelhos até todo mundo atualizar.
   assignee_id   uuid references public.profiles(id) on delete set null,
-  assignee_name text,          -- para quem não tem conta no app
+  assignee_name text,
+
+  member_ids    uuid[] not null default '{}',   -- equipe, quem tem conta
+  member_names  text[] not null default '{}',   -- equipe, quem não tem conta
+
   notes         text,
   created_by    uuid references public.profiles(id) on delete set null,
   created_at    timestamptz not null default now(),
   updated_at    timestamptz not null default now(),
   deleted_at    timestamptz,
-  constraint assignment_has_assignee
-    check (assignee_id is not null or nullif(trim(assignee_name), '') is not null),
+  constraint assignment_has_someone
+    check (
+      assignee_id is not null
+      or nullif(trim(assignee_name), '') is not null
+      or cardinality(member_ids) > 0
+      or cardinality(member_names) > 0
+    ),
   constraint assignment_dates_ordered
     check (ends_on is null or ends_on >= starts_on)
 );
@@ -307,9 +329,17 @@ create index scale_assignments_lookup_idx
   where deleted_at is null;
 create index scale_assignments_assignee_idx
   on public.scale_assignments (assignee_id) where deleted_at is null;
+-- GIN porque a pergunta "em quais escalas eu estou?" vira `member_ids @> ...`,
+-- e contenção de array não usa btree.
+create index scale_assignments_members_idx
+  on public.scale_assignments using gin (member_ids);
 create index scale_assignments_updated_at_idx
   on public.scale_assignments (updated_at);
 ```
+
+> As colunas de equipe e o CHECK `assignment_has_someone` chegaram na migration
+> `20260917000100_scale_teams_and_lunch.sql`, que também acrescentou a escala
+> de Almoço. O CHECK anterior chamava-se `assignment_has_assignee`.
 
 ### 4.2 Agenda
 
@@ -911,7 +941,12 @@ values
 
   ('cafe-da-gratidao', 'Café da Gratidão',
    'Escala do Café da Gratidão.', 'celebration', 'adhoc',
-   array[]::text[], 5)
+   array[]::text[], 5),
+
+  -- Sem slots: o almoço é escalado como um grupo por dia, não por sub-área.
+  ('almoco', 'Almoço',
+   'Preparo do almoço da base.', 'restaurant', 'weekly',
+   array[]::text[], 6)
 on conflict (slug) do nothing;
 
 -- ---- Dados da base (TODO: valores reais) ----

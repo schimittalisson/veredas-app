@@ -31,7 +31,14 @@ values
 
   ('cafe-da-gratidao', 'Café da Gratidão',
    'Escala do Café da Gratidão.', 'celebration', 'adhoc',
-   array[]::text[], 5)
+   array[]::text[], 5),
+
+  -- Sem `slots` porque o almoço é escalado como um grupo por dia, e não por
+  -- sub-área: array vazio é o que faz a tela usar a lista por dia em vez da
+  -- grade. Ver a migration 20260917000100.
+  ('almoco', 'Almoço',
+   'Preparo do almoço da base.', 'restaurant', 'weekly',
+   array[]::text[], 6)
 on conflict (slug) do nothing;
 
 -- ---- Dados da base ----

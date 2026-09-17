@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
+import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/admin_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
@@ -32,11 +33,19 @@ class _ScaleAssignmentEditorScreenState
     extends ConsumerState<ScaleAssignmentEditorScreen> {
   final _formKey = GlobalKey<FormState>();
   final _taskController = TextEditingController();
-  final _assigneeNameController = TextEditingController();
+  final _memberNamesController = TextEditingController();
+  final _leadNameController = TextEditingController();
   final _notesController = TextEditingController();
   DateTime _date = DateTime.now();
   String? _slot;
-  String? _assigneeId;
+
+  /// Equipe escalada, entre os obreiros com conta no app. Uma atribuição pode
+  /// ter várias pessoas — é o caso do almoço, feito por um grupo.
+  List<String> _memberIds = const [];
+
+  /// Responsável geral sobre a equipe. Opcional: nem toda escala tem um.
+  String? _leadId;
+
   bool _loaded = false;
   bool _saving = false;
 
@@ -45,7 +54,8 @@ class _ScaleAssignmentEditorScreenState
   @override
   void dispose() {
     _taskController.dispose();
-    _assigneeNameController.dispose();
+    _memberNamesController.dispose();
+    _leadNameController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -65,16 +75,20 @@ class _ScaleAssignmentEditorScreenState
         scaleTypes.where((t) => t.id == widget.scaleTypeId).firstOrNull;
     final slots = scaleType?.slots ?? const <String>[];
 
-    // Obreiros aprovados para selecionar o atribuído.
+    // Obreiros aprovados: a fonte tanto da equipe quanto do responsável geral.
     final profiles = ref.watch(approvedProfilesProvider);
+    final names = {for (final p in profiles) p.id: p.fullName};
 
-    // Mesma lista do antigo dropdown: o "—" na frente é a opção "sem obreiro
-    // vinculado", usada quando o nome é digitado à mão logo abaixo.
-    final assigneeIds = <String?>[null, ...profiles.map((p) => p.id)];
-    final assigneeLabels = <String?, String>{
-      null: '—',
-      for (final p in profiles) p.id: p.fullName,
-    };
+    // O "—" na frente é a opção "sem responsável geral" — que é o normal, não
+    // a exceção: a maioria das escalas não tem alguém acima da equipe.
+    final leadIds = <String?>[null, ...profiles.map((p) => p.id)];
+    final leadLabels = <String?, String>{null: '—', ...names};
+
+    final teamLabel = _memberIds.isEmpty
+        ? '—'
+        : _memberIds
+            .map((id) => names[id] ?? l.scales_assignee_unknown)
+            .join(', ');
 
     // Salvar mora no `trailing` da barra — ver a nota em
     // `announcement_editor_screen.dart` sobre por que o botão do fim saiu.
@@ -126,6 +140,8 @@ class _ScaleAssignmentEditorScreenState
                 ],
               ),
 
+              // Equipe: quem faz a tarefa. Seleção múltipla, porque uma
+              // escala pode ser de um grupo inteiro.
               CupertinoFormSection.insetGrouped(
                 backgroundColor: colors.groupedBackground,
                 decoration: BoxDecoration(
@@ -137,23 +153,55 @@ class _ScaleAssignmentEditorScreenState
                 footer: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Text(
-                    l.scales_assignment_assignee_name_helper,
+                    l.scales_assignment_team_names_helper,
                     style: AppTypography.footnote
                         .copyWith(color: colors.secondaryLabel),
                   ),
                 ),
                 children: [
-                  // Seleção de obreiro: roda com os aprovados.
                   _ValueRow(
-                    label: l.scales_assignment_assignee,
-                    value: assigneeLabels[_assigneeId] ?? '—',
-                    onTap: () => _pickAssignee(assigneeIds, assigneeLabels),
+                    label: l.scales_assignment_team,
+                    value: teamLabel,
+                    onTap: () => _pickTeam(profiles),
                   ),
                   CupertinoTextFormFieldRow(
-                    controller: _assigneeNameController,
+                    controller: _memberNamesController,
                     textAlign: TextAlign.end,
                     prefix: Text(
-                      l.scales_assignment_assignee_name,
+                      l.scales_assignment_team_names,
+                      style: AppTypography.body.copyWith(color: colors.label),
+                    ),
+                    style: AppTypography.body.copyWith(color: colors.label),
+                  ),
+                ],
+              ),
+
+              // Responsável geral: fica sobre a equipe e pode não existir.
+              CupertinoFormSection.insetGrouped(
+                backgroundColor: colors.groupedBackground,
+                decoration: BoxDecoration(
+                  color: colors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                footer: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    l.scales_assignment_lead_helper,
+                    style: AppTypography.footnote
+                        .copyWith(color: colors.secondaryLabel),
+                  ),
+                ),
+                children: [
+                  _ValueRow(
+                    label: l.scales_assignment_lead,
+                    value: leadLabels[_leadId] ?? '—',
+                    onTap: () => _pickLead(leadIds, leadLabels),
+                  ),
+                  CupertinoTextFormFieldRow(
+                    controller: _leadNameController,
+                    textAlign: TextAlign.end,
+                    prefix: Text(
+                      l.scales_assignment_lead_name,
                       style: AppTypography.body.copyWith(color: colors.label),
                     ),
                     style: AppTypography.body.copyWith(color: colors.label),
@@ -188,12 +236,14 @@ class _ScaleAssignmentEditorScreenState
     final row = await dao.getAssignment(widget.assignmentId!);
     if (row != null && mounted) {
       _taskController.text = row.task ?? '';
-      _assigneeNameController.text = row.assigneeName ?? '';
+      _memberNamesController.text = row.memberNames.join(', ');
+      _leadNameController.text = row.assigneeName ?? '';
       _notesController.text = row.notes ?? '';
       setState(() {
         _date = row.startsOn;
         _slot = row.slot;
-        _assigneeId = row.assigneeId;
+        _memberIds = row.memberIds;
+        _leadId = row.assigneeId;
         _loaded = true;
       });
     }
@@ -242,19 +292,20 @@ class _ScaleAssignmentEditorScreenState
     setState(() => _slot = selected);
   }
 
-  /// Obreiro atribuído. O primeiro item continua sendo "nenhum" (`null`).
-  Future<void> _pickAssignee(
+  /// Responsável geral. O primeiro item é "nenhum" (`null`), que é um valor
+  /// legítimo e não uma pendência: escala sem responsável geral é o caso comum.
+  Future<void> _pickLead(
     List<String?> ids,
     Map<String?, String> labels,
   ) async {
-    var selected = _assigneeId;
+    var selected = _leadId;
     final confirmed = await _showPickerSheet(
       child: CupertinoPicker(
         magnification: 1.1,
         squeeze: 1.2,
         itemExtent: 32,
         scrollController: FixedExtentScrollController(
-          initialItem: ids.indexOf(_assigneeId).clamp(0, ids.length - 1),
+          initialItem: ids.indexOf(_leadId).clamp(0, ids.length - 1),
         ),
         onSelectedItemChanged: (i) => selected = ids[i],
         children: [
@@ -263,7 +314,89 @@ class _ScaleAssignmentEditorScreenState
       ),
     );
     if (!confirmed || !mounted) return;
-    setState(() => _assigneeId = selected);
+    setState(() => _leadId = selected);
+  }
+
+  /// Equipe — seleção múltipla.
+  ///
+  /// Não é um `CupertinoPicker` como os outros campos: a roda escolhe **um**
+  /// valor, e aqui a resposta é um conjunto. O formato é a lista de marcar do
+  /// iOS (toque alterna o check), com a seleção mantida num estado local da
+  /// folha para que "voltar" desfaça tudo, e não pela metade.
+  Future<void> _pickTeam(List<ProfileRow> profiles) async {
+    final colors = context.colors;
+    final l = AppLocalizations.of(context);
+    final selected = _memberIds.toSet();
+
+    final confirmed = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (sheetContext) => Container(
+        height: MediaQuery.of(sheetContext).size.height * 0.6,
+        color: colors.surface,
+        child: SafeArea(
+          top: false,
+          child: StatefulBuilder(
+            builder: (context, setSheetState) => Column(
+              children: [
+                Row(
+                  children: [
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        l.scales_assignment_team_count(selected.length),
+                        style: AppTypography.subheadline
+                            .copyWith(color: colors.secondaryLabel),
+                      ),
+                    ),
+                    CupertinoButton(
+                      onPressed: () => Navigator.of(sheetContext).pop(true),
+                      child: Text(l.action_done),
+                    ),
+                  ],
+                ),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: profiles.length,
+                    itemBuilder: (context, i) {
+                      final p = profiles[i];
+                      final isSelected = selected.contains(p.id);
+                      return CupertinoListTile(
+                        title: Text(
+                          p.fullName,
+                          style: AppTypography.body
+                              .copyWith(color: colors.label),
+                        ),
+                        trailing: isSelected
+                            ? Icon(CupertinoIcons.check_mark,
+                                color: colors.tint)
+                            : null,
+                        onTap: () => setSheetState(() {
+                          if (isSelected) {
+                            selected.remove(p.id);
+                          } else {
+                            selected.add(p.id);
+                          }
+                        }),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    // Preserva a ordem da lista de obreiros, e não a ordem dos toques: a
+    // escala precisa sair igual toda vez que for aberta.
+    setState(() {
+      _memberIds = [
+        for (final p in profiles)
+          if (selected.contains(p.id)) p.id,
+      ];
+    });
   }
 
   /// Folha modal padrão dos seletores: altura fixa, fundo de cartão e um botão
@@ -301,6 +434,18 @@ class _ScaleAssignmentEditorScreenState
     return result ?? false;
   }
 
+  /// "Ana, Bia ,, Caio" -> ["Ana", "Bia", "Caio"].
+  ///
+  /// Campo livre separado por vírgula em vez de uma lista editável: quem não
+  /// tem conta no app é a minoria dos escalados, e digitar corrido é mais
+  /// rápido do que abrir um formulário por nome.
+  static List<String> _parseNames(String raw) {
+    return [
+      for (final part in raw.split(','))
+        if (part.trim().isNotEmpty) part.trim(),
+    ];
+  }
+
   String _formatDate(DateTime dt) {
     final d = dt.toLocal();
     return '${d.day}/${d.month}/${d.year}';
@@ -309,12 +454,19 @@ class _ScaleAssignmentEditorScreenState
   Future<void> _save() async {
     final l = AppLocalizations.of(context);
 
-    // Valida: precisa de assigneeId OU assigneeName.
-    if (_assigneeId == null &&
-        _assigneeNameController.text.trim().isEmpty) {
+    final memberNames = _parseNames(_memberNamesController.text);
+    final leadName = _leadNameController.text.trim();
+
+    // A atribuição precisa apontar para alguém — equipe ou responsável geral.
+    // Mesma regra do CHECK `assignment_has_someone` no servidor; aqui ela
+    // existe só para o erro aparecer antes da viagem até o Supabase.
+    if (_memberIds.isEmpty &&
+        memberNames.isEmpty &&
+        _leadId == null &&
+        leadName.isEmpty) {
       showAppToast(
         context,
-        l.scales_assignment_assignee_required,
+        l.scales_assignment_people_required,
         isError: true,
       );
       return;
@@ -323,6 +475,9 @@ class _ScaleAssignmentEditorScreenState
     setState(() => _saving = true);
     final repo = ref.read(scalesRepositoryProvider);
 
+    final task = _taskController.text.trim();
+    final notes = _notesController.text.trim();
+
     try {
       if (_isEditing) {
         await repo.updateAssignment(
@@ -330,32 +485,24 @@ class _ScaleAssignmentEditorScreenState
           scaleTypeId: widget.scaleTypeId,
           startsOn: _date,
           slot: _slot,
-          task: _taskController.text.trim().isEmpty
-              ? null
-              : _taskController.text.trim(),
-          assigneeId: _assigneeId,
-          assigneeName: _assigneeNameController.text.trim().isEmpty
-              ? null
-              : _assigneeNameController.text.trim(),
-          notes: _notesController.text.trim().isEmpty
-              ? null
-              : _notesController.text.trim(),
+          task: task.isEmpty ? null : task,
+          assigneeId: _leadId,
+          assigneeName: leadName.isEmpty ? null : leadName,
+          memberIds: _memberIds,
+          memberNames: memberNames,
+          notes: notes.isEmpty ? null : notes,
         );
       } else {
         await repo.createAssignment(
           scaleTypeId: widget.scaleTypeId,
           startsOn: _date,
           slot: _slot,
-          task: _taskController.text.trim().isEmpty
-              ? null
-              : _taskController.text.trim(),
-          assigneeId: _assigneeId,
-          assigneeName: _assigneeNameController.text.trim().isEmpty
-              ? null
-              : _assigneeNameController.text.trim(),
-          notes: _notesController.text.trim().isEmpty
-              ? null
-              : _notesController.text.trim(),
+          task: task.isEmpty ? null : task,
+          assigneeId: _leadId,
+          assigneeName: leadName.isEmpty ? null : leadName,
+          memberIds: _memberIds,
+          memberNames: memberNames,
+          notes: notes.isEmpty ? null : notes,
         );
       }
 

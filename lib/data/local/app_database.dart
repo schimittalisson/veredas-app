@@ -38,7 +38,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -79,6 +79,21 @@ class AppDatabase extends _$AppDatabase {
           // 'documents' ainda, e sem marca d'água o pull traz tudo).
           if (from < 3) {
             await m.createTable(documentRows);
+          }
+
+          // v4 — equipe na atribuição de escala. As duas colunas são NOT NULL
+          // com default `'[]'`, então as linhas que já existem nascem com
+          // equipe vazia e continuam mostrando só o responsável — que é
+          // exatamente o que elas significavam antes.
+          if (from < 4) {
+            await m.addColumn(
+              scaleAssignmentRows,
+              scaleAssignmentRows.memberIds,
+            );
+            await m.addColumn(
+              scaleAssignmentRows,
+              scaleAssignmentRows.memberNames,
+            );
           }
         },
         beforeOpen: (details) async {

@@ -107,26 +107,52 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
     with TickerProviderStateMixin {
   late TabController _tabController;
 
+  /// A escala aberta, guardada por **id** e não por posição.
+  ///
+  /// A ordem das abas é editável pelo admin (`/admin/escalas`) e chega por
+  /// sync a qualquer momento. Guardando só o índice, uma reordenação feita em
+  /// outro aparelho trocaria a escala que está na tela debaixo do dedo de quem
+  /// está olhando.
+  String? _selectedTypeId;
+
   @override
   void initState() {
     super.initState();
     _tabController = _createController();
+    _selectedTypeId = widget.scaleTypes.firstOrNull?.id;
   }
 
   @override
   void didUpdateWidget(_ScalesBody oldWidget) {
     super.didUpdateWidget(oldWidget);
+
+    final target = _indexOfSelected();
+
     // As escalas vêm do sync: uma nova pode aparecer (ou ser desativada) a
     // qualquer momento. O TabController tem length fixo, então precisa ser
     // recriado — senão o length diverge do número de abas e a troca quebra.
     if (widget.scaleTypes.length != oldWidget.scaleTypes.length) {
-      final previousIndex = _tabController.index;
-      _tabController.dispose();
-      _tabController = _createController(
-        // Preserva a aba atual quando ela ainda existe.
-        initialIndex: previousIndex.clamp(0, widget.scaleTypes.length - 1),
-      );
+      _tabController
+        ..removeListener(_onTabChanged)
+        ..dispose();
+      _tabController = _createController(initialIndex: target);
+      _selectedTypeId = widget.scaleTypes[target].id;
+    } else if (target != _tabController.index) {
+      // Mesma quantidade, ordem diferente: segue a escala, não a posição.
+      _tabController.index = target;
     }
+  }
+
+  /// Posição da escala aberta na lista atual. Se ela sumiu (desativada ou
+  /// excluída), cai na posição mais próxima da que ocupava.
+  int _indexOfSelected() {
+    // A tela só monta este corpo com pelo menos uma escala, mas o clamp abaixo
+    // precisa de um limite válido — uma lista vazia daria clamp(0, -1).
+    if (widget.scaleTypes.isEmpty) return 0;
+    final last = widget.scaleTypes.length - 1;
+    final index =
+        widget.scaleTypes.indexWhere((t) => t.id == _selectedTypeId);
+    return index >= 0 ? index : _tabController.index.clamp(0, last);
   }
 
   TabController _createController({int initialIndex = 0}) {
@@ -144,7 +170,9 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
   }
 
   void _onTabChanged() {
-    if (mounted) setState(() {});
+    if (!mounted || widget.scaleTypes.isEmpty) return;
+    final index = _tabController.index.clamp(0, widget.scaleTypes.length - 1);
+    setState(() => _selectedTypeId = widget.scaleTypes[index].id);
   }
 
   @override

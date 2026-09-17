@@ -313,6 +313,10 @@ Future<void> _upsertScaleAssignment(
           task: j['task'] as String?,
           assigneeId: j['assignee_id'] as String?,
           assigneeName: j['assignee_name'] as String?,
+          // `?? []` (via _strList) cobre a linha que chega de um servidor
+          // anterior à migration da equipe: sem equipe, só responsável.
+          memberIds: _strList(j['member_ids']),
+          memberNames: _strList(j['member_names']),
           notes: j['notes'] as String?,
           createdBy: j['created_by'] as String?,
           updatedAt: _dtReq(j['updated_at']),

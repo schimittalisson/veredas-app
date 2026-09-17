@@ -39,6 +39,12 @@ class AdminScreen extends ConsumerWidget {
         route: '/admin/responsaveis',
       ),
       _AdminOption(
+        icon: CupertinoIcons.list_bullet,
+        title: l.admin_scales,
+        subtitle: l.admin_scales_desc,
+        route: '/admin/escalas',
+      ),
+      _AdminOption(
         icon: CupertinoIcons.info_circle,
         title: l.admin_base_data,
         subtitle: l.admin_base_data_desc,

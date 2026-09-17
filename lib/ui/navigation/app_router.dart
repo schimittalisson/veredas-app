@@ -8,7 +8,9 @@ import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/ui/screens/admin/admin_screen.dart';
 import 'package:veredas/ui/screens/admin/convites_screen.dart';
 import 'package:veredas/ui/screens/admin/membros_screen.dart';
+import 'package:veredas/ui/screens/admin/escalas_screen.dart';
 import 'package:veredas/ui/screens/admin/responsaveis_screen.dart';
+import 'package:veredas/ui/screens/admin/scale_type_editor_screen.dart';
 import 'package:veredas/ui/screens/agenda/agenda_screen.dart';
 import 'package:veredas/ui/screens/agenda/event_editor_screen.dart';
 import 'package:veredas/ui/screens/agenda/weekly_slot_editor_screen.dart';
@@ -49,6 +51,9 @@ class Routes {
   static const String adminMembros = '/admin/membros';
   static const String adminConvites = '/admin/convites';
   static const String adminResponsaveis = '/admin/responsaveis';
+  static const String adminEscalas = '/admin/escalas';
+  static const String adminEscalaNova = '/admin/escalas/nova';
+  static const String adminEscalaEditar = '/admin/escalas/editar';
   static const String adminBase = '/admin/base';
 
   // Rotas de editores (acima da NavigationBar, tela inteira).
@@ -176,6 +181,22 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.adminResponsaveis,
         builder: (context, state) => const ResponsaveisScreen(),
+      ),
+      GoRoute(
+        path: Routes.adminEscalas,
+        builder: (context, state) => const EscalasScreen(),
+      ),
+      // Antes da rota de editar não: o go_router casa por caminho exato, e
+      // '/admin/escalas/nova' não conflita com '/admin/escalas/editar'.
+      GoRoute(
+        path: Routes.adminEscalaNova,
+        builder: (context, state) => const ScaleTypeEditorScreen(),
+      ),
+      GoRoute(
+        path: Routes.adminEscalaEditar,
+        builder: (context, state) => ScaleTypeEditorScreen(
+          scaleTypeId: state.uri.queryParameters['id'],
+        ),
       ),
       GoRoute(
         path: Routes.adminBase,

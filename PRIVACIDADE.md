@@ -62,8 +62,11 @@ A exclusão remove:
 
 - Perfil: nome, e-mail, telefone, foto e bio são apagados.
 - Posts e comentários no mural de oração.
-- Atribuições de escala futuras.
+- Atribuições de escala futuras em que você era a única pessoa escalada.
 - Convites que você gerou e que ninguém usou ainda.
+
+Em escalas futuras de **equipe**, a atribuição permanece para as outras
+pessoas do grupo — você apenas sai dela.
 
 Atribuições de escala **passadas** são mantidas para registro histórico da
 base, com o nome substituído por "Removido" — não é possível identificar você

@@ -124,6 +124,12 @@ sem elas o app compila mas quebra em funcionalidades específicas:
 | 11 | `20260806000100_color_index.sql` | `color_index` em eventos e cronograma | Cor escolhida não salva |
 | 12 | `20260807000100_delete_own_account.sql` | RPC `delete_own_account` | Exclusão de conta falha (exigência da Play) |
 | 13 | `20260828000100_documents.sql` | tabela `documents` (aba Arquivos) | **O sync inteiro passa a falhar** — ver abaixo |
+| 14 | `20260917000100_scale_teams_and_lunch.sql` | equipe na atribuição (`member_ids`/`member_names`), escala de Almoço, `delete_own_account` ciente de equipes | Salvar escala em grupo falha (coluna inexistente); aba Almoço não aparece |
+| 15 | `20260917000200_fix_self_delete_privilege.sql` | trigger `protect_profile_privileges` reconhece a flag de `delete_own_account` | **Obreiro não consegue excluir a própria conta** (`FORBIDDEN_PRIVILEGE_CHANGE`) — exigência da Play |
+
+> **A 14 também vai antes do app.** Ela não derruba o pull (o app tolera a
+> linha sem as colunas de equipe), mas enquanto ela não estiver aplicada toda
+> tentativa de salvar uma escala volta com erro de coluna inexistente.
 
 > **A 13 precisa ser aplicada ANTES de distribuir a versão do app que tem a aba
 > Arquivos.** O `SyncService.pullAll()` para no primeiro erro, então uma tabela

@@ -142,7 +142,8 @@ rollback;
 \echo '=========== 2. Obreiro APROVADO le o conteudo ==========='
 begin;
   select test.act_as(:'comum');
-  select test.expect_count('obreiro: scale_types',   'select count(*) from public.scale_types', 5);
+  -- 6 desde a migration 20260917000100, que acrescentou a escala de Almoço.
+  select test.expect_count('obreiro: scale_types',   'select count(*) from public.scale_types', 6);
   select test.expect_count('obreiro: weekly_slots',  'select count(*) from public.weekly_slots', 40);
   select test.expect_count('obreiro: base_info',     'select count(*) from public.base_info', 4);
   select test.expect_count('obreiro: social_links',  'select count(*) from public.social_links', 3);
@@ -178,6 +179,48 @@ begin;
     $q$insert into public.scale_assignments (scale_type_id, starts_on, assignee_name)
        values ((select id from public.scale_types where slug='lixo'),
                current_date, 'Teste')$q$);
+rollback;
+
+-- Equipe na mesma atribuicao (migration 20260917000100). O CHECK
+-- assignment_has_someone precisa aceitar a linha que so tem equipe: uma escala
+-- de quatro pessoas sem responsavel geral e o caso normal do almoco.
+begin;
+  select test.act_as(:'gerente');
+  select test.expect_allowed(
+    'responsavel escala EQUIPE sem responsavel geral',
+    $q$insert into public.scale_assignments
+         (scale_type_id, starts_on, member_names)
+       values ((select id from public.scale_types where slug='servir-ao-todo'),
+               current_date, array['Ana','Bia','Caio','Dan'])$q$);
+rollback;
+
+begin;
+  select test.act_as(:'gerente');
+  select test.expect_check_violation(
+    'atribuicao sem ninguem e recusada pelo check',
+    $q$insert into public.scale_assignments (scale_type_id, starts_on)
+       values ((select id from public.scale_types where slug='servir-ao-todo'),
+               current_date)$q$);
+rollback;
+
+-- Administração das escalas pelo app (tela /admin/escalas). A tela é guardada
+-- por um redirect, mas quem decide e o RLS: um APK modificado chega aqui.
+begin;
+  select test.act_as(:'gerente');
+  select test.expect_denied(
+    'obreiro NAO cria tipo de escala',
+    $q$insert into public.scale_types (slug, name, cadence)
+       values ('jardim', 'Jardim', 'weekly')$q$);
+rollback;
+
+begin;
+  select test.act_as(:'gerente');
+  select test.expect_rowcount(
+    'obreiro NAO renomeia escala (RLS filtra, 0 linhas)',
+    $q$update public.scale_types set name='Renomeada' where slug='lixo'$q$, 0);
+  select test.expect_rowcount(
+    'obreiro NAO reordena escala (0 linhas)',
+    $q$update public.scale_types set ordering=99 where slug='lixo'$q$, 0);
 rollback;
 
 begin;
@@ -419,6 +462,14 @@ begin;
   select test.expect_allowed('admin cria aviso',
     $q$insert into public.announcements (author_id, body)
        values ('22222222-2222-2222-2222-222222222222','Aviso do admin')$q$);
+  select test.expect_allowed('admin cria tipo de escala',
+    $q$insert into public.scale_types (slug, name, cadence, ordering)
+       values ('jardim', 'Jardim', 'weekly', 9)$q$);
+  select test.expect_allowed('admin renomeia e reordena escala',
+    $q$update public.scale_types set name='Almoco da base', ordering=4
+        where slug='almoco'$q$);
+  select test.expect_allowed('admin exclui escala por deleted_at',
+    $q$update public.scale_types set deleted_at=now() where slug='almoco'$q$);
   select test.expect_allowed('admin define responsavel de escala',
     $q$insert into public.scale_managers (scale_type_id, user_id)
        values ((select id from public.scale_types where slug='lixo'),
@@ -426,6 +477,60 @@ begin;
   select test.expect_allowed('admin aprova outro obreiro',
     $q$update public.profiles set is_approved=true, role='obreiro'
         where id='33333333-3333-3333-3333-333333333333'$q$);
+rollback;
+
+\echo ''
+\echo '=========== 11. Excluir a conta nao apaga a escala do grupo ==========='
+-- O caso que a migration 20260917000100 teve de resolver: antes das equipes,
+-- uma atribuicao era de uma pessoa so, e derrubar a linha inteira era correto.
+-- Com grupo, derrubar a linha tiraria as outras tres pessoas da escala junto.
+begin;
+  insert into public.scale_assignments (id, scale_type_id, starts_on, member_ids)
+  values
+    -- futura, em grupo: tem de sobreviver sem o uid de quem saiu
+    ('55555555-5555-5555-5555-555555555555',
+     (select id from public.scale_types where slug='almoco'),
+     current_date + 7,
+     array[:'comum'::uuid, :'gerente'::uuid]),
+    -- futura, so dele: vira tombstone, como antes
+    ('66666666-6666-6666-6666-666666666666',
+     (select id from public.scale_types where slug='almoco'),
+     current_date + 7,
+     array[:'comum'::uuid]),
+    -- passada: fica como registro historico, sem identificar a pessoa
+    ('77777777-7777-7777-7777-777777777777',
+     (select id from public.scale_types where slug='almoco'),
+     current_date - 7,
+     array[:'comum'::uuid, :'gerente'::uuid]);
+
+  select test.act_as(:'comum');
+  select public.delete_own_account();
+  reset role;
+
+  -- O RPC acima falhava com FORBIDDEN_PRIVILEGE_CHANGE para quem não é admin
+  -- (o trigger recusava o `is_approved = false` do próprio perfil). Corrigido
+  -- na migration 20260917000200.
+  select test.expect_count('obreiro comum exclui a propria conta',
+    $q$select count(*) from public.profiles
+        where id='33333333-3333-3333-3333-333333333333'
+          and deleted_at is not null
+          and not is_approved
+          and full_name = 'Removido'$q$, 1);
+  select test.expect_count('escala futura do grupo sobrevive',
+    $q$select count(*) from public.scale_assignments
+        where id='55555555-5555-5555-5555-555555555555'
+          and deleted_at is null
+          and member_ids = array['22222222-2222-2222-2222-222222222222'::uuid]$q$, 1);
+  select test.expect_count('escala futura so dele vira tombstone',
+    $q$select count(*) from public.scale_assignments
+        where id='66666666-6666-6666-6666-666666666666'
+          and deleted_at is not null$q$, 1);
+  select test.expect_count('escala passada troca o uid por "Removido"',
+    $q$select count(*) from public.scale_assignments
+        where id='77777777-7777-7777-7777-777777777777'
+          and deleted_at is null
+          and not (member_ids @> array['33333333-3333-3333-3333-333333333333'::uuid])
+          and member_names @> array['Removido']$q$, 1);
 rollback;
 
 \echo ''

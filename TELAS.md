@@ -25,6 +25,7 @@ Rotas *pushed* (fora do shell, sem bottom bar):
 /login  /cadastro  /esqueci-senha  /aguardando
 /perfil  /perfil/editar
 /admin  /admin/membros  /admin/convites  /admin/responsaveis
+/admin/escalas  /admin/escalas/nova  /admin/escalas/editar
 /aviso/novo  /aviso/:id/editar
 /evento/:id  /evento/novo  /evento/:id/editar
 /cronograma/novo  /cronograma/:id/editar
@@ -202,10 +203,10 @@ Obreiro: leitura. Admin: tudo. **FAB** só para admin, criando na aba ativa
 Não há mockup — especificado a partir do requisito.
 
 `TabBar` **gerada dinamicamente** de `scale_types` (ordenada por `ordering`,
-`is_active = true`), com `isScrollable: true` (5 abas não cabem fixas em 360 dp):
+`is_active = true`), com `isScrollable: true` (6 abas não cabem fixas em 360 dp):
 
 ```
-Servir ao Todo │ Lixo │ Café da Manhã │ Intercessão │ Café da Gratidão
+Servir ao Todo │ Lixo │ Café da Manhã │ Intercessão │ Café da Gratidão │ Almoço
 ```
 
 > Nunca hardcode as abas. Adicionar uma escala nova deve ser um `INSERT` no
@@ -222,14 +223,20 @@ Servir ao Todo │ Lixo │ Café da Manhã │ Intercessão │ Café da Gratid
      "Anteriores".
 2. **Corpo**, conforme o tipo ter `slots` ou não:
    - **Com `slots`** (Servir ao Todo, Café da Manhã, Intercessão): tabela
-     compacta — linhas = slots/áreas, células = responsável. `Card` com `Table`
-     ou `DataTable` (largura `Expanded`, sem scroll horizontal se couber).
-   - **Sem `slots`** (Lixo): lista simples por dia da semana:
-     `ListTile(leading: dia, title: nome do responsável)`.
-3. **Destaque do próprio nome.** Atribuições onde `assignee_id ==
-   currentUser.id` recebem cor de fundo `primaryContainer` e um `Chip` "Você".
-   É a informação mais útil da tela — o obreiro abre para saber *do que ele* está
-   escalado.
+     compacta — linhas = slots/áreas, células = a equipe escalada, um nome por
+     linha. `Card` com `Table` ou `DataTable` (largura `Expanded`, sem scroll
+     horizontal se couber).
+   - **Sem `slots`** (Lixo, Almoço): lista simples por dia da semana:
+     `ListTile(leading: dia, title: os nomes da equipe)`.
+   - Uma atribuição pode ter **várias pessoas** (a equipe) e, opcionalmente, um
+     **responsável geral** sobre elas — o caso do almoço, feito por um grupo de
+     quatro com um líder. O responsável geral aparece como "responsável: Fulano"
+     junto da equipe; quando não há equipe, ele ocupa o lugar dela (é assim que
+     as atribuições anteriores às equipes continuam legíveis).
+3. **Destaque do próprio nome.** Atribuições em que o usuário está na equipe
+   (`member_ids`) **ou** é o responsável geral (`assignee_id`) recebem cor de
+   fundo `primaryContainer` e um `Chip` "Você". É a informação mais útil da
+   tela — o obreiro abre para saber *do que ele* está escalado.
 4. **Resumo no topo**: "Você está escalado 2× nesta semana" quando aplicável.
 5. `EmptyState` quando não há atribuições: "Escala desta semana ainda não foi
    montada" (+ botão "Montar escala" se o usuário gerencia o tipo).
@@ -246,10 +253,14 @@ bool canEditScale(Profile me, ScaleType t) =>
 `managedScaleTypeIds` vem de `scale_managers`, cacheado no drift.
 
 **Editor de atribuição** (`/escala/:tipo/atribuicao/novo`): data (ou intervalo,
-para escala semanal), `slot` (dropdown com os `slots` do tipo + opção livre),
-`task`, **responsável** (`Autocomplete`/`DropdownButtonFormField` sobre a lista
-de obreiros aprovados, com opção "outra pessoa" habilitando um campo de texto
-livre → `assignee_name`), observações.
+para escala semanal), `slot` (seletor com os `slots` do tipo), `task`,
+**equipe** (seleção múltipla sobre os obreiros aprovados → `member_ids`, mais
+um campo livre separado por vírgula para quem não tem conta → `member_names`),
+**responsável geral** (seletor com "—" como primeira opção, porque escala sem
+responsável geral é o caso comum → `assignee_id`/`assignee_name`), observações.
+
+Salvar exige ao menos uma pessoa entre equipe e responsável geral — a mesma
+regra do CHECK `assignment_has_someone` no servidor.
 
 Toque longo em uma atribuição → modo de seleção múltipla com exclusão em lote
 (mesmo padrão do `home_screen.dart` do CalorieMate), **só para quem gerencia**.
@@ -262,9 +273,9 @@ manual e é o tipo de recurso que faz o app ser adotado.
 
 | Ação | Quem |
 |---|---|
-| Ver as 5 abas | obreiro aprovado |
+| Ver as abas | obreiro aprovado |
 | Criar/editar/excluir atribuição de um tipo | responsável **daquele** tipo, ou admin |
-| Criar/editar tipos de escala | admin (via `/admin`) |
+| Criar/renomear/reordenar/excluir escalas | admin (via `/admin/escalas`) |
 | Definir responsáveis | admin (via `/admin/responsaveis`) |
 
 ---
@@ -459,11 +470,33 @@ Esta tela é o que materializa o requisito *"o obreiro que tem a
 responsabilidade da escala do Servir ao Todo será a única pessoa a poder
 editá-la"*.
 
-### 6.4 Dados da base (`/admin/base`)
+### 6.4 Escalas da base (`/admin/escalas`)
 
-Edição de `base_info` (chave/valor, reordenável), `social_links` (plataforma,
-URL, ativo) e tipos de escala (`scale_types`: nome, descrição, ícone, cadência,
-slots, ordem, ativo).
+A lista de `scale_types` — ou seja, as abas da tela Escalas — com **todas** as
+escalas, inclusive as ocultas (`is_active = false`), que não aparecem na tela
+Escalas e só podem voltar a existir aqui.
+
+- **Reordenar**: arrastar pela alça (`ReorderableList` de
+  `package:flutter/widgets.dart`, não o `ReorderableListView` do Material).
+  Cada linha que mudou de posição vira uma escrita de `ordering`.
+- **Criar** (`/admin/escalas/nova`) e **editar** (`/admin/escalas/editar?id=`):
+  nome, período (semanal/mensal/pontual), áreas (separadas por vírgula) e
+  "Visível na tela Escalas". O `slug` **não** aparece no formulário: é derivado
+  do nome na criação e imutável depois, porque é a chave estável do tipo.
+- **Excluir**: soft delete, com aviso de que as escalas já montadas deixam de
+  aparecer. Para só tirar a aba do caminho, o caminho é desativar.
+
+Escritas pela outbox (não por RPC, como as outras ações de admin): a barra de
+abas sai deste mesmo cache, então o efeito é imediato e sobrevive a estar sem
+sinal. Quem garante a permissão é a policy `scale_types_admin_write`.
+
+> A tela Escalas guarda a aba aberta **por id**, não por posição — senão uma
+> reordenação vinda do sync trocaria a escala na tela de quem está olhando.
+
+### 6.5 Dados da base (`/admin/base`)
+
+Edição de `base_info` (chave/valor, reordenável) e `social_links` (plataforma,
+URL, ativo).
 
 ---
 

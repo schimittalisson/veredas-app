@@ -114,11 +114,33 @@ class ScaleAssignmentRows extends Table {
   DateTimeColumn get endsOn => dateTime().nullable()();
   TextColumn get slot => text().nullable()();
   TextColumn get task => text().nullable()();
+
+  /// **Responsável geral** da atribuição, opcional — não "a pessoa escalada".
+  /// Quem está escalado é a equipe, em [memberIds] / [memberNames].
+  ///
+  /// O nome da coluna é o do servidor, que por sua vez foi preservado para não
+  /// derrubar os aparelhos com a versão anterior do app (ver a migration
+  /// `20260917000100_scale_teams_and_lunch.sql`).
   TextColumn get assigneeId => text().nullable()();
 
-  /// Para quem não tem conta no app. O servidor exige que ao menos um entre
-  /// `assigneeId` e `assigneeName` esteja preenchido.
+  /// Responsável geral que não tem conta no app.
   TextColumn get assigneeName => text().nullable()();
+
+  /// Equipe escalada, para quem tem conta no app — `uuid[]` no servidor.
+  ///
+  /// O default `'[]'` não é decorativo: é o que permite `m.addColumn()` numa
+  /// coluna NOT NULL, porque o SQLite precisa saber o que gravar nas linhas
+  /// que já existem.
+  TextColumn get memberIds =>
+      text().map(const StringListConverter()).withDefault(
+            const Constant('[]'),
+          )();
+
+  /// Equipe escalada, para quem NÃO tem conta no app (nome digitado à mão).
+  TextColumn get memberNames =>
+      text().map(const StringListConverter()).withDefault(
+            const Constant('[]'),
+          )();
   TextColumn get notes => text().nullable()();
   TextColumn get createdBy => text().nullable()();
   DateTimeColumn get updatedAt => dateTime()();

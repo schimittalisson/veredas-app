@@ -408,6 +408,22 @@ await tester.pump(const Duration(milliseconds: 50));
 E envolva a tela num `GoRouter` de teste — as telas usam `context.push`, que
 lança exceção dentro de um `MaterialApp` simples.
 
+**A segunda armadilha, para tela que lê stream do drift:** termine o teste
+desmontando a árvore e pumpando **com duração**:
+
+```dart
+await tester.pumpWidget(const SizedBox.shrink());
+await tester.pump(const Duration(milliseconds: 10));
+```
+
+Cancelar um stream do drift agenda um timer de duração zero
+(`StreamQueryStore.markAsClosed`). Sem o desmonte explícito, o `ProviderScope`
+só é descartado quando o teste **seguinte** monta a sua árvore, e o timer nasce
+depois do último frame: o flutter_test falha com *"A Timer is still pending even
+after the widget tree was disposed"* com todas as asserções verdes. E um
+`pump()` sem duração não avança o relógio falso, então não consome o timer.
+Exemplo em `test/ui/scale_tab_view_test.dart`.
+
 Helpers em `test/helpers/test_helpers.dart`: `createTestDatabase()`,
 `FakeRemoteSource`, `makeProfileJson()`, `makeEventJson()`,
 `makeAnnouncementJson()`, `makeScaleManagerJson()`, `enqueueOutboxEntry()`,
@@ -490,8 +506,9 @@ Atualize esta seção ao concluir cada fase.
       período (weekly/monthly/adhoc), tabela com slots / lista sem slots,
       destaque "Você" (primaryContainer + Chip), resumo "N× no período".
       FAB só se canEditScale. Editor de atribuição implementado
-      (`scale_assignment_editor_screen.dart`). TODO: duplicar semana,
-      seleção múltipla com exclusão em lote.
+      (`scale_assignment_editor_screen.dart`). Atribuição em equipe +
+      responsável geral e escala de Almoço (ver decisões no fim deste
+      arquivo). TODO: duplicar semana, seleção múltipla com exclusão em lote.
 - [x] Fase 8 — Mural de Oração — feed com busca por título (debounce 400ms),
       composer inline, PrayerCard (avatar, timeago, "estou orando" toggle
       otimista, badge "Respondido", popup Editar/Excluir/Marcar respondido),
@@ -502,7 +519,9 @@ Atualize esta seção ao concluir cada fase.
       busca, pendentes no topo, popup Aprovar/Revogar/Promover/Rebaixar/
       Remover, proteção auto-rebaixamento), ConvitesScreen (lista + FAB criar
       diálogo com código gerado sem 0/O/1/I, copiar, revogar),
-      ResponsaveisScreen (ExpansionTile por scale_type, adicionar/remover).
+      ResponsaveisScreen (ExpansionTile por scale_type, adicionar/remover),
+      EscalasScreen (`/admin/escalas`: criar, renomear, reordenar por arrasto,
+      ocultar e excluir escalas + editor `scale_type_editor_screen.dart`).
       Rotas de admin + guard no router (não-admin → /inicio). Todas as 6
       RPCs implementadas (`supabase_admin_service.dart`). TODO: BaseDataScreen.
 - [x] Fase 10 — Qualidade, iOS e lançamento — flutter_launcher_icons (logo
@@ -913,3 +932,68 @@ removido", não "você não tem permissão".
   típico de uma base JOCUM, por decisão do solicitante ("criar um cronograma
   padrão e depois os adms editam pelo app"). **Não é o cronograma real da base**
   — os admins ajustam pela tela `/cronograma/:id/editar` na Fase 6.
+
+---
+
+#### Escalas em equipe e escala de Almoço (pós-Fase 10)
+
+Pedido da base: uma atribuição pode ter várias pessoas (um grupo de quatro no
+almoço) e, opcionalmente, um responsável geral sobre elas.
+
+1. **A equipe é um par de arrays na linha, não uma tabela filha.** Uma tabela
+   `scale_assignment_members` é o modelo relacional certo e o errado aqui: uma
+   equipe de quatro viraria cinco entradas na outbox para uma única edição
+   feita offline, e o rollback do cache otimista — hoje "restaura a linha
+   anterior" — precisaria virar transação distribuída no cliente. Com arrays a
+   escrita continua atômica e o motor de sync não muda. O preço é não ter FK
+   por elemento (o Postgres não faz): quem cobre é `delete_own_account()`.
+2. **`assignee_id`/`assignee_name` passaram a significar "responsável geral"**,
+   sem renomear as colunas. O app instalado lê `assignee_name` para desenhar a
+   escala; uma coluna que some derruba esses aparelhos até todo mundo
+   atualizar. Com o nome preservado, a versão antiga mostra o responsável geral
+   e degrada em vez de quebrar.
+3. **Apagar a conta não apaga mais a escala dos outros.** Antes, uma atribuição
+   era de uma pessoa só e o tombstone da linha inteira era correto. Agora só
+   quem era a única pessoa escalada derruba a linha; nos grupos, o uid sai de
+   `member_ids` e o resto do grupo continua escalado.
+4. **Excluir a própria conta nunca funcionou para obreiro comum.** Descoberto
+   ao cobrir `delete_own_account()` no harness de RLS (§11 das asserções): o
+   RPC termina zerando `is_approved` no próprio perfil, e o trigger
+   `protect_profile_privileges` recusa isso para quem não é admin —
+   `FORBIDDEN_PRIVILEGE_CHANGE`. Ou seja, o caminho que a Google Play exige
+   só funcionava para admin. Corrigido na migration `20260917000200` com o
+   mesmo mecanismo de `redeem_invite`: uma flag local à transação
+   (`app.deleting_own_account`) que o trigger reconhece.
+5. **Bug encontrado pelo teste (e corrigido só em `ScalesRepository`).**
+   `into(tabela).insertOnConflictUpdate(linha)` monta os valores com
+   `toColumns(nullToAbsent: true)`, que **omite as colunas nulas**. Num update
+   isso significa que limpar um campo não limpa nada no cache — o valor antigo
+   fica até o próximo pull. A edição de atribuição passou a usar
+   `update(...).write(Companion(...))`, em que `Value(null)` grava null.
+   **O mesmo padrão está em `agenda_repository`, `home_repository`,
+   `prayer_repository` e `documents_repository`** e continua lá: não foi tocado
+   por estar fora do escopo do pedido.
+
+#### Administração das escalas pelo app (pós-Fase 10)
+
+Pedido: o admin quer criar, renomear, reordenar e remover escalas sem depender
+do SQL Editor.
+
+1. **Escrita pela outbox, e não por RPC.** As outras ações de admin (aprovar,
+   convidar, nomear responsável) chamam RPC e esperam o próximo pull. Aqui isso
+   seria visível demais: `scale_types` alimenta a barra de abas da tela
+   Escalas, que sai do mesmo cache drift — criar uma escala e não ver nada
+   acontecer é o tipo de coisa que faz a pessoa tocar de novo. Pela outbox a
+   linha aparece na hora, funciona sem sinal e o 403 reverte. Quem garante a
+   permissão continua sendo a policy `scale_types_admin_write`, coberta por
+   asserção no harness (§3 das asserções).
+2. **O `slug` não está no formulário.** É a chave estável do tipo: derivado do
+   nome na criação (sem acento, com sufixo numérico em caso de colisão, para a
+   duplicata não estourar só depois da viagem ao servidor) e imutável depois.
+   Renomear é troca de rótulo, não de identidade.
+3. **Excluir é soft delete; ocultar é `is_active = false`.** As duas coisas
+   existem porque significam coisas diferentes: a escala que acabou some, a que
+   está fora de época volta. O diálogo de exclusão aponta a alternativa.
+4. **A tela Escalas passou a guardar a aba aberta por id**, não por posição.
+   Com a ordem editável, o índice deixou de ser identidade: uma reordenação
+   chegando pelo sync trocaria a escala embaixo do dedo de quem está olhando.
