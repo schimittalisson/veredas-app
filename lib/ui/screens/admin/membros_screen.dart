@@ -51,11 +51,20 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
     final colors = context.colors;
     final profiles = ref.watch(allProfilesProvider).value ?? const [];
     final pending = ref.watch(pendingProfilesProvider);
+    final approved = ref.watch(approvedProfilesProvider);
     final currentUserId = ref.watch(currentUserIdProvider);
 
     // Filtra por busca.
+    //
+    // Sem busca, a lista de baixo traz só os aprovados: os pendentes já estão
+    // na seção do topo, e usar `profiles` aqui fazia cada pendente aparecer
+    // duas vezes na tela.
+    //
+    // Buscando, a seção de pendentes some (condição `_search.isEmpty` abaixo)
+    // e a busca passa a valer sobre todo mundo — senão não haveria como achar
+    // um pendente pelo nome.
     final filtered = _search.isEmpty
-        ? profiles
+        ? approved
         : profiles
             .where((p) => p.fullName.toLowerCase().contains(_search))
             .toList();

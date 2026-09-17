@@ -228,6 +228,33 @@ void main() {
     });
   });
 
+  // O bug: `profiles` era incremental, e o pull incremental só aprende que uma
+  // linha morreu quando ela volta com `deleted_at` preenchido. Um perfil
+  // apagado de verdade no servidor não volta em pull nenhum, então o cache
+  // guardava o fantasma para sempre — a tela de Membros listava gente que não
+  // existia mais, e nem reinstalar era óbvio para o admin.
+  group('SyncService.pull — perfis apagados direto no servidor', () {
+    test('o perfil some do cache quando o servidor não o devolve mais',
+        () async {
+      remote.fetchData['profiles'] = [
+        makeProfileJson(id: 'p1', fullName: 'Julia Fernandes'),
+        makeProfileJson(id: 'fantasma', fullName: 'Conta de teste'),
+      ];
+      await syncService.pull(syncEntityByName('profiles')!);
+      expect(await db.profileRows.count().getSingle(), 2);
+
+      // Hard delete no servidor: a linha simplesmente deixa de existir, sem
+      // `deleted_at` que sinalize a remoção.
+      remote.fetchData['profiles'] = [
+        makeProfileJson(id: 'p1', fullName: 'Julia Fernandes'),
+      ];
+      await syncService.pull(syncEntityByName('profiles')!);
+
+      final rows = await db.select(db.profileRows).get();
+      expect(rows.map((r) => r.id), ['p1']);
+    });
+  });
+
   group('SyncService.pullAll', () {
     test('sincroniza múltiplas entidades em ordem', () async {
       remote.fetchData['profiles'] = [

@@ -623,10 +623,17 @@ Future<void> _restoreDocument(AppDatabase db, Map<String, dynamic> j) async {
 // ---------------------------------------------------------------------------
 
 final List<SyncEntity> syncEntities = [
+  // fullReplace, e não incremental: o pull incremental só aprende que uma
+  // linha morreu quando ela volta com `deleted_at` preenchido. Um perfil
+  // apagado de verdade no servidor (delete direto no banco, ou a conta de auth
+  // removida pelo painel) não volta em pull nenhum — e o cache guardava o
+  // fantasma para sempre, com a tela de Membros listando gente que não existe
+  // mais. Baixar todos os perfis a cada sync é barato numa base desse tamanho,
+  // e `profiles_select_self` garante que o próprio perfil nunca some do fetch.
   const SyncEntity(
     name: 'profiles',
     remoteTable: 'profiles',
-    mode: SyncMode.incremental,
+    mode: SyncMode.fullReplace,
     order: 0,
     upsert: _upsertProfile,
     remove: _removeProfile,
