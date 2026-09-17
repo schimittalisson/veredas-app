@@ -66,8 +66,8 @@ final currentProfileProvider = StreamProvider<Profile?>((ref) {
       .map((row) => row?.toDomain());
 });
 
-/// Espera o perfil do usuário logado chegar ao cache antes de o router decidir
-/// entre `/aguardando` e `/inicio`.
+/// Resgata o convite pendente e espera o perfil do usuário logado chegar ao
+/// cache, antes de o router decidir entre `/aguardando` e `/inicio`.
 ///
 /// **O bug que isto corrige.** O `currentProfileProvider` observa o drift, que
 /// responde em milissegundos; o pull do servidor leva ~1-2s. Numa instalação
@@ -92,6 +92,36 @@ final profileBootstrapProvider = FutureProvider<void>((ref) async {
       .getSingleOrNull();
   // Já há perfil em cache: decidir na hora é correto, inclusive offline.
   if (cached != null) return;
+
+  // Convite pendente do cadastro: resgatar **antes** do pull.
+  //
+  // O `redeem_invite` aprova o perfil no servidor, mas quem decide a rota é o
+  // cache. Sem esta ordem, os dois disparam juntos assim que a sessão nasce —
+  // o pull começa aqui, o resgate acontece dentro do `verifyEmailOtp` — e o
+  // pull quase sempre chega primeiro, cacheando a linha ainda com
+  // `is_approved = false`. Nada faz um segundo pull depois, então o obreiro
+  // recém-aprovado ficava preso no /aguardando.
+  //
+  // Resgatar aqui também evita o piscar: enquanto este provider está
+  // `isLoading` o router segura a splash, em vez de mostrar /aguardando e
+  // corrigir para /inicio um instante depois.
+  //
+  // Duplicar o resgate com o do `verifyEmailOtp` é seguro: a RPC é idempotente
+  // (se já aprovado, devolve o papel sem consumir outro uso do convite), e o
+  // `clearPendingInvite` só roda depois de um resgate que deu certo — então
+  // código ausente aqui significa resgate já concluído.
+  final auth = ref.read(authServiceProvider);
+  try {
+    final pendingCode = await auth.getPendingInviteCode();
+    if (pendingCode != null) {
+      await auth.redeemPendingInvite(pendingCode);
+      await auth.clearPendingInvite();
+    }
+  } catch (_) {
+    // Convite expirado/revogado, ou storage seguro indisponível. Segue para o
+    // pull: o usuário entra como não aprovado e o /aguardando oferece
+    // "Tenho um código de convite".
+  }
 
   final entity = syncEntityByName('profiles');
   if (entity == null) return;

@@ -373,6 +373,58 @@ void main() {
       );
     });
 
+    // O bug: o resgate do convite (dentro do `verifyEmailOtp`) e este pull
+    // disparavam juntos assim que a sessão nascia, e o pull chegava primeiro —
+    // cacheando `is_approved = false` um instante depois de o servidor ter
+    // aprovado o perfil. Nada fazia um segundo pull, então o obreiro que
+    // acabara de confirmar o e-mail ficava preso no /aguardando.
+    test('resgata o convite pendente antes de puxar o perfil', () async {
+      const userId = 'invited-user';
+
+      // Estado do servidor antes do resgate.
+      remote.fetchData['profiles'] = [
+        makeProfileJson(id: userId, isApproved: false),
+      ];
+
+      // É isto que prova a **ordem**: o fake aprova o perfil "no servidor" no
+      // instante do resgate, então o pull só enxerga `is_approved = true` se
+      // tiver corrido depois dele. Invertendo a ordem, a expectativa falha.
+      final invitedAuth = _AuthApprovingOnRedeem(() {
+        remote.fetchData['profiles'] = [
+          makeProfileJson(id: userId, isApproved: true),
+        ];
+      });
+      addTearDown(invitedAuth.dispose);
+
+      final invitedContainer = ProviderContainer(overrides: [
+        appDatabaseProvider.overrideWithValue(db),
+        authServiceProvider.overrideWithValue(invitedAuth),
+        remoteSourceProvider.overrideWithValue(remote),
+      ]);
+      addTearDown(invitedContainer.dispose);
+
+      // Guarda o convite como o cadastro faz quando o e-mail exige confirmação.
+      invitedAuth.signUpReturnsSession = false;
+      await invitedAuth.signUpWithInvite(
+        fullName: 'João Obreiro',
+        email: 'joao@veredas.org',
+        password: 'password123',
+        inviteCode: 'XYZ789',
+      );
+
+      invitedAuth.simulateAuthenticated(userId: userId);
+      await waitForAuthState(invitedContainer, (s) => s.isAuthenticated);
+
+      await invitedContainer.read(profileBootstrapProvider.future);
+
+      expect(invitedAuth.calls, contains('redeem:XYZ789'));
+      expect(await invitedAuth.getPendingInviteCode(), isNull);
+
+      final profile =
+          await waitForProfile(invitedContainer, (p) => p?.id == userId);
+      expect(profile?.isApproved, true);
+    });
+
     test('cache vazio e rede falhando resolve em vez de travar', () async {
       const userId = 'offline-user';
       remote.fetchErrors['profiles'] = makeSocketException();
@@ -453,4 +505,21 @@ void main() {
       expect(container.read(isAdminProvider), false);
     });
   });
+}
+
+/// Fake que aprova o perfil "no servidor" no instante do resgate do convite.
+///
+/// Serve só ao teste de ordem do `profileBootstrapProvider`: sem um gancho no
+/// momento exato do `redeem_invite`, o teste não conseguiria distinguir
+/// "resgatou antes do pull" de "resgatou depois".
+class _AuthApprovingOnRedeem extends FakeAuthService {
+  _AuthApprovingOnRedeem(this.approveOnServer);
+
+  final void Function() approveOnServer;
+
+  @override
+  Future<AppRole?> redeemPendingInvite(String inviteCode) {
+    approveOnServer();
+    return super.redeemPendingInvite(inviteCode);
+  }
 }
