@@ -19,7 +19,7 @@ Flutter (Android + iOS), backend Supabase, cache offline com drift.
 
 ## 1. Visão do produto
 
-A base tem ~20 obreiros. O app centraliza informação que hoje vive em grupos de
+A base tem ~30 obreiros. O app centraliza informação que hoje vive em grupos de
 WhatsApp e planilhas soltas:
 
 | Tab | Função |
@@ -467,7 +467,7 @@ Faça um commit por fase.
    - Habilitar "Confirm email".
    - **Configurar SMTP próprio** (Resend ou Brevo, ambos com free tier). O SMTP
      embutido do Supabase é limitado a ~2 e-mails/hora e **vai falhar** no
-     cadastro de 20 obreiros. Isto é um bloqueio prático real, não um detalhe.
+     cadastro de 30 obreiros. Isto é um bloqueio prático real, não um detalhe.
    - Site URL / Redirect URLs: incluir o deep link
      `br.com.veredas.app://login-callback/`.
    - Desabilitar signup anônimo.

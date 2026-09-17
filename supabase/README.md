@@ -21,7 +21,7 @@ pela interface. Um app modificado não consegue burlá-las.
    - **Plan**: Free.
 3. Aguarde ~2 minutos até o projeto provisionar.
 
-> **Sobre o free tier:** 500 MB de banco e 1 GB de Storage. Para ~20 obreiros
+> **Sobre o free tier:** 500 MB de banco e 1 GB de Storage. Para ~30 obreiros
 > isso não será excedido. O único gatilho de pausa é inatividade (7 dias sem
 > requisição); um app em uso diário não pausa.
 
@@ -213,7 +213,7 @@ prazo.
 ### SMTP próprio — não é opcional
 
 O SMTP embutido do Supabase envia **2 e-mails por hora** (valor oficial, não
-estimativa) e existe apenas para desenvolvimento. Com 20 obreiros se cadastrando,
+estimativa) e existe apenas para desenvolvimento. Com 30 obreiros se cadastrando,
 os e-mails de confirmação não chegam e o obreiro fica preso fora do app. É um
 bloqueio prático real, não um detalhe de polimento.
 
@@ -274,7 +274,7 @@ configurar o Brevo sozinho não resolve.
 Em **Authentication → Rate Limits**, suba *Rate limit for sending emails* para
 algo como **100/hora**.
 
-Com 20 obreiros, 30/hora parece suficiente, mas não é no dia do lançamento: cada
+Com 30 obreiros, 30/hora parece suficiente, mas não é no dia do lançamento: cada
 pessoa gera pelo menos um e-mail de confirmação, mais reenvios de quem não achou
 a mensagem, mais recuperações de senha de quem errou. Bater no limite nesse dia
 significa obreiro travado na tela de confirmação — exatamente o problema que o

@@ -10,7 +10,7 @@ Ordem de leitura: `PLANO.md` → este arquivo → `SCHEMA.md` / `TELAS.md`.
 
 ## 1. Contexto
 
-App de gerenciamento da Base Missionária JOCUM Veredas (Joinville/SC), ~20 obreiros.
+App de gerenciamento da Base Missionária JOCUM Veredas (Joinville/SC), ~30 obreiros.
 Flutter + Supabase, com cache offline em drift.
 
 - **Este projeto**: `/home/alisson.silva/Documentos/veredas-app`
@@ -746,7 +746,7 @@ acima está resolvido: não é preciso abandonar o `freezed` nem usar prerelease
 **`prayer_feed` usa `fullReplace`, não `incremental`.** A view não expõe
 `deleted_at` — ela filtra `where p.deleted_at is null` internamente. Um post
 apagado simplesmente desaparece dos resultados, e o incremental jamais
-perceberia. Com ~dezenas de posts numa base de 20 obreiros, baixar a view
+perceberia. Com ~dezenas de posts numa base de 30 obreiros, baixar a view
 inteira a cada sync é trivial. `prayer_comments` (tabela, tem `deleted_at`)
 continua incremental.
 
