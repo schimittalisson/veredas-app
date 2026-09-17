@@ -52,18 +52,46 @@ abstract class AuthService {
   ///    — o trigger `handle_new_user` cria o profile em `public.profiles`.
   /// 2. Se o `signUp` devolver sessão (email confirmation desativado), chama
   ///    `redeem_invite(code)` imediatamente → usuário aprovado.
-  /// 3. Se o `signUp` **não** devolver sessão (email confirmation ativado),
-  ///    o código do convite é guardado em `flutter_secure_storage` e resgatado
-  ///    no primeiro `signIn` bem-sucedido.
+  /// 3. Se o `signUp` **não** devolver sessão (email confirmation ativado no
+  ///    painel do Supabase, que é o caso de produção), o código do convite é
+  ///    guardado em `flutter_secure_storage` e resgatado no primeiro `signIn`
+  ///    bem-sucedido.
   ///
   /// [phone] é opcional — guardado em `user_metadata` e copiado para o profile
   /// pelo app após o primeiro login (o trigger não lê phone).
-  Future<void> signUpWithInvite({
+  ///
+  /// Devolve `true` quando o cadastro já terminou (havia sessão e o convite foi
+  /// resgatado) e `false` quando falta confirmar o e-mail. A tela usa esse
+  /// retorno em vez de consultar o `authStateProvider`: o stream de sessão é
+  /// assíncrono e ainda não emitiu quando o `await` retorna, então ler o estado
+  /// ali mostrava "confirme seu e-mail" para um cadastro que já tinha dado
+  /// certo.
+  Future<bool> signUpWithInvite({
     required String fullName,
     required String email,
     required String password,
     required String inviteCode,
     String? phone,
+  });
+
+  /// Confirma o e-mail com o código de 6 dígitos recebido e, com a sessão já
+  /// ativa, resgata o convite guardado no cadastro.
+  ///
+  /// **Por que código e não link.** O link de confirmação do Supabase depende
+  /// de deep link (`br.com.veredas.app://`), o que amarra a confirmação ao
+  /// mesmo aparelho onde a pessoa se cadastrou: abrir o e-mail no computador,
+  /// ou num celular sem o app, não funciona. O código digitado não tem esse
+  /// vínculo — a pessoa lê o e-mail onde quiser e digita no app.
+  ///
+  /// Exige que o template "Confirm signup" no Supabase use `{{ .Token }}` em
+  /// vez de `{{ .ConfirmationURL }}` (ver `supabase/README.md` §6).
+  ///
+  /// Devolve o papel resgatado, ou null se não havia convite pendente — nesse
+  /// caso o usuário fica logado e não aprovado, e o `/aguardando` pede o código
+  /// de convite de novo.
+  Future<AppRole?> verifyEmailOtp({
+    required String email,
+    required String token,
   });
 
   /// Resgata um convite pendente (guardado em secure storage do cadastro).

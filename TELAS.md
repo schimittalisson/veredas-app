@@ -372,8 +372,15 @@ Validação: senha ≥ 8 caracteres, confirmação igual, código não vazio.
 
 Fluxo (tratar os dois caminhos, ver `PLANO.md` Fase 3):
 1. `signUp` → se retornar sessão, chama `redeem_invite` na hora → `/inicio`.
-2. Se exigir confirmação de e-mail, guarda o código em `flutter_secure_storage`,
-   mostra "Confirme seu e-mail para continuar" e resgata no primeiro login.
+2. Se exigir confirmação de e-mail (o caso de produção), guarda o convite em
+   `flutter_secure_storage` e troca o formulário pela tela de **código de 6
+   dígitos**. O `verifyEmailOtp` confirma o e-mail, resgata o convite na mesma
+   chamada e o redirect leva para `/inicio`. Botão "Reenviar código" para quem
+   perder o prazo.
+
+> A confirmação é por **código**, não por link: o link dependia do deep link
+> `br.com.veredas.app://` e do mesmo aparelho do cadastro (PKCE), então abrir o
+> e-mail no computador travava a pessoa. Ver `supabase/README.md` §6-A.
 
 Erros da RPC em pt-BR:
 

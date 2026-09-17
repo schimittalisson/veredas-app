@@ -69,7 +69,7 @@ class SupabaseAuthService implements AuthService {
   }
 
   @override
-  Future<void> signUpWithInvite({
+  Future<bool> signUpWithInvite({
     required String fullName,
     required String email,
     required String password,
@@ -88,9 +88,10 @@ class SupabaseAuthService implements AuthService {
 
       final session = response.session;
       if (session != null) {
-        // Email confirmation desativado: há sessão imediatamente.
-        // Resgata o convite agora.
+        // Email confirmation desativado: há sessão imediatamente. Resgata o
+        // convite agora e o cadastro termina aqui.
         await _callRedeemInvite(inviteCode);
+        return true;
       } else {
         // Email confirmation ativado: não há sessão. Guarda o código para
         // resgatar no primeiro login.
@@ -103,10 +104,42 @@ class SupabaseAuthService implements AuthService {
         } catch (_) {
           // Sem convite guardado: o /aguardando pede o código de novo.
         }
+        return false;
       }
     } catch (e) {
       // Se o signUp falhou, não há nada a limpar — o usuário não foi criado.
       throw mapError(e);
+    }
+  }
+
+  @override
+  Future<AppRole?> verifyEmailOtp({
+    required String email,
+    required String token,
+  }) async {
+    try {
+      await _client.auth.verifyOTP(
+        type: OtpType.signup,
+        email: email,
+        token: token,
+      );
+    } catch (e) {
+      throw mapError(e);
+    }
+
+    // Mesma regra do `signIn`: daqui para baixo o e-mail **já foi confirmado**
+    // e a sessão existe. Relançar transformaria um convite expirado, ou um
+    // Keychain indisponível, em "erro" numa confirmação que deu certo — e o
+    // usuário ficaria olhando a tela de código com a conta já ativa.
+    try {
+      final pendingCode = await getPendingInviteCode();
+      if (pendingCode == null) return null;
+      final role = await _callRedeemInvite(pendingCode);
+      await clearPendingInvite();
+      return role;
+    } catch (_) {
+      // O /aguardando oferece "Tenho um código de convite" para tentar de novo.
+      return null;
     }
   }
 

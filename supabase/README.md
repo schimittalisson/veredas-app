@@ -174,7 +174,41 @@ update public.social_links set url = 'https://instagram.com/veredasjocum' where 
 - **Site URL**: `br.com.veredas.app://login-callback/`
 - **Redirect URLs**: adicione `br.com.veredas.app://login-callback/`
 
-Isso é o que faz o link de recuperação de senha voltar para o app.
+Isso é o que faz o link de recuperação de senha voltar para o app. **Confira que
+o Site URL não ficou no `http://localhost:3000`**, que é o valor padrão de um
+projeto novo — com ele, o link do e-mail leva a uma página que não existe.
+
+### Passo 6-A — Confirmação de cadastro por código, não por link
+
+**Authentication → Emails → template "Confirm signup":** troque o botão com
+`{{ .ConfirmationURL }}` por `{{ .Token }}`, que renderiza um código de 6
+dígitos.
+
+Exemplo de corpo:
+
+```html
+<h2>Confirme seu e-mail</h2>
+<p>Seu código de confirmação é:</p>
+<p style="font-size:32px;font-weight:bold;letter-spacing:4px">{{ .Token }}</p>
+<p>Digite este código no app para concluir seu cadastro.</p>
+```
+
+**Por que não o link.** O link de confirmação aponta para o deep link
+`br.com.veredas.app://`, que só resolve num celular com o app instalado — e o
+fluxo PKCE do `supabase_flutter` ainda amarra a confirmação ao **mesmo aparelho**
+onde a pessoa se cadastrou. Quem abrir o e-mail no computador, ou noutro
+celular, trava sem saída. O código digitado não tem nenhum desses vínculos.
+
+De quebra, isso fecha um buraco do fluxo antigo: confirmando pelo link, a sessão
+nascia dentro do `supabase_flutter` sem passar pelo `signIn`, e o convite
+guardado no cadastro nunca era resgatado — o obreiro caía no `/aguardando` tendo
+que digitar o código de convite de novo. O `verifyEmailOtp` resgata o convite na
+mesma chamada que confirma o e-mail.
+
+O tempo de validade do código é o **Email OTP Expiration** em
+**Authentication → Providers → Email** (padrão 1 hora; 15 minutos é suficiente e
+mais seguro). A tela de confirmação tem "Reenviar código" para quem passar do
+prazo.
 
 ### SMTP próprio — não é opcional
 

@@ -174,6 +174,19 @@ AppException _mapAuth(AuthException e, StackTrace? st) {
       stackTrace: st,
     );
   }
+  // Confirmação por código. O gotrue devolve `otp_expired` tanto para código
+  // vencido quanto para código já usado, e a mensagem junta os dois casos
+  // ("Token has expired or is invalid"). Expirado é o palpite mais útil: um
+  // código digitado errado costuma cair no ramo `otpInvalid` abaixo, com 403.
+  if (e.code == 'otp_expired' || message.contains('has expired')) {
+    return AppException(AppErrorCode.otpExpired, cause: e, stackTrace: st);
+  }
+  if (e.code == 'otp_disabled' ||
+      (message.contains('token') && message.contains('invalid')) ||
+      (message.contains('otp') && message.contains('invalid'))) {
+    return AppException(AppErrorCode.otpInvalid, cause: e, stackTrace: st);
+  }
+
   if (message.contains('already registered') ||
       message.contains('already been registered') ||
       e.code == 'user_already_exists') {

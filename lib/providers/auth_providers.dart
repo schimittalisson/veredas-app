@@ -142,7 +142,9 @@ class AuthActions extends Notifier<void> {
     return _auth.signIn(email: email, password: password);
   }
 
-  Future<void> signUpWithInvite({
+  /// Devolve `true` se o cadastro já terminou (convite resgatado, sessão
+  /// ativa); `false` se ainda falta confirmar o e-mail.
+  Future<bool> signUpWithInvite({
     required String fullName,
     required String email,
     required String password,
@@ -156,6 +158,14 @@ class AuthActions extends Notifier<void> {
       inviteCode: inviteCode,
       phone: phone,
     );
+  }
+
+  /// Confirma o e-mail com o código de 6 dígitos e resgata o convite pendente.
+  Future<AppRole?> verifyEmailOtp({
+    required String email,
+    required String token,
+  }) {
+    return _auth.verifyEmailOtp(email: email, token: token);
   }
 
   Future<AppRole?> redeemInvite(String code) {

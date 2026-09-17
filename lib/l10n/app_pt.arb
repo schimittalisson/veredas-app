@@ -72,6 +72,19 @@
   "auth_email_confirmation_required": "Confirme seu e-mail para continuar. Verifique sua caixa de entrada (e o spam).",
   "auth_signup_success": "Conta criada! Você já pode entrar.",
 
+  "auth_confirm_email_title": "Confirme seu e-mail",
+  "auth_confirm_email_sent_to": "Enviamos um código de 6 dígitos para {email}. Verifique também a caixa de spam.",
+  "@auth_confirm_email_sent_to": {
+    "placeholders": {
+      "email": { "type": "String" }
+    }
+  },
+  "auth_confirm_email_code_label": "Código de 6 dígitos",
+  "auth_confirm_email_button": "Confirmar",
+  "auth_confirming_email": "Confirmando…",
+  "auth_confirm_email_resend": "Reenviar código",
+  "auth_confirm_email_resent": "Código reenviado. Verifique seu e-mail.",
+
   "auth_forgot_password_title": "Recuperar senha",
   "auth_forgot_password_subtitle": "Enviaremos um link de recuperação para o seu e-mail.",
   "auth_send_reset_link": "Enviar link",
@@ -93,6 +106,8 @@
   "auth_error_email_not_confirmed_resend": "Reenviar confirmação",
   "auth_error_email_already_registered": "Este e-mail já está cadastrado.",
   "auth_error_weak_password": "A senha é muito fraca. Use pelo menos 8 caracteres.",
+  "auth_error_otp_invalid": "Código incorreto. Confira os 6 dígitos do e-mail.",
+  "auth_error_otp_expired": "Este código venceu. Toque em \"Reenviar código\" para receber um novo.",
   "auth_error_session_expired": "Sua sessão expirou. Entre novamente.",
   "auth_error_not_authenticated": "Você precisa estar logado.",
   "auth_error_not_approved": "Sua conta ainda não foi aprovada.",

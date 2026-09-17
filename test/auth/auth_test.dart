@@ -143,6 +143,66 @@ void main() {
       expect(auth.calls.where((c) => c.startsWith('redeem:')), isEmpty);
     });
 
+    test('verifyEmailOtp confirma e resgata o convite guardado no cadastro',
+        () async {
+      auth.signUpReturnsSession = false;
+      auth.redeemResult = AppRole.obreiro;
+
+      await container.read(authActionsProvider.notifier).signUpWithInvite(
+            fullName: 'João Silva',
+            email: 'joao@veredas.org',
+            password: 'password123',
+            inviteCode: 'XYZ789',
+          );
+      expect(await auth.getPendingInviteCode(), 'XYZ789');
+
+      final role = await container
+          .read(authActionsProvider.notifier)
+          .verifyEmailOtp(email: 'joao@veredas.org', token: '482913');
+
+      expect(role, AppRole.obreiro);
+      expect(auth.calls, contains('verifyOtp:joao@veredas.org:482913'));
+      expect(auth.calls, contains('redeem:XYZ789'));
+      // O convite foi consumido: um segundo verify não pode resgatá-lo de novo.
+      expect(await auth.getPendingInviteCode(), isNull);
+    });
+
+    test('verifyEmailOtp com código inválido mapeia para AppException',
+        () async {
+      auth.verifyOtpError = makeAuthException(AppErrorCode.otpExpired);
+
+      await expectLater(
+        container
+            .read(authActionsProvider.notifier)
+            .verifyEmailOtp(email: 'joao@veredas.org', token: '000000'),
+        throwsA(isA<AppException>().having(
+          (e) => e.code,
+          'code',
+          AppErrorCode.otpExpired,
+        )),
+      );
+    });
+
+    test('verifyEmailOtp com convite já expirado não derruba a confirmação',
+        () async {
+      auth.signUpReturnsSession = false;
+      await container.read(authActionsProvider.notifier).signUpWithInvite(
+            fullName: 'João Silva',
+            email: 'joao@veredas.org',
+            password: 'password123',
+            inviteCode: 'XYZ789',
+          );
+      auth.redeemError = makeAuthException(AppErrorCode.inviteExpired);
+
+      // O e-mail já foi confirmado neste ponto: relançar deixaria o usuário
+      // preso na tela de código com a conta ativa. Ele segue para /aguardando.
+      final role = await container
+          .read(authActionsProvider.notifier)
+          .verifyEmailOtp(email: 'joao@veredas.org', token: '482913');
+
+      expect(role, isNull);
+    });
+
     test('redeemPendingInvite devolve o papel', () async {
       auth.redeemResult = AppRole.admin;
 

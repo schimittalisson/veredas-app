@@ -14,6 +14,15 @@ enum AppErrorCode {
   invalidCredentials,
   emailNotConfirmed,
   emailAlreadyRegistered,
+
+  /// O código de confirmação digitado não confere.
+  otpInvalid,
+
+  /// O código de confirmação venceu. Separado de [otpInvalid] porque a saída
+  /// para o usuário é outra: não adianta reconferir o que ele digitou, tem que
+  /// pedir um código novo.
+  otpExpired,
+
   weakPassword,
   sessionExpired,
   notAuthenticated,

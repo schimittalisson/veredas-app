@@ -427,7 +427,7 @@ class FakeAuthService implements AuthService {
   }
 
   @override
-  Future<void> signUpWithInvite({
+  Future<bool> signUpWithInvite({
     required String fullName,
     required String email,
     required String password,
@@ -450,9 +450,39 @@ class FakeAuthService implements AuthService {
       simulateAuthenticated();
       // redeem é chamado internamente
       await _callRedeem(inviteCode);
+      return true;
     } else {
       // Guarda o código para resgate posterior
       _pendingInviteCode = inviteCode;
+      return false;
+    }
+  }
+
+  /// Exceção a lançar no próximo verifyEmailOtp.
+  dynamic verifyOtpError;
+
+  @override
+  Future<AppRole?> verifyEmailOtp({
+    required String email,
+    required String token,
+  }) async {
+    calls.add('verifyOtp:$email:$token');
+    if (verifyOtpError != null) {
+      final e = verifyOtpError;
+      verifyOtpError = null;
+      throw e;
+    }
+    simulateAuthenticated();
+    final pending = _pendingInviteCode;
+    if (pending == null) return null;
+    try {
+      final role = await _callRedeem(pending);
+      _pendingInviteCode = null;
+      return role;
+    } catch (_) {
+      // Igual à implementação real: o e-mail já foi confirmado, então um
+      // convite inválido não relança — o /aguardando pede o código de novo.
+      return null;
     }
   }
 
