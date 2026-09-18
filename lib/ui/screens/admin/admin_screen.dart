@@ -101,6 +101,10 @@ class AdminScreen extends ConsumerWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _AdminOption
+// ---------------------------------------------------------------------------
+
 class _AdminOption {
   const _AdminOption({
     required this.icon,

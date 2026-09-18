@@ -21,7 +21,7 @@ Future<void> main() async {
   if (Env.isConfigured) {
     await Supabase.initialize(
       url: Env.supabaseUrl,
-      // `anonKey` foi depreciado no supabase_flutter 2.16 (o PLANO.md e o
+      // `anonKey` foi depreciado no supabase_flutter 2.16 (o docs/PLANO.md e o
       // AGENTS.md ainda citam o nome antigo). O parâmetro aceita tanto a
       // "anon key" legada quanto a "publishable key" nova do painel, então a
       // variável de ambiente continua sendo SUPABASE_ANON_KEY.

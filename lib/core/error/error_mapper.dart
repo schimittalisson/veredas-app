@@ -97,7 +97,7 @@ AppException mapError(Object error, [StackTrace? stackTrace]) {
 AppException _mapPostgrest(PostgrestException e, StackTrace? st) {
   // Os erros da RPC redeem_invite chegam como `raise exception`, que o
   // Postgres reporta com SQLSTATE P0001 e a mensagem sendo o nome que
-  // escolhemos no SQL. É por isso que o SCHEMA.md usa códigos em maiúsculas em
+  // escolhemos no SQL. É por isso que o docs/SCHEMA.md usa códigos em maiúsculas em
   // vez de texto legível: eles são identificadores estáveis, não mensagens.
   final message = e.message.toUpperCase();
   if (message.contains('INVITE_NOT_FOUND')) {

@@ -261,6 +261,10 @@ class ConvitesScreen extends ConsumerWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _InviteTile
+// ---------------------------------------------------------------------------
+
 class _InviteTile extends ConsumerWidget {
   const _InviteTile({required this.invite});
 
@@ -399,6 +403,10 @@ class _InviteTile extends ConsumerWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _Badge
+// ---------------------------------------------------------------------------
+
 /// Etiqueta arredondada de estado — substitui o `Chip` do Material.
 class _Badge extends StatelessWidget {
   const _Badge({
@@ -428,6 +436,10 @@ class _Badge extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// Random
+// ---------------------------------------------------------------------------
 
 /// Random simples para gerar o código — não precisa de crypto.
 class Random {

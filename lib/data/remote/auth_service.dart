@@ -23,7 +23,7 @@ class AuthState {
 
 /// Serviço de autenticação abstrato.
 ///
-/// O `PLANO.md §2.4` exige que cada fonte remota fique atrás de uma interface.
+/// O `docs/PLANO.md §2.4` exige que cada fonte remota fique atrás de uma interface.
 /// Isto torna os testes viáveis com uma `FakeAuthService` (sem rede) e permite
 /// trocar a implementação sem tocar nas telas.
 ///
@@ -47,7 +47,7 @@ abstract class AuthService {
 
   /// Cadastro com convite.
   ///
-  /// Fluxo (PLANO.md Fase 3):
+  /// Fluxo (docs/PLANO.md Fase 3):
   /// 1. `auth.signUp(email, password, userMetadata: {'full_name': fullName})`
   ///    — o trigger `handle_new_user` cria o profile em `public.profiles`.
   /// 2. Se o `signUp` devolver sessão (email confirmation desativado), chama

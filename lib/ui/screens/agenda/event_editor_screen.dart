@@ -402,6 +402,10 @@ class _EventEditorScreenState extends ConsumerState<EventEditorScreen> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _ValueRow
+// ---------------------------------------------------------------------------
+
 /// Linha de formulário que mostra um valor e abre um seletor ao ser tocada.
 ///
 /// Substitui o `ListTile` com `trailing: Icon(chevron_right)`: dentro de uma

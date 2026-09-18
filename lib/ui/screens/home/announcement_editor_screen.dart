@@ -31,6 +31,10 @@ class AnnouncementEditorScreen extends ConsumerStatefulWidget {
       _AnnouncementEditorScreenState();
 }
 
+// ---------------------------------------------------------------------------
+// _AnnouncementEditorScreenState
+// ---------------------------------------------------------------------------
+
 class _AnnouncementEditorScreenState
     extends ConsumerState<AnnouncementEditorScreen> {
   final _formKey = GlobalKey<FormState>();

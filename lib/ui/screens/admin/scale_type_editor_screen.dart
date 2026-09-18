@@ -26,6 +26,10 @@ class ScaleTypeEditorScreen extends ConsumerStatefulWidget {
       _ScaleTypeEditorScreenState();
 }
 
+// ---------------------------------------------------------------------------
+// _ScaleTypeEditorScreenState
+// ---------------------------------------------------------------------------
+
 class _ScaleTypeEditorScreenState
     extends ConsumerState<ScaleTypeEditorScreen> {
   final _nameController = TextEditingController();

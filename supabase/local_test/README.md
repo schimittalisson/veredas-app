@@ -23,7 +23,7 @@ na mão, é lento e ninguém faz depois da terceira vez.
 
 Já pegou três problemas reais antes de chegarem ao banco de produção:
 
-1. **`manages_scale` na ordem errada.** O `SCHEMA.md` §3 afirma que o corpo de
+1. **`manages_scale` na ordem errada.** O `docs/SCHEMA.md` §3 afirma que o corpo de
    uma função `language sql` só é resolvido na execução. É falso com
    `check_function_bodies = on` (padrão no Supabase): o corpo é validado no
    `CREATE FUNCTION`, e a função referencia uma tabela criada depois.

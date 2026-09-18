@@ -133,6 +133,10 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _MemberSection
+// ---------------------------------------------------------------------------
+
 /// Bloco de membros dentro de um cartão arredondado.
 class _MemberSection extends StatelessWidget {
   const _MemberSection({
@@ -174,6 +178,10 @@ class _MemberSection extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// _MemberTile
+// ---------------------------------------------------------------------------
 
 class _MemberTile extends ConsumerWidget {
   const _MemberTile({
@@ -373,6 +381,10 @@ class _MemberTile extends ConsumerWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _Avatar
+// ---------------------------------------------------------------------------
+
 /// Círculo com as iniciais — o `CircleAvatar` é do Material.
 class _Avatar extends StatelessWidget {
   const _Avatar({required this.name});
@@ -403,6 +415,10 @@ class _Avatar extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// _Badge
+// ---------------------------------------------------------------------------
 
 /// Etiqueta arredondada de papel/estado — substitui o `Chip` do Material.
 class _Badge extends StatelessWidget {

@@ -40,6 +40,10 @@ class ScheduleTab extends ConsumerStatefulWidget {
   ConsumerState<ScheduleTab> createState() => _ScheduleTabState();
 }
 
+// ---------------------------------------------------------------------------
+// _ScheduleView
+// ---------------------------------------------------------------------------
+
 enum _ScheduleView { grid, list }
 
 class _ScheduleTabState extends ConsumerState<ScheduleTab> {
@@ -113,6 +117,10 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _ViewSegment
+// ---------------------------------------------------------------------------
+
 /// Conteúdo de um segmento: ícone + rótulo.
 class _ViewSegment extends StatelessWidget {
   const _ViewSegment({required this.icon, required this.label});
@@ -158,6 +166,10 @@ const double _kGutterWidth = 56;
 /// Altura do cabeçalho com os nomes dos dias.
 const double _kHeaderHeight = 40;
 
+// ---------------------------------------------------------------------------
+// _LaidOutSlot
+// ---------------------------------------------------------------------------
+
 /// Um slot já resolvido em coordenadas de tela.
 ///
 /// [column] e [columnCount] resolvem sobreposição: quando dois compromissos
@@ -178,6 +190,10 @@ class _LaidOutSlot {
   final int column;
   final int columnCount;
 }
+
+// ---------------------------------------------------------------------------
+// _WeeklyGrid
+// ---------------------------------------------------------------------------
 
 class _WeeklyGrid extends StatelessWidget {
   const _WeeklyGrid({required this.slots});
@@ -439,6 +455,10 @@ class _WeeklyGrid extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _SlotBlock
+// ---------------------------------------------------------------------------
+
 /// Bloco de um compromisso na grade.
 ///
 /// Posicionado e dimensionado pelo [_WeeklyGrid]: aqui só entram a aparência
@@ -672,6 +692,10 @@ class _WeeklyList extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _DaySection
+// ---------------------------------------------------------------------------
+
 /// Seção recolhível de um dia.
 ///
 /// Não existe `ExpansionTile` no Cupertino, então o comportamento é refeito à
@@ -735,6 +759,10 @@ class _DaySectionState extends State<_DaySection> {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// _SlotListTile
+// ---------------------------------------------------------------------------
 
 class _SlotListTile extends ConsumerWidget {
   const _SlotListTile({required this.slot});

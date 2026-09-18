@@ -5,7 +5,7 @@ import 'package:veredas/data/sync/sync_entity.dart';
 
 /// Helper para a transação otimista+outbox que toda escrita do app usa.
 ///
-/// O padrão (PLANO.md §2.5): numa **única transação drift**, o repositório
+/// O padrão (docs/PLANO.md §2.5): numa **única transação drift**, o repositório
 /// aplica a mudança no cache local (a UI atualiza na hora via Stream) e insere
 /// a entrada na outbox. O `OutboxWorker` envia ao servidor depois.
 ///

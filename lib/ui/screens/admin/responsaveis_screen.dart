@@ -68,6 +68,10 @@ class ResponsaveisScreen extends ConsumerWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _ScaleTypeSection
+// ---------------------------------------------------------------------------
+
 class _ScaleTypeSection extends ConsumerWidget {
   const _ScaleTypeSection({
     required this.scaleType,
@@ -208,6 +212,10 @@ class _ScaleTypeSection extends ConsumerWidget {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// _Avatar
+// ---------------------------------------------------------------------------
 
 /// Círculo com as iniciais — o `CircleAvatar` é do Material.
 class _Avatar extends StatelessWidget {

@@ -1,6 +1,6 @@
 # Backend Supabase — passo a passo
 
-Roteiro da **Fase 1** do `PLANO.md`. Siga na ordem; cada passo depende do
+Roteiro da **Fase 1** do `docs/PLANO.md`. Siga na ordem; cada passo depende do
 anterior.
 
 Ao final, a segurança do app está resolvida: as permissões ("só o responsável

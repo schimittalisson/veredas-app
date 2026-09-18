@@ -322,7 +322,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 /// Lógica de redirecionamento, extraída para poder testar isoladamente.
 ///
-/// Regras (PLANO.md Fase 3):
+/// Regras (docs/PLANO.md Fase 3):
 /// 1. Sem sessão → `/login` (exceto se já em rota de auth).
 /// 2. Com sessão e `is_approved == false` → `/aguardando` (exceto se já em
 ///    rota permitida para não aprovado).

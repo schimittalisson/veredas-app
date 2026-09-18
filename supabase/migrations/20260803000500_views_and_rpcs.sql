@@ -11,7 +11,7 @@
 --
 -- O cache local do app espelha ESTA VIEW, não prayer_posts — porque
 -- praying_count / is_praying vêm daqui e prayer_interactions não é cacheada
--- (ver SCHEMA.md "Estratégia de sincronização por tabela").
+-- (ver docs/SCHEMA.md "Estratégia de sincronização por tabela").
 -- -------------------------------------------------------------------------
 create or replace view public.prayer_feed
 with (security_invoker = true) as

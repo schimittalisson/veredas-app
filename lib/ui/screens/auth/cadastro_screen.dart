@@ -13,7 +13,7 @@ import 'package:veredas/ui/widgets/app_toast.dart';
 
 /// Tela de cadastro com convite.
 ///
-/// Fluxo (PLANO.md Fase 3):
+/// Fluxo (docs/PLANO.md Fase 3):
 /// 1. `signUp` → se retornar sessão, chama `redeem_invite` na hora → redirect.
 /// 2. Se exigir confirmação de e-mail, guarda o código em secure storage,
 ///    mostra "Confirme seu e-mail para continuar".
@@ -350,6 +350,10 @@ class _CadastroScreenState extends ConsumerState<CadastroScreen> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _EmailConfirmationView
+// ---------------------------------------------------------------------------
+
 /// Confirmação do e-mail por código de 6 dígitos.
 ///
 /// Substitui o link de confirmação do Supabase. O link dependia do deep link
@@ -369,6 +373,10 @@ class _EmailConfirmationView extends ConsumerStatefulWidget {
   ConsumerState<_EmailConfirmationView> createState() =>
       _EmailConfirmationViewState();
 }
+
+// ---------------------------------------------------------------------------
+// _EmailConfirmationViewState
+// ---------------------------------------------------------------------------
 
 class _EmailConfirmationViewState
     extends ConsumerState<_EmailConfirmationView> {

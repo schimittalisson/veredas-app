@@ -170,6 +170,10 @@ class _Greeting extends ConsumerWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _AccountButton
+// ---------------------------------------------------------------------------
+
 /// Avatar que abre o menu da conta.
 ///
 /// Existe porque faltavam duas portas no app:
@@ -387,6 +391,10 @@ class _HeroCard extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// _Placeholder
+// ---------------------------------------------------------------------------
 
 class _Placeholder extends StatelessWidget {
   const _Placeholder({required this.label, required this.colors});
@@ -610,6 +618,10 @@ class _SocialLinks extends ConsumerWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _SocialButton
+// ---------------------------------------------------------------------------
+
 class _SocialButton extends StatelessWidget {
   const _SocialButton({required this.link});
 
@@ -724,6 +736,10 @@ class _BaseInfoSection extends ConsumerWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// _BaseInfoTile
+// ---------------------------------------------------------------------------
 
 /// Linha expansível dos dados da base.
 ///
@@ -940,6 +956,10 @@ class _RecentAnnouncements extends ConsumerWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// _AnnouncementTile
+// ---------------------------------------------------------------------------
 
 class _AnnouncementTile extends StatelessWidget {
   const _AnnouncementTile({required this.announcement});

@@ -54,12 +54,12 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
-  # NÃO subir para ^2.16.0 (o valor do PLANO.md §3): build_runner >=2.15.2
+  # NÃO subir para ^2.16.0 (o valor do docs/PLANO.md §3): build_runner >=2.15.2
   # exige meta ^1.18.3, e o flutter_test do SDK 3.44.8 fixa meta 1.18.0.
   # A resolução falha com "version solving failed". Manter em ^2.14.0 deixa o
   # pub escolher 2.15.1, a maior compatível.
   build_runner: ^2.14.0
-  # NÃO subir para ^2.34.5 (o valor do PLANO.md §3): drift_dev >=2.34.1 exige
+  # NÃO subir para ^2.34.5 (o valor do docs/PLANO.md §3): drift_dev >=2.34.1 exige
   # analyzer ^13, e o freezed estável (3.2.5) exige analyzer <11. Não há
   # sobreposição — só as prereleases freezed 4.0.0-dev.* suportam analyzer 13.
   # drift_dev 2.34.0 aceita analyzer >=10 <13, que sobrepõe com o freezed.

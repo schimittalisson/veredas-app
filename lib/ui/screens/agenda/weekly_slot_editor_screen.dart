@@ -21,6 +21,10 @@ class WeeklySlotEditorScreen extends ConsumerStatefulWidget {
       _WeeklySlotEditorScreenState();
 }
 
+// ---------------------------------------------------------------------------
+// _WeeklySlotEditorScreenState
+// ---------------------------------------------------------------------------
+
 class _WeeklySlotEditorScreenState
     extends ConsumerState<WeeklySlotEditorScreen> {
   final _formKey = GlobalKey<FormState>();
@@ -381,6 +385,10 @@ class _WeeklySlotEditorScreenState
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// _ValueRow
+// ---------------------------------------------------------------------------
 
 /// Linha de formulário que mostra um valor e abre um seletor ao ser tocada.
 ///

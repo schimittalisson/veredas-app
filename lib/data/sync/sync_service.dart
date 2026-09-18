@@ -9,7 +9,7 @@ import 'package:veredas/data/sync/sync_entity.dart';
 /// Faz o *pull* incremental (ou fullReplace) do servidor para o cache local.
 ///
 /// As telas leem do drift, não do Supabase. O SyncService é quem alimenta o
-/// cache. A estratégia está em `PLANO.md §2.5` e `SCHEMA.md §"Estratégia de
+/// cache. A estratégia está em `docs/PLANO.md §2.5` e `docs/SCHEMA.md §"Estratégia de
 /// sincronização por tabela"`.
 ///
 /// **Janela de segurança de 2 minutos.** O pull incremental consulta

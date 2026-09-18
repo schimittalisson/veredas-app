@@ -193,6 +193,10 @@ class _AguardandoScreenState extends ConsumerState<AguardandoScreen> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _ButtonContent
+// ---------------------------------------------------------------------------
+
 /// Conteúdo de um botão com ícone que vira spinner enquanto carrega.
 ///
 /// O `CupertinoButton` não tem construtor `.icon` como o Material, então o
@@ -234,6 +238,10 @@ class _ButtonContent extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// _RedeemInviteDialog
+// ---------------------------------------------------------------------------
 
 class _RedeemInviteDialog extends StatefulWidget {
   const _RedeemInviteDialog();

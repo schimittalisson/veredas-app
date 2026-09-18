@@ -416,6 +416,10 @@ class _SlotsTable extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _AssignmentCell
+// ---------------------------------------------------------------------------
+
 class _AssignmentCell extends StatelessWidget {
   const _AssignmentCell({
     required this.assignment,
@@ -593,6 +597,10 @@ class _SimpleList extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _AssignmentListTile
+// ---------------------------------------------------------------------------
+
 class _AssignmentListTile extends StatelessWidget {
   const _AssignmentListTile({
     required this.assignment,
@@ -730,6 +738,10 @@ class _AdhocView extends ConsumerWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// _PreviousSection
+// ---------------------------------------------------------------------------
 
 /// Seção recolhível "Anteriores".
 ///

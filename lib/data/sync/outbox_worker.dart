@@ -16,7 +16,7 @@ import 'package:veredas/data/sync/sync_entity.dart';
 /// e insere a entrada na outbox. A UI atualiza na hora porque a tela observa o
 /// `Stream` do drift. O OutboxWorker envia ao servidor quando há conexão.
 ///
-/// **Tratamento por tipo de falha** (`PLANO.md §2.5`):
+/// **Tratamento por tipo de falha** (`docs/PLANO.md §2.5`):
 ///
 /// | Falha | Ação |
 /// |---|---|

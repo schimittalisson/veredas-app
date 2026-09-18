@@ -92,6 +92,10 @@ class DocumentsScreen extends ConsumerWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _SortBar
+// ---------------------------------------------------------------------------
+
 /// Seletor de ordenação.
 ///
 /// Um `CupertinoSlidingSegmentedControl` não serve aqui: são quatro opções com
@@ -179,6 +183,10 @@ String _sortLabel(AppLocalizations l, DocumentSort sort) => switch (sort) {
       DocumentSort.titleAsc => l.docs_sort_title_asc,
       DocumentSort.titleDesc => l.docs_sort_title_desc,
     };
+
+// ---------------------------------------------------------------------------
+// _DocumentTile
+// ---------------------------------------------------------------------------
 
 class _DocumentTile extends ConsumerStatefulWidget {
   const _DocumentTile({required this.document, required this.canEdit});

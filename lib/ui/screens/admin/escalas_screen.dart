@@ -64,6 +64,10 @@ class EscalasScreen extends ConsumerWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _ReorderableList
+// ---------------------------------------------------------------------------
+
 /// A lista arrastável.
 ///
 /// `ReorderableList` vem de `package:flutter/widgets.dart`, e não o
@@ -158,6 +162,10 @@ class _ReorderableListState extends ConsumerState<_ReorderableList> {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// _ScaleTypeTile
+// ---------------------------------------------------------------------------
 
 class _ScaleTypeTile extends StatelessWidget {
   const _ScaleTypeTile({

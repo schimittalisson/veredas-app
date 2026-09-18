@@ -29,6 +29,10 @@ class ScaleAssignmentEditorScreen extends ConsumerStatefulWidget {
       _ScaleAssignmentEditorScreenState();
 }
 
+// ---------------------------------------------------------------------------
+// _ScaleAssignmentEditorScreenState
+// ---------------------------------------------------------------------------
+
 class _ScaleAssignmentEditorScreenState
     extends ConsumerState<ScaleAssignmentEditorScreen> {
   final _formKey = GlobalKey<FormState>();
@@ -518,6 +522,10 @@ class _ScaleAssignmentEditorScreenState
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// _ValueRow
+// ---------------------------------------------------------------------------
 
 /// Linha de formulário que mostra um valor e abre um seletor ao ser tocada.
 ///

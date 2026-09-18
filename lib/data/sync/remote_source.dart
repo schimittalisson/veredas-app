@@ -3,7 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 /// Fonte remota abstrata para sincronização.
 ///
 /// O `SyncService` e o `OutboxWorker` dependem desta interface, não do
-/// `SupabaseClient` diretamente. Isto segue o padrão do `PLANO.md §2.4`
+/// `SupabaseClient` diretamente. Isto segue o padrão do `docs/PLANO.md §2.4`
 /// ("cada fonte remota fica atrás de uma interface abstrata") e torna os
 /// testes viáveis sem rede: uma `FakeRemoteSource` retorna dados
 /// pré-configurados.

@@ -6,7 +6,7 @@ import 'package:veredas/data/models/app_role.dart';
 // ===========================================================================
 // Tabelas de cache — espelham o servidor.
 //
-// Regras que valem para todas (PLANO.md §2.5):
+// Regras que valem para todas (docs/PLANO.md §2.5):
 //
 // 1. A PK é `text()`, não `autoIncrement`. Os ids são UUIDs gerados pelo
 //    servidor; um id local auto-incremental não teria como ser reconciliado

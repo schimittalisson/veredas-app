@@ -18,7 +18,7 @@ import 'package:veredas/ui/screens/agenda/schedule_tab.dart';
 
 /// Tela Agenda — segunda tab.
 ///
-/// Duas seções: **Eventos** | **Cronograma** (`TELAS.md` §2), alternadas por um
+/// Duas seções: **Eventos** | **Cronograma** (`docs/TELAS.md` §2), alternadas por um
 /// `CupertinoSlidingSegmentedControl` logo abaixo da navigation bar — é assim
 /// que o iOS troca de conteúdo dentro de uma mesma tela, já que não existe
 /// `TabBar` no topo. Ação de criar só para admin, na aba ativa.
@@ -130,6 +130,10 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// _SegmentLabel
+// ---------------------------------------------------------------------------
 
 /// Rótulo de um segmento. Existe só para não repetir o padding vertical, que é
 /// o que dá ao controle a altura de toque de 32 dp do iOS.

@@ -11,7 +11,7 @@ void main() {
   group('mapError — RPC de convite', () {
     // A RPC redeem_invite usa `raise exception 'INVITE_NOT_FOUND'`, que chega
     // como PostgrestException com a mensagem sendo o próprio código. É por isso
-    // que o SCHEMA.md usa identificadores em maiúsculas e não frases.
+    // que o docs/SCHEMA.md usa identificadores em maiúsculas e não frases.
     test('INVITE_NOT_FOUND', () {
       final e = mapError(PostgrestException(message: 'INVITE_NOT_FOUND'));
       expect(e.code, AppErrorCode.inviteNotFound);

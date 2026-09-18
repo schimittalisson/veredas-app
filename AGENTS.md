@@ -4,7 +4,7 @@
 convenções, os comandos e — o mais importante — as armadilhas de versão que vão
 te custar tempo se você ignorá-las.
 
-Ordem de leitura: `PLANO.md` → este arquivo → `SCHEMA.md` / `TELAS.md`.
+Ordem de leitura: `docs/PLANO.md` → este arquivo → `docs/SCHEMA.md` / `docs/TELAS.md`.
 
 ---
 
@@ -337,7 +337,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/inicio',
     refreshListenable: ref.watch(routerRefreshProvider),
-    redirect: (context, state) { /* guard, ver PLANO.md Fase 3 */ },
+    redirect: (context, state) { /* guard, ver docs/PLANO.md Fase 3 */ },
     routes: [...],
   );
 });
@@ -437,11 +437,11 @@ Helpers em `test/helpers/test_helpers.dart`: `createTestDatabase()`,
    a `anon key`.
 2. **Nunca** embarcar a chave `service_role` no app.
 3. Ocultar um botão na UI **não é** controle de acesso. Toda permissão tem
-   policy correspondente no banco (`SCHEMA.md` §6).
+   policy correspondente no banco (`docs/SCHEMA.md` §6).
 4. Funções que consultam `profiles` dentro de policies de `profiles` precisam ser
    `security definer` com `search_path` fixo — senão: recursão infinita de RLS.
 5. Usuário comum **não pode** alterar o próprio `role`/`is_approved`. Garantido
-   por policy **e** por trigger (`SCHEMA.md` §8).
+   por policy **e** por trigger (`docs/SCHEMA.md` §8).
 6. Não logar tokens, sessões ou dados pessoais. Cuidado com `print` de
    `PostgrestException`, que às vezes carrega o payload.
 7. Não commitar `env/*.json` (exceto `.example`), keystores (`*.jks`) ou
@@ -564,7 +564,7 @@ Atualize esta seção ao concluir cada fase.
 3. **`adb shell input tap` usa pixels físicos** (1080×2400 no AVD), não as
    coordenadas da imagem escalada exibida no visualizador.
 
-**Correções no PLANO.md §3 — as versões declaradas não resolvem**
+**Correções no docs/PLANO.md §3 — as versões declaradas não resolvem**
 
 O plano afirma que as versões foram "todas verificadas contra Flutter 3.44.8".
 Duas não são resolvíveis; ambas foram corrigidas no `pubspec.yaml`, com o motivo
@@ -581,9 +581,9 @@ vez que o gerador do drift roda de verdade. Se der conflito, a saída é abandon
 o `freezed` (escrever os modelos à mão) e subir o `drift_dev`, não usar
 prerelease.
 
-**Correção no SCHEMA.md §3 — `manages_scale` na ordem errada**
+**Correção no docs/SCHEMA.md §3 — `manages_scale` na ordem errada**
 
-O `SCHEMA.md` diz que "o corpo de uma função `language sql` só é resolvido na
+O `docs/SCHEMA.md` diz que "o corpo de uma função `language sql` só é resolvido na
 execução, então criar a função antes da tabela funciona". **Isso é falso** com
 `check_function_bodies = on`, que é o padrão no Supabase: o corpo é validado já
 no `CREATE FUNCTION`, e `manages_scale` referencia `public.scale_managers`
@@ -594,7 +594,7 @@ Extraída para `migrations/20260803000450_manages_scale.sql`, aplicada **depois*
 das tabelas de domínio. As outras funções (`is_approved`, `is_admin`,
 `norm_text`) não dependem de tabela de domínio e ficaram na `0300`.
 
-**Correção no PLANO.md — `minSdk`**
+**Correção no docs/PLANO.md — `minSdk`**
 
 O plano manda fixar `minSdk = 23`. O default do Flutter 3.44 é **24**, então 23
 seria um downgrade, e o `flutter build` reescreve o `build.gradle.kts` na
@@ -604,7 +604,7 @@ migração do Gradle, revertendo o valor fixado. Mantido
 **Depreciação no supabase_flutter 2.16**
 
 `Supabase.initialize(anonKey:)` foi depreciado em favor de `publishableKey:`.
-O `PLANO.md` e este arquivo citam o nome antigo. A variável de ambiente segue
+O `docs/PLANO.md` e este arquivo citam o nome antigo. A variável de ambiente segue
 `SUPABASE_ANON_KEY` (o parâmetro aceita as duas chaves do painel).
 
 **Melhorias no schema (não pedidas, mas necessárias)**
@@ -622,7 +622,7 @@ O `PLANO.md` e este arquivo citam o nome antigo. A variável de ambiente segue
 **Desvio de convenção: l10n sem `!`**
 
 `l10n.yaml` usa `nullable-getter: false`, então o correto é
-`AppLocalizations.of(context)` — **sem** o `!` que o `TELAS.md` §"Padrões
+`AppLocalizations.of(context)` — **sem** o `!` que o `docs/TELAS.md` §"Padrões
 obrigatórios" prescreve. Com o getter não-nulo, o `!` seria erro de lint
 (`unnecessary_non_null_assertion`). Escolhido o getter não-nulo por eliminar
 uma classe inteira de null-assertions ruidosas.
@@ -725,7 +725,7 @@ Três bugs reais foram encontrados e corrigidos:
    empiricamente, não era teoria.
 2. **Era impossível criar o primeiro admin.** O trigger
    `protect_profile_privileges` avalia `is_admin()`, que é `false` no SQL Editor
-   porque ali `auth.uid()` é `NULL`. O `UPDATE` de promoção que o `SCHEMA.md` §9
+   porque ali `auth.uid()` é `NULL`. O `UPDATE` de promoção que o `docs/SCHEMA.md` §9
    e o `supabase/README.md` passo 7 mandam rodar morria com
    `FORBIDDEN_PRIVILEGE_CHANGE`, **sem nenhuma saída** — a base não poderia ser
    bootstrapada. Corrigido com uma exceção para `auth.uid() is null` na
@@ -769,7 +769,7 @@ perceberia. Com ~dezenas de posts numa base de 30 obreiros, baixar a view
 inteira a cada sync é trivial. `prayer_comments` (tabela, tem `deleted_at`)
 continua incremental.
 
-**`RemoteSource` como interface abstrata.** O `PLANO.md §2.4` prevê que "cada
+**`RemoteSource` como interface abstrata.** O `docs/PLANO.md §2.4` prevê que "cada
 fonte remota fica atrás de uma interface abstrata". O `SyncService` e o
 `OutboxWorker` dependem de `RemoteSource`, não de `SupabaseClient` diretamente.
 Isto torna os testes viáveis sem mockar a cadeia fluent do supabase_flutter
@@ -888,7 +888,7 @@ valor atual. Solução: helper `waitForAuthState` que usa `container.listen` +
 
 #### ⚠ Semântica do RLS que afeta o OutboxWorker (ler antes da Fase 4)
 
-Descoberta ao escrever as asserções, e **não** está no `PLANO.md`:
+Descoberta ao escrever as asserções, e **não** está no `docs/PLANO.md`:
 
 | Operação | RLS reprova em | Resultado |
 |---|---|---|
@@ -896,7 +896,7 @@ Descoberta ao escrever as asserções, e **não** está no `PLANO.md`:
 | `UPDATE` que gera linha proibida | `WITH CHECK` | **erro** `42501` |
 | `UPDATE` / `DELETE` de linha invisível | `USING` | **0 linhas, SEM erro** |
 
-O `PLANO.md` §2.5 diz que o `OutboxWorker` deve tratar "`PostgrestException`
+O `docs/PLANO.md` §2.5 diz que o `OutboxWorker` deve tratar "`PostgrestException`
 401/403 (RLS negou) → remove da fila, reverte o cache". **Isso cobre só metade
 dos casos.** Um `UPDATE` ou `DELETE` negado pelo `USING` volta **HTTP 200 com
 lista vazia**, não 403. Se o worker tratar 200 como sucesso, ele marca o item

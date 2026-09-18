@@ -1,14 +1,14 @@
 -- =========================================================================
 -- §4 — Tabelas de domínio
 --
--- Convenção obrigatória em toda tabela sincronizada (ver PLANO.md §2.5):
+-- Convenção obrigatória em toda tabela sincronizada (ver docs/PLANO.md §2.5):
 --   updated_at timestamptz  -> marca d'água do pull incremental (trigger na 0800)
 --   deleted_at timestamptz  -> soft delete; sem isso um dispositivo offline
 --                              nunca descobre que uma linha foi removida.
 --
 -- Exceções conscientes: scale_managers e prayer_interactions não têm
 -- deleted_at. Elas sofrem DELETE físico e têm estratégia de sync própria
--- (full replace / não cacheada). Ver SCHEMA.md "Estratégia de sync por tabela".
+-- (full replace / não cacheada). Ver docs/SCHEMA.md "Estratégia de sync por tabela".
 -- =========================================================================
 
 -- -------------------------------------------------------------------------

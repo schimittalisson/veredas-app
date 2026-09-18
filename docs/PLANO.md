@@ -12,7 +12,7 @@ Flutter (Android + iOS), backend Supabase, cache offline com drift.
 > | `PLANO.md` (este) | Visão, arquitetura, decisões, fases de execução, critérios de aceite |
 > | `SCHEMA.md` | SQL completo do Supabase: tabelas, RLS, funções, triggers, seeds |
 > | `TELAS.md` | Especificação de UI tela por tela (layout, widgets, estados, permissões) |
-> | `AGENTS.md` | Convenções de código, comandos e armadilhas — ler antes de escrever código |
+> | `../AGENTS.md` | Convenções de código, comandos e armadilhas — ler antes de escrever código |
 > | `sample-images/` | Mockups de referência das telas Início, Agenda e Oração |
 
 ---
@@ -104,7 +104,7 @@ viável.
 Mantemos Riverpod (paridade com o CalorieMate), mas na versão **3.4.x**, estável
 desde set/2025. **A API mudou em relação ao CalorieMate (Riverpod 2.5).** Não
 copie os providers do CalorieMate literalmente — ver a tabela de diferenças em
-`AGENTS.md` §4.
+`../AGENTS.md` §4.
 
 Sem `riverpod_generator`: providers escritos à mão, como no CalorieMate. Menos
 codegen, menos superfície de falha.
@@ -713,7 +713,7 @@ dispositivo real, fluxo completo validado com 2 contas de papéis diferentes.
 | 4 | Deleção não propaga para quem estava offline | *Soft delete* obrigatório (`deleted_at`) em toda tabela sincronizada |
 | 5 | Complexidade do outbox estoura o prazo | Se necessário, degradar escopo: escrita exige conexão (com UI otimista), leitura permanece offline. Decisão consciente, não acidente. |
 | 6 | Projeto Supabase free **pausa após 7 dias sem requisições** | Uso diário evita. Se o app ficar parado entre fases, reative no painel. |
-| 7 | Riverpod 3 pausa providers fora de vista e retenta erros automaticamente — comportamento diferente do CalorieMate | Ler `AGENTS.md` §4 antes de escrever providers |
+| 7 | Riverpod 3 pausa providers fora de vista e retenta erros automaticamente — comportamento diferente do CalorieMate | Ler `../AGENTS.md` §4 antes de escrever providers |
 | 8 | `freezed` 3.x e `flutter_lints` 6.x têm sintaxe/regras diferentes das do CalorieMate | Não copiar modelos do CalorieMate literalmente |
 | 9 | Grade do cronograma quebra em telas estreitas | Testar em 360 dp desde a Fase 6; scroll horizontal com cabeçalho fixo |
 | 10 | Convite vazando permite cadastro indevido | `max_uses` + `expires_at` + admin pode revogar; aprovação manual como segunda barreira |

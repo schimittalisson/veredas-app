@@ -2,7 +2,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 
 /// Monitor de conectividade abstrato.
 ///
-/// Segue o padrão do `PLANO.md §2.4` — o mesmo de [RemoteSource] e
+/// Segue o padrão do `docs/PLANO.md §2.4` — o mesmo de [RemoteSource] e
 /// `AuthService`: o plugin fica atrás de uma interface, para o comportamento ser
 /// testável sem `MethodChannel` nem rede.
 ///

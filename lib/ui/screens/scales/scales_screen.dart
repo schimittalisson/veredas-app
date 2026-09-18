@@ -72,6 +72,10 @@ class ScalesScreen extends ConsumerWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _ScalesScaffold
+// ---------------------------------------------------------------------------
+
 /// Scaffold dos estados sem abas (carregando, erro, nenhuma escala).
 class _ScalesScaffold extends StatelessWidget {
   const _ScalesScaffold({required this.title, required this.body});
@@ -93,6 +97,10 @@ class _ScalesScaffold extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// _ScalesBody
+// ---------------------------------------------------------------------------
 
 class _ScalesBody extends ConsumerStatefulWidget {
   const _ScalesBody({required this.scaleTypes});
@@ -251,6 +259,10 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
   }
 }
 
+// ---------------------------------------------------------------------------
+// _ScaleTabBar
+// ---------------------------------------------------------------------------
+
 /// Barra de abas rolável, no lugar da `TabBar` do Material.
 ///
 /// O equivalente idiomático no iOS seria o `CupertinoSlidingSegmentedControl`,
@@ -296,6 +308,10 @@ class _ScaleTabBar extends StatelessWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// _ScaleTab
+// ---------------------------------------------------------------------------
 
 class _ScaleTab extends StatelessWidget {
   const _ScaleTab({

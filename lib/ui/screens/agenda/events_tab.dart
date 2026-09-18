@@ -180,6 +180,10 @@ class _EventsTabState extends ConsumerState<EventsTab> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _SelectedDayEvents
+// ---------------------------------------------------------------------------
+
 class _SelectedDayEvents extends ConsumerWidget {
   const _SelectedDayEvents({required this.selectedDay});
 
@@ -244,6 +248,10 @@ class _SelectedDayEvents extends ConsumerWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// _UpcomingEvents
+// ---------------------------------------------------------------------------
+
 class _UpcomingEvents extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -281,6 +289,10 @@ class _UpcomingEvents extends ConsumerWidget {
     );
   }
 }
+
+// ---------------------------------------------------------------------------
+// EventCard
+// ---------------------------------------------------------------------------
 
 /// Linha de evento na lista do dia.
 ///
