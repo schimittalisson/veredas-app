@@ -18,6 +18,7 @@ import 'package:veredas/ui/screens/auth/aguardando_screen.dart';
 import 'package:veredas/ui/screens/auth/cadastro_screen.dart';
 import 'package:veredas/ui/screens/auth/esqueci_senha_screen.dart';
 import 'package:veredas/ui/screens/auth/login_screen.dart';
+import 'package:veredas/ui/screens/auth/nova_senha_screen.dart';
 import 'package:veredas/ui/screens/auth/splash_screen.dart';
 import 'package:veredas/ui/screens/documents/document_editor_screen.dart';
 import 'package:veredas/ui/screens/documents/documents_screen.dart';
@@ -44,6 +45,7 @@ class Routes {
   static const String login = '/login';
   static const String cadastro = '/cadastro';
   static const String esqueciSenha = '/esqueci-senha';
+  static const String novaSenha = '/nova-senha';
   static const String aguardando = '/aguardando';
 
   // Rotas de administração.
@@ -133,6 +135,15 @@ final routerProvider = Provider<GoRouter>((ref) {
     (_,_) => refreshNotifier.refresh(),
     fireImmediately: true,
   );
+  // O `fireImmediately` aqui não é só para reavaliar o redirect: é o que cria
+  // o provider já no start. Se ele só nascesse no primeiro `read` de dentro do
+  // redirect, um app aberto **pelo** link de recuperação poderia perder o
+  // evento, que chega uma única vez.
+  ref.listen<bool>(
+    passwordRecoveryProvider,
+    (_,_) => refreshNotifier.refresh(),
+    fireImmediately: true,
+  );
 
   ref.onDispose(refreshNotifier.dispose);
 
@@ -160,6 +171,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.esqueciSenha,
         builder: (context, state) => const EsqueciSenhaScreen(),
+      ),
+      GoRoute(
+        path: Routes.novaSenha,
+        builder: (context, state) => const NovaSenhaScreen(),
       ),
       GoRoute(
         path: Routes.aguardando,
@@ -324,6 +339,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 ///
 /// Regras (docs/PLANO.md Fase 3):
 /// 1. Sem sessão → `/login` (exceto se já em rota de auth).
+/// 1.5 Sessão vinda de link de recuperação de senha → `/nova-senha`.
 /// 2. Com sessão e `is_approved == false` → `/aguardando` (exceto se já em
 ///    rota permitida para não aprovado).
 /// 3. Com sessão aprovada em rota de auth → `/inicio`.
@@ -351,6 +367,19 @@ String? _redirect(Ref ref, String location) {
   if (!isAuthenticated) {
     if (Routes.unauthenticated.contains(location)) return null;
     return Routes.login;
+  }
+
+  // 1.5 Sessão nascida de um link de recuperação de senha.
+  //
+  //     Vem **antes** da checagem de aprovação de propósito. Quem recupera a
+  //     senha pode não estar aprovado, e mandá-lo para /aguardando esconderia
+  //     justamente a tela que ele precisa usar.
+  //
+  //     Este é o desvio que impede o link do e-mail de virar um login sem
+  //     senha: sem ele, a sessão criada pelo link caía direto em /inicio, com
+  //     a senha antiga ainda válida e nenhum rastro de que alguém entrou.
+  if (ref.read(passwordRecoveryProvider)) {
+    return location == Routes.novaSenha ? null : Routes.novaSenha;
   }
 
   // 2. Com sessão — verifica aprovação.
@@ -385,8 +414,14 @@ String? _redirect(Ref ref, String location) {
   }
 
   // 3. Aprovado em rota de auth/splash/aguardando → manda para /inicio.
+  //
+  //    `/nova-senha` entra na lista porque a regra 1.5 já não vale mais quando
+  //    se chega aqui: o modo recuperação desliga assim que a senha é trocada, e
+  //    sem esta linha o usuário ficaria parado na tela de senha nova, que não
+  //    tem botão de voltar.
   if (Routes.unauthenticated.contains(location) ||
       location == Routes.splash ||
+      location == Routes.novaSenha ||
       location == Routes.aguardando) {
     return Routes.inicio;
   }
@@ -407,3 +442,17 @@ String? _redirect(Ref ref, String location) {
 class _RouterRefreshNotifier extends ChangeNotifier {
   void refresh() => notifyListeners();
 }
+
+// ---------------------------------------------------------------------------
+// redirectForTest
+// ---------------------------------------------------------------------------
+
+/// Acesso ao `_redirect` para os testes.
+///
+/// O doc do `_redirect` diz que ele foi extraído "para poder testar
+/// isoladamente", mas ele é privado — então não havia como. A regra de
+/// redirecionamento é a parte do router que mais compensa cobrir: é ela que
+/// decide quem entra onde, incluindo o desvio que impede um link de
+/// recuperação de senha de virar acesso ao app.
+@visibleForTesting
+String? redirectForTest(Ref ref, String location) => _redirect(ref, location);

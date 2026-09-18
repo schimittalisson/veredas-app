@@ -31,6 +31,7 @@ class SupabaseAuthService implements AuthService {
       (event) => AuthState(
         session: event.session,
         user: event.session?.user,
+        event: event.event,
       ),
     );
   }
@@ -207,6 +208,15 @@ class SupabaseAuthService implements AuthService {
         email,
         redirectTo: 'br.com.veredas.app://login-callback/',
       );
+    } catch (e) {
+      throw mapError(e);
+    }
+  }
+
+  @override
+  Future<void> updatePassword(String newPassword) async {
+    try {
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
     } catch (e) {
       throw mapError(e);
     }

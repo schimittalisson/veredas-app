@@ -22,7 +22,7 @@ Referência visual: `sample-images/tela-inicio.jpeg`, `tela-agenda.jpeg`,
 Rotas *pushed* (fora do shell, sem bottom bar):
 
 ```
-/login  /cadastro  /esqueci-senha  /aguardando
+/login  /cadastro  /esqueci-senha  /nova-senha  /aguardando
 /perfil  /perfil/editar
 /admin  /admin/membros  /admin/convites  /admin/responsaveis
 /admin/escalas  /admin/escalas/nova  /admin/escalas/editar
@@ -416,6 +416,26 @@ garante isso mesmo com deep link.
 E-mail + `resetPasswordForEmail`, com deep link de retorno
 (`br.com.veredas.app://login-callback/`). Configurar
 `CFBundleURLTypes` (iOS) e `intent-filter` (Android).
+
+### 5.5-A Nova senha (`/nova-senha`)
+
+Segundo passo da recuperação. O link do e-mail cria uma sessão — é ela que
+autoriza o `updateUser(password:)` —, e o `redirect` do router traz para cá
+antes de qualquer outra rota, inclusive antes da checagem de aprovação.
+
+Dois campos (senha e confirmação, mínimo 8 caracteres), sem botão de voltar nem
+de sair: enquanto a senha não for trocada, o redirect devolve para esta tela.
+
+**Por que a tela existe.** Sem ela, a sessão criada pelo link caía direto em
+`/inicio`: quem abrisse o e-mail entrava no app sem definir senha nenhuma, a
+senha antiga continuava válida e o dono da conta não tinha como perceber. Pior,
+a sessão do link se renovava por refresh token — um link de 15 minutos virava
+acesso permanente.
+
+O estado "veio de um link" fica no `passwordRecoveryProvider`, e não no evento
+do Supabase: o `AuthChangeEvent.passwordRecovery` chega uma vez só, e qualquer
+refresh de token posterior jogaria o usuário para fora da tela no meio da
+digitação.
 
 ### 5.6 Perfil (`/perfil`)
 

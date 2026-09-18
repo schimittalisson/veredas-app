@@ -10,12 +10,24 @@ import 'package:veredas/data/models/app_role.dart';
 /// (necessário para chamadas autenticadas ao Supabase), mas a UI trabalha com
 /// `user` — é o que determina "está logado".
 class AuthState {
-  const AuthState({this.session, this.user});
+  const AuthState({this.session, this.user, this.event});
 
   final Session? session;
   final User? user;
 
+  /// O evento que originou este estado.
+  ///
+  /// Existe por um motivo só: distinguir uma sessão nascida de um **link de
+  /// recuperação de senha** de uma sessão de login normal. As duas trazem
+  /// `user` preenchido e seriam indistinguíveis sem isto — o router mandaria
+  /// quem clicou no link direto para `/inicio`, logado, sem nunca pedir a
+  /// senha nova. Ver `passwordRecoveryProvider`.
+  final AuthChangeEvent? event;
+
   bool get isAuthenticated => user != null;
+
+  /// A sessão nasceu de um link de recuperação de senha.
+  bool get isPasswordRecovery => event == AuthChangeEvent.passwordRecovery;
 
   static const AuthState unauthenticated =
       AuthState(session: null, user: null);
@@ -128,6 +140,13 @@ abstract class AuthService {
   /// O e-mail contém um deep link de volta para o app
   /// (`br.com.veredas.app://login-callback/`).
   Future<void> resetPassword(String email);
+
+  /// Define uma nova senha para o usuário **já logado**.
+  ///
+  /// É o segundo passo do [resetPassword]: o link do e-mail cria a sessão, e é
+  /// ela que autoriza esta chamada. Também serve para trocar a senha por
+  /// vontade própria, sem passar por e-mail nenhum.
+  Future<void> updatePassword(String newPassword);
 
   /// Reenvia o e-mail de confirmação de cadastro.
   Future<void> resendEmailConfirmation(String email);

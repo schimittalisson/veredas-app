@@ -5,14 +5,17 @@ import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' hide AuthState;
 
 import 'package:veredas/core/error/app_exception.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/data/models/app_role.dart';
+import 'package:veredas/data/models/profile.dart';
 import 'package:veredas/data/remote/auth_service.dart';
 import 'package:veredas/data/sync/connectivity_monitor.dart';
 import 'package:veredas/data/sync/remote_source.dart';
+import 'package:veredas/providers/auth_providers.dart';
 
 // Silencia o warning de "múltiplas instâncias do banco" — cada teste cria
 // seu próprio NativeDatabase.memory(), então não há risco de corrida.
@@ -409,6 +412,16 @@ class FakeAuthService implements AuthService {
     _controller.add(_currentState);
   }
 
+  /// Simula a sessão criada por um link de recuperação de senha.
+  void simulatePasswordRecovery({String userId = 'test-user-id'}) {
+    _currentState = AuthState(
+      session: null,
+      user: _FakeUser(id: userId),
+      event: AuthChangeEvent.passwordRecovery,
+    );
+    _controller.add(_currentState);
+  }
+
   /// Simula logout.
   void simulateUnauthenticated() {
     _currentState = AuthState.unauthenticated;
@@ -532,6 +545,19 @@ class FakeAuthService implements AuthService {
     calls.add('resetPassword:$email');
   }
 
+  /// Exceção a lançar no próximo updatePassword.
+  dynamic updatePasswordError;
+
+  @override
+  Future<void> updatePassword(String newPassword) async {
+    calls.add('updatePassword');
+    if (updatePasswordError != null) {
+      final e = updatePasswordError;
+      updatePasswordError = null;
+      throw e;
+    }
+  }
+
   @override
   Future<void> resendEmailConfirmation(String email) async {
     calls.add('resendConfirmation:$email');
@@ -567,4 +593,62 @@ class _FakeUser implements User {
 /// Cria uma AppException para usar nos testes de auth.
 AppException makeAuthException(AppErrorCode code) {
   return AppException(code);
+}
+
+// ---------------------------------------------------------------------------
+// Esperas sobre providers
+// ---------------------------------------------------------------------------
+
+/// Um `Ref` do container.
+///
+/// Serve para chamar código que recebe `Ref` — como o `redirectForTest` do
+/// router — de dentro de um teste, que só tem um `ProviderContainer`.
+final refProvider = Provider<Ref>((ref) => ref);
+
+/// Aguarda o authStateProvider emitir um estado que satisfaz [test].
+Future<AuthState> waitForAuthState(
+  ProviderContainer container,
+  bool Function(AuthState) test,
+) async {
+  final completer = Completer<AuthState>();
+  final sub = container.listen<AsyncValue<AuthState>>(
+    authStateProvider,
+    (_, value) {
+      if (value.hasValue && !completer.isCompleted && test(value.value!)) {
+        completer.complete(value.value!);
+      }
+    },
+    fireImmediately: true,
+  );
+  final result = await completer.future.timeout(
+    const Duration(seconds: 5),
+    onTimeout: () => throw TimeoutException('authStateProvider não emitiu'),
+  );
+  sub.close();
+  return result;
+}
+
+/// Aguarda o currentProfileProvider emitir um valor que satisfaz [test].
+/// Para null, use (p) => p == null. Para non-null, use (p) => p != null.
+Future<Profile?> waitForProfile(
+  ProviderContainer container,
+  bool Function(Profile?) test,
+) async {
+  final completer = Completer<Profile?>();
+  final sub = container.listen<AsyncValue<Profile?>>(
+    currentProfileProvider,
+    (_, value) {
+      if (value.hasValue && !completer.isCompleted && test(value.value!)) {
+        completer.complete(value.value!);
+      }
+    },
+    fireImmediately: true,
+  );
+  final result = await completer.future.timeout(
+    const Duration(seconds: 5),
+    onTimeout: () =>
+        throw TimeoutException('currentProfileProvider não emitiu'),
+  );
+  sub.close();
+  return result;
 }

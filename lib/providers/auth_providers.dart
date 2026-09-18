@@ -27,6 +27,46 @@ final authStateProvider = StreamProvider<AuthState>((ref) {
   return auth.authStateChanges;
 });
 
+/// `true` enquanto a sessão atual veio de um link de recuperação de senha e a
+/// senha ainda **não** foi trocada.
+///
+/// **Por que um provider com estado, e não ler o evento direto.** O
+/// `AuthChangeEvent.passwordRecovery` chega **uma vez**. Qualquer emissão
+/// posterior do `onAuthStateChange` — um `tokenRefreshed`, que acontece
+/// sozinho — traria outro evento, e o router devolveria o usuário para
+/// `/inicio` no meio da digitação da senha nova. O estado precisa grudar até
+/// alguém desligá-lo.
+///
+/// Desliga em dois casos: a senha foi trocada com sucesso ([clear]) ou a
+/// sessão caiu.
+final passwordRecoveryProvider =
+    NotifierProvider<PasswordRecoveryNotifier, bool>(
+  PasswordRecoveryNotifier.new,
+);
+
+class PasswordRecoveryNotifier extends Notifier<bool> {
+  @override
+  bool build() {
+    // O `listen` sozinho não basta: se o app foi aberto **pelo** link, o
+    // evento pode chegar antes deste provider existir. Ler o valor corrente
+    // cobre esse caso; o listen cobre os seguintes.
+    ref.listen<AsyncValue<AuthState>>(authStateProvider, (_, next) {
+      final auth = next.value;
+      if (auth == null) return;
+      if (auth.isPasswordRecovery) {
+        state = true;
+      } else if (!auth.isAuthenticated) {
+        state = false;
+      }
+    });
+
+    return ref.read(authStateProvider).value?.isPasswordRecovery ?? false;
+  }
+
+  /// Chamado depois que a senha nova foi aceita pelo servidor.
+  void clear() => state = false;
+}
+
 /// O usuário logado, ou null.
 ///
 /// Derivado do `authStateProvider` — não é um provider separado porque o
@@ -209,6 +249,15 @@ class AuthActions extends Notifier<void> {
   Future<void> deleteOwnAccount() => _auth.deleteOwnAccount();
 
   Future<void> resetPassword(String email) => _auth.resetPassword(email);
+
+  /// Troca a senha e encerra o modo recuperação.
+  ///
+  /// O `clear()` só roda depois do `await`: se o servidor recusar, o usuário
+  /// continua preso na tela de senha nova, que é onde ele precisa estar.
+  Future<void> updatePassword(String newPassword) async {
+    await _auth.updatePassword(newPassword);
+    ref.read(passwordRecoveryProvider.notifier).clear();
+  }
 
   Future<void> resendEmailConfirmation(String email) =>
       _auth.resendEmailConfirmation(email);

@@ -91,6 +91,16 @@
   "auth_reset_email_sent": "Verifique seu e-mail para o link de recuperação.",
   "auth_sending": "Enviando…",
 
+  "auth_new_password_title": "Nova senha",
+  "auth_new_password_subtitle": "Defina a senha que você vai usar para entrar no app.",
+  "auth_new_password_label": "Nova senha",
+  "auth_new_password_confirm_label": "Repita a nova senha",
+  "auth_new_password_save": "Salvar senha",
+  "auth_new_password_saving": "Salvando…",
+  "auth_new_password_done": "Senha alterada.",
+  "auth_error_password_too_short": "A senha precisa ter ao menos 8 caracteres.",
+  "auth_error_password_mismatch": "As senhas não conferem.",
+
   "auth_pending_title": "Aguardando aprovação",
   "auth_pending_message": "Sua conta está aguardando aprovação da liderança.",
   "auth_pending_check_again": "Verificar novamente",

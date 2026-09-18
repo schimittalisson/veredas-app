@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,60 +5,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:veredas/core/error/app_exception.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/data/models/app_role.dart';
-import 'package:veredas/data/models/profile.dart';
-import 'package:veredas/data/remote/auth_service.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
 
 import '../helpers/test_helpers.dart';
-
-/// Aguarda o authStateProvider emitir um estado que satisfaz [test].
-Future<AuthState> waitForAuthState(
-  ProviderContainer container,
-  bool Function(AuthState) test,
-) async {
-  final completer = Completer<AuthState>();
-  final sub = container.listen<AsyncValue<AuthState>>(
-    authStateProvider,
-    (_, value) {
-      if (value.hasValue && !completer.isCompleted && test(value.value!)) {
-        completer.complete(value.value!);
-      }
-    },
-    fireImmediately: true,
-  );
-  final result = await completer.future.timeout(
-    const Duration(seconds: 5),
-    onTimeout: () => throw TimeoutException('authStateProvider não emitiu'),
-  );
-  sub.close();
-  return result;
-}
-
-/// Aguarda o currentProfileProvider emitir um valor que satisfaz [test].
-/// Para null, use (p) => p == null. Para non-null, use (p) => p != null.
-Future<Profile?> waitForProfile(
-  ProviderContainer container,
-  bool Function(Profile?) test,
-) async {
-  final completer = Completer<Profile?>();
-  final sub = container.listen<AsyncValue<Profile?>>(
-    currentProfileProvider,
-    (_, value) {
-      if (value.hasValue && !completer.isCompleted && test(value.value!)) {
-        completer.complete(value.value!);
-      }
-    },
-    fireImmediately: true,
-  );
-  final result = await completer.future.timeout(
-    const Duration(seconds: 5),
-    onTimeout: () =>
-        throw TimeoutException('currentProfileProvider não emitiu'),
-  );
-  sub.close();
-  return result;
-}
 
 void main() {
   late AppDatabase db;
