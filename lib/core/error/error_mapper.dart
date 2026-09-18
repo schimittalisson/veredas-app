@@ -115,6 +115,24 @@ AppException _mapPostgrest(PostgrestException e, StackTrace? st) {
   if (message.contains('NOT_AUTHENTICATED')) {
     return AppException(AppErrorCode.notAuthenticated, cause: e, stackTrace: st);
   }
+  if (message.contains('LAUNDRY_SLOT_BLOCKED')) {
+    return AppException(AppErrorCode.laundrySlotBlocked,
+        cause: e, stackTrace: st);
+  }
+  if (message.contains('LAUNDRY_PAST_DATE')) {
+    return AppException(AppErrorCode.laundryPastDate, cause: e, stackTrace: st);
+  }
+  // A máquina ou a faixa saiu do cadastro entre o desenho da grade e o toque.
+  // Do ponto de vista de quem tocou, é o mesmo caso de "atualize a planilha".
+  if (message.contains('LAUNDRY_MACHINE_NOT_FOUND') ||
+      message.contains('LAUNDRY_TIME_SLOT_NOT_FOUND') ||
+      message.contains('LAUNDRY_RESERVATION_NOT_FOUND')) {
+    return AppException(AppErrorCode.conflict, cause: e, stackTrace: st);
+  }
+  if (message.contains('FORBIDDEN_NOT_OWNER') ||
+      message.contains('FORBIDDEN_NOT_APPROVED')) {
+    return AppException(AppErrorCode.permissionDenied, cause: e, stackTrace: st);
+  }
   if (message.contains('FORBIDDEN_PRIVILEGE_CHANGE')) {
     return AppException(AppErrorCode.permissionDenied, cause: e, stackTrace: st);
   }

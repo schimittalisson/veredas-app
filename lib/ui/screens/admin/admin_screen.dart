@@ -45,6 +45,12 @@ class AdminScreen extends ConsumerWidget {
         route: '/admin/escalas',
       ),
       _AdminOption(
+        icon: CupertinoIcons.drop,
+        title: l.laundry_admin_title,
+        subtitle: l.laundry_admin_desc,
+        route: '/admin/lavanderia',
+      ),
+      _AdminOption(
         icon: CupertinoIcons.info_circle,
         title: l.admin_base_data,
         subtitle: l.admin_base_data_desc,

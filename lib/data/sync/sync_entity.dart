@@ -622,6 +622,118 @@ Future<void> _restoreDocument(AppDatabase db, Map<String, dynamic> j) async {
 // posts que aparecem no feed.
 // ---------------------------------------------------------------------------
 
+// --- laundry ----------------------------------------------------------------
+
+Future<void> _upsertLaundryMachine(AppDatabase db, Map<String, dynamic> j) async {
+  await db.into(db.laundryMachineRows).insertOnConflictUpdate(
+        LaundryMachineRow(
+          id: j['id'] as String,
+          name: j['name'] as String,
+          note: j['note'] as String?,
+          isActive: _bool(j['is_active'], d: true),
+          ordering: _intReq(j['ordering']),
+          updatedAt: _dtReq(j['updated_at']),
+        ),
+      );
+}
+
+Future<void> _removeLaundryMachine(AppDatabase db, String id) async {
+  await (db.delete(db.laundryMachineRows)..where((t) => t.id.equals(id))).go();
+}
+
+Future<void> _clearLaundryMachine(AppDatabase db) async {
+  await db.delete(db.laundryMachineRows).go();
+}
+
+Future<void> _restoreLaundryMachine(AppDatabase db, Map<String, dynamic> j) async {
+  await db.into(db.laundryMachineRows)
+      .insertOnConflictUpdate(LaundryMachineRow.fromJson(j));
+}
+
+Future<void> _upsertLaundryTimeSlot(AppDatabase db, Map<String, dynamic> j) async {
+  await db.into(db.laundryTimeSlotRows).insertOnConflictUpdate(
+        LaundryTimeSlotRow(
+          id: j['id'] as String,
+          startsAtMinutes: _timeToMinutes(j['starts_at']),
+          endsAtMinutes: _timeToMinutesOpt(j['ends_at']),
+          isActive: _bool(j['is_active'], d: true),
+          ordering: _intReq(j['ordering']),
+          updatedAt: _dtReq(j['updated_at']),
+        ),
+      );
+}
+
+Future<void> _removeLaundryTimeSlot(AppDatabase db, String id) async {
+  await (db.delete(db.laundryTimeSlotRows)..where((t) => t.id.equals(id))).go();
+}
+
+Future<void> _clearLaundryTimeSlot(AppDatabase db) async {
+  await db.delete(db.laundryTimeSlotRows).go();
+}
+
+Future<void> _restoreLaundryTimeSlot(AppDatabase db, Map<String, dynamic> j) async {
+  await db.into(db.laundryTimeSlotRows)
+      .insertOnConflictUpdate(LaundryTimeSlotRow.fromJson(j));
+}
+
+Future<void> _upsertLaundryBlock(AppDatabase db, Map<String, dynamic> j) async {
+  await db.into(db.laundryBlockRows).insertOnConflictUpdate(
+        LaundryBlockRow(
+          id: j['id'] as String,
+          machineId: j['machine_id'] as String,
+          timeSlotId: j['time_slot_id'] as String,
+          weekday: _intReq(j['weekday']),
+          reason: j['reason'] as String?,
+          updatedAt: _dtReq(j['updated_at']),
+        ),
+      );
+}
+
+Future<void> _removeLaundryBlock(AppDatabase db, String id) async {
+  await (db.delete(db.laundryBlockRows)..where((t) => t.id.equals(id))).go();
+}
+
+Future<void> _clearLaundryBlock(AppDatabase db) async {
+  await db.delete(db.laundryBlockRows).go();
+}
+
+Future<void> _restoreLaundryBlock(AppDatabase db, Map<String, dynamic> j) async {
+  await db.into(db.laundryBlockRows)
+      .insertOnConflictUpdate(LaundryBlockRow.fromJson(j));
+}
+
+Future<void> _upsertLaundryReservation(
+    AppDatabase db, Map<String, dynamic> j) async {
+  await db.into(db.laundryReservationRows).insertOnConflictUpdate(
+        LaundryReservationRow(
+          id: j['id'] as String,
+          machineId: j['machine_id'] as String,
+          timeSlotId: j['time_slot_id'] as String,
+          onDate: _dtReq(j['on_date']),
+          userId: j['user_id'] as String,
+          // A view garante o nome pelo join; o fallback existe só para não
+          // derrubar o pull se um perfil sumir no meio do caminho.
+          userName: j['user_name'] as String? ?? '',
+          updatedAt: _dtReq(j['updated_at']),
+        ),
+      );
+}
+
+Future<void> _removeLaundryReservation(AppDatabase db, String id) async {
+  await (db.delete(db.laundryReservationRows)..where((t) => t.id.equals(id)))
+      .go();
+}
+
+Future<void> _clearLaundryReservation(AppDatabase db) async {
+  await db.delete(db.laundryReservationRows).go();
+}
+
+Future<void> _restoreLaundryReservation(
+    AppDatabase db, Map<String, dynamic> j) async {
+  await db.into(db.laundryReservationRows)
+      .insertOnConflictUpdate(LaundryReservationRow.fromJson(j));
+}
+
 final List<SyncEntity> syncEntities = [
   // fullReplace, e não incremental: o pull incremental só aprende que uma
   // linha morreu quando ela volta com `deleted_at` preenchido. Um perfil
@@ -771,6 +883,54 @@ final List<SyncEntity> syncEntities = [
     remove: _removeDocument,
     clear: _clearDocument,
     restore: _restoreDocument,
+  ),
+  // Lavanderia. Cadastro (máquinas, horários, bloqueios) por substituição
+  // total: são tabelas pequenas cuja policy de leitura filtra `deleted_at`, e
+  // o incremental nunca perceberia uma remoção. As reservas são incrementais —
+  // crescem com o tempo, e a policy delas deixa as canceladas visíveis
+  // justamente para o pull aprender a removê-las.
+  const SyncEntity(
+    name: 'laundry_machines',
+    remoteTable: 'laundry_machines',
+    mode: SyncMode.fullReplace,
+    order: 0,
+    upsert: _upsertLaundryMachine,
+    remove: _removeLaundryMachine,
+    clear: _clearLaundryMachine,
+    restore: _restoreLaundryMachine,
+  ),
+  const SyncEntity(
+    name: 'laundry_time_slots',
+    remoteTable: 'laundry_time_slots',
+    mode: SyncMode.fullReplace,
+    order: 0,
+    upsert: _upsertLaundryTimeSlot,
+    remove: _removeLaundryTimeSlot,
+    clear: _clearLaundryTimeSlot,
+    restore: _restoreLaundryTimeSlot,
+  ),
+  const SyncEntity(
+    name: 'laundry_blocks',
+    remoteTable: 'laundry_blocks',
+    mode: SyncMode.fullReplace,
+    order: 1,
+    upsert: _upsertLaundryBlock,
+    remove: _removeLaundryBlock,
+    clear: _clearLaundryBlock,
+    restore: _restoreLaundryBlock,
+  ),
+  // Lê da view `laundry_grid`, que traz o nome de quem reservou. As escritas
+  // não passam por aqui: são as RPCs `reserve_laundry_slot` e
+  // `cancel_laundry_reservation`.
+  const SyncEntity(
+    name: 'laundry_reservations',
+    remoteTable: 'laundry_grid',
+    mode: SyncMode.incremental,
+    order: 2,
+    upsert: _upsertLaundryReservation,
+    remove: _removeLaundryReservation,
+    clear: _clearLaundryReservation,
+    restore: _restoreLaundryReservation,
   ),
   // prayer_interactions não é cacheada (é DELETE físico, sem tombstones).
   // Está registrada apenas para o OutboxWorker saber enviá-la. As funções

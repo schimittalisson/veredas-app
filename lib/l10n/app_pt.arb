@@ -45,6 +45,62 @@
     }
   },
 
+  "laundry_tab": "Lavanderia",
+  "laundry_empty_setup": "A lavanderia ainda não foi configurada. Um administrador precisa cadastrar as máquinas e os horários.",
+  "laundry_free": "Livre",
+  "laundry_blocked": "Intervalo",
+  "laundry_reserved_by": "Reservado · {name}",
+  "@laundry_reserved_by": {
+    "placeholders": { "name": { "type": "String" } }
+  },
+  "laundry_mine": "Sua reserva",
+  "laundry_reserve": "Reservar",
+  "laundry_reserve_confirm": "Reservar {machine} em {day}, às {time}?",
+  "@laundry_reserve_confirm": {
+    "placeholders": {
+      "machine": { "type": "String" },
+      "day": { "type": "String" },
+      "time": { "type": "String" }
+    }
+  },
+  "laundry_reserved_done": "Horário reservado.",
+  "laundry_cancel": "Cancelar reserva",
+  "laundry_cancel_confirm": "Cancelar a sua reserva de {machine}, às {time}?",
+  "@laundry_cancel_confirm": {
+    "placeholders": {
+      "machine": { "type": "String" },
+      "time": { "type": "String" }
+    }
+  },
+  "laundry_cancel_done": "Reserva cancelada.",
+  "laundry_error_taken": "Horário já reservado. Atualize a planilha para ver os horários atualizados.",
+  "laundry_error_blocked": "Este horário está marcado como intervalo — a máquina não pode ser usada.",
+  "laundry_error_past": "Este horário já passou.",
+  "laundry_week_of": "Semana de {start} a {end}",
+  "@laundry_week_of": {
+    "placeholders": {
+      "start": { "type": "String" },
+      "end": { "type": "String" }
+    }
+  },
+  "laundry_this_week": "Esta semana",
+
+  "laundry_admin_title": "Lavanderia",
+  "laundry_admin_desc": "Máquinas e horários da grade de reserva.",
+  "laundry_admin_machines": "Máquinas",
+  "laundry_admin_times": "Horários",
+  "laundry_admin_machine_name": "Nome",
+  "laundry_admin_machine_note": "Observação (ex.: grande, pequena)",
+  "laundry_admin_new_machine": "Nova máquina",
+  "laundry_admin_new_time": "Novo horário",
+  "laundry_admin_block": "Marcar como intervalo",
+  "laundry_admin_unblock": "Liberar horário",
+  "laundry_admin_blocked_done": "Horário marcado como intervalo.",
+  "laundry_admin_unblocked_done": "Horário liberado.",
+  "laundry_admin_block_hint": "O intervalo vale para todas as semanas neste dia.",
+  "laundry_admin_delete_machine_confirm": "Excluir esta máquina? As reservas dela serão removidas.",
+  "laundry_admin_delete_time_confirm": "Excluir este horário? As reservas dele serão removidas.",
+
   "auth_login_title": "Entrar",
   "auth_login_subtitle": "JOCUM Veredas App",
   "auth_email_label": "E-mail",

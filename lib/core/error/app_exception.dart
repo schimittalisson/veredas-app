@@ -58,6 +58,12 @@ enum AppErrorCode {
   // --- Dados ---
   notFound,
   conflict,
+
+  /// A célula da grade da lavanderia é intervalo: máquina indisponível ali.
+  laundrySlotBlocked,
+
+  /// Tentativa de reservar um horário que já passou.
+  laundryPastDate,
   validation,
 
   // --- Dispositivo ---

@@ -16,6 +16,7 @@ import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/scales_providers.dart';
 import 'package:veredas/ui/navigation/app_router.dart';
+import 'package:veredas/ui/screens/scales/laundry_tab.dart';
 import 'package:veredas/ui/screens/scales/scale_tab_view.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
@@ -54,20 +55,10 @@ class ScalesScreen extends ConsumerWidget {
           ),
         ),
       ),
-      data: (data) {
-        if (data.isEmpty) {
-          return _ScalesScaffold(
-            title: l.tab_escalas,
-            body: RefreshableBox(
-              child: EmptyState(
-                title: l.scales_no_types,
-                icon: CupertinoIcons.doc_text,
-              ),
-            ),
-          );
-        }
-        return _ScalesBody(scaleTypes: data);
-      },
+      // Mesmo sem nenhum tipo de escala cadastrado o corpo monta: a aba
+      // Lavanderia é fixa e precisa existir de qualquer forma. O estado vazio
+      // de "nenhuma escala" passou a ser tratado dentro de cada aba.
+      data: (data) => _ScalesBody(scaleTypes: data),
     );
   }
 }
@@ -144,7 +135,9 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
         ..removeListener(_onTabChanged)
         ..dispose();
       _tabController = _createController(initialIndex: target);
-      _selectedTypeId = widget.scaleTypes[target].id;
+      _selectedTypeId = target < widget.scaleTypes.length
+          ? widget.scaleTypes[target].id
+          : null;
     } else if (target != _tabController.index) {
       // Mesma quantidade, ordem diferente: segue a escala, não a posição.
       _tabController.index = target;
@@ -165,7 +158,9 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
 
   TabController _createController({int initialIndex = 0}) {
     return TabController(
-      length: widget.scaleTypes.length,
+      // +1: a Lavanderia é uma aba fixa, sempre no fim, depois das escalas
+      // que vêm do cadastro.
+      length: widget.scaleTypes.length + 1,
       initialIndex: initialIndex,
       vsync: this,
     )
@@ -178,10 +173,19 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
   }
 
   void _onTabChanged() {
-    if (!mounted || widget.scaleTypes.isEmpty) return;
+    if (!mounted) return;
+    // Na aba fixa da Lavanderia não há escala que memorizar; o setState ainda
+    // é necessário para a barra repintar e o botão do canto sumir.
+    if (_isLaundryTab || widget.scaleTypes.isEmpty) {
+      setState(() {});
+      return;
+    }
     final index = _tabController.index.clamp(0, widget.scaleTypes.length - 1);
     setState(() => _selectedTypeId = widget.scaleTypes[index].id);
   }
+
+  /// A aba aberta é a Lavanderia (a última).
+  bool get _isLaundryTab => _tabController.index >= widget.scaleTypes.length;
 
   @override
   void dispose() {
@@ -198,8 +202,13 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
     final profile = ref.watch(currentProfileProvider).value;
     final managedIds = ref.watch(managedScaleTypeIdsProvider);
 
-    final currentType = widget.scaleTypes[_tabController.index];
-    final canEdit = _canEditScale(profile, currentType, managedIds);
+    // Na Lavanderia não há escala ativa: o botão de "nova atribuição" do canto
+    // não se aplica, e indexar a lista pelo índice da aba estouraria.
+    final currentType = _isLaundryTab || widget.scaleTypes.isEmpty
+        ? null
+        : widget.scaleTypes[_tabController.index];
+    final canEdit = currentType != null &&
+        _canEditScale(profile, currentType, managedIds);
 
     return CupertinoPageScaffold(
       backgroundColor: colors.groupedBackground,
@@ -230,16 +239,18 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
             _ScaleTabBar(
               scaleTypes: widget.scaleTypes,
               controller: _tabController,
+              laundryLabel: l.laundry_tab,
             ),
             Expanded(
               child: TabBarView(
                 controller: _tabController,
-                children: widget.scaleTypes
-                    .map((type) => ScaleTabView(
-                          scaleType: type,
-                          canEdit: _canEditScale(profile, type, managedIds),
-                        ))
-                    .toList(),
+                children: [
+                  ...widget.scaleTypes.map((type) => ScaleTabView(
+                        scaleType: type,
+                        canEdit: _canEditScale(profile, type, managedIds),
+                      )),
+                  const LaundryTab(),
+                ],
               ),
             ),
           ],
@@ -276,10 +287,17 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
 /// Fica no corpo do scaffold, logo abaixo da navigation bar, porque
 /// `CupertinoNavigationBar` não tem o slot `bottom` que a `AppBar` tinha.
 class _ScaleTabBar extends StatelessWidget {
-  const _ScaleTabBar({required this.scaleTypes, required this.controller});
+  const _ScaleTabBar({
+    required this.scaleTypes,
+    required this.controller,
+    required this.laundryLabel,
+  });
 
   final List<ScaleTypeRow> scaleTypes;
   final TabController controller;
+
+  /// Rótulo da aba fixa, sempre desenhada depois das escalas do cadastro.
+  final String laundryLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -302,6 +320,13 @@ class _ScaleTabBar extends StatelessWidget {
                 isSelected: i == controller.index,
                 onPressed: () => controller.animateTo(i),
               ),
+            // A Lavanderia fecha a barra. Não vem do cadastro de escalas, mas
+            // ocupa o mesmo lugar na cabeça de quem usa: "onde eu me inscrevo".
+            _ScaleTab(
+              label: laundryLabel,
+              isSelected: controller.index == scaleTypes.length,
+              onPressed: () => controller.animateTo(scaleTypes.length),
+            ),
           ],
         ),
       ),

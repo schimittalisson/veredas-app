@@ -335,6 +335,23 @@ PostgrestException makeRlsException({String? code = '42501'}) {
   );
 }
 
+/// Cria uma PostgrestException arbitrária.
+///
+/// As RPCs do projeto sinalizam erro de domínio com `raise exception`, que
+/// chega como P0001 e a mensagem sendo o identificador escolhido no SQL — daí
+/// a mensagem ser parâmetro.
+PostgrestException makePostgrestException({
+  required String message,
+  String? code,
+}) {
+  return PostgrestException(
+    message: message,
+    code: code,
+    details: '',
+    hint: '',
+  );
+}
+
 /// Cria uma SocketException simulando falta de rede.
 SocketException makeSocketException() {
   return const SocketException('Failed host lookup');

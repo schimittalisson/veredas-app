@@ -27,6 +27,10 @@ part 'app_database.g.dart';
     BaseInfoRows,
     SocialLinkRows,
     DocumentRows,
+    LaundryMachineRows,
+    LaundryTimeSlotRows,
+    LaundryBlockRows,
+    LaundryReservationRows,
     SyncStates,
     OutboxEntries,
   ],
@@ -38,7 +42,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -94,6 +98,16 @@ class AppDatabase extends _$AppDatabase {
               scaleAssignmentRows,
               scaleAssignmentRows.memberNames,
             );
+          }
+
+          // v5 — lavanderia. Quatro tabelas novas; `createTable` basta, e elas
+          // nascem vazias. Sem `sync_state` para essas entidades, o primeiro
+          // pull traz tudo.
+          if (from < 5) {
+            await m.createTable(laundryMachineRows);
+            await m.createTable(laundryTimeSlotRows);
+            await m.createTable(laundryBlockRows);
+            await m.createTable(laundryReservationRows);
           }
         },
         beforeOpen: (details) async {

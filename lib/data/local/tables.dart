@@ -397,3 +397,94 @@ class OutboxEntries extends Table {
 
   TextColumn get lastError => text().nullable()();
 }
+
+// ---------------------------------------------------------------------------
+// Lavanderia
+//
+// Quatro tabelas espelhando `public.laundry_*`. O desenho e o porquê de cada
+// uma estão na migration `20260918000100_laundry.sql` — aqui ficam só as notas
+// que importam ao cache.
+// ---------------------------------------------------------------------------
+
+/// Espelho de `public.laundry_machines`.
+///
+/// Sincronizada por **substituição total**: é um cadastro pequeno, e a policy
+/// de leitura filtra `deleted_at`, então o pull incremental jamais veria uma
+/// máquina removida.
+@DataClassName('LaundryMachineRow')
+class LaundryMachineRows extends Table {
+  TextColumn get id => text()();
+  TextColumn get name => text()();
+
+  /// "grande", "pequena" — o que a planilha da base trazia no cabeçalho.
+  TextColumn get note => text().nullable()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  IntColumn get ordering => integer().withDefault(const Constant(0))();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Espelho de `public.laundry_time_slots` — as linhas da grade.
+///
+/// Horário em minutos desde a meia-noite, pelo mesmo motivo de
+/// [WeeklySlotRows]: ordenável, comparável e imune a fuso.
+@DataClassName('LaundryTimeSlotRow')
+class LaundryTimeSlotRows extends Table {
+  TextColumn get id => text()();
+  IntColumn get startsAtMinutes => integer()();
+  IntColumn get endsAtMinutes => integer().nullable()();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  IntColumn get ordering => integer().withDefault(const Constant(0))();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Espelho de `public.laundry_blocks` — os "intervalos" da planilha.
+///
+/// O bloqueio é **recorrente semanal**: vale para todo dia [weekday], em todas
+/// as semanas. Não tem data.
+@DataClassName('LaundryBlockRow')
+class LaundryBlockRows extends Table {
+  TextColumn get id => text()();
+  TextColumn get machineId => text()();
+  TextColumn get timeSlotId => text()();
+
+  /// ISO-8601: 1 = segunda … 7 = domingo, igual a `DateTime.weekday`.
+  IntColumn get weekday => integer()();
+  TextColumn get reason => text().nullable()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Espelho da view `public.laundry_grid` — as reservas, já com o nome de quem
+/// reservou.
+///
+/// Espelha a **view** e não `laundry_reservations` pelo mesmo motivo do mural
+/// de oração: a tela precisa do nome, e depender de o perfil de quem reservou
+/// já estar sincronizado no aparelho tornaria a célula "reservado por —" logo
+/// depois de alguém novo entrar na base.
+///
+/// Única entidade da lavanderia sincronizada de forma **incremental**: ela
+/// cresce com o tempo, e a policy dela deixa as canceladas visíveis
+/// justamente para o pull aprender a removê-las.
+@DataClassName('LaundryReservationRow')
+class LaundryReservationRows extends Table {
+  TextColumn get id => text()();
+  TextColumn get machineId => text()();
+  TextColumn get timeSlotId => text()();
+
+  /// Data da reserva, à meia-noite local — as comparações são sempre por dia.
+  DateTimeColumn get onDate => dateTime()();
+  TextColumn get userId => text()();
+  TextColumn get userName => text()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}

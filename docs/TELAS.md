@@ -455,6 +455,39 @@ Edge Function).
 
 ---
 
+### §4-A — Aba Lavanderia (fixa, em Escalas)
+
+Substitui a planilha semanal de uso das máquinas. Linhas são faixas de horário,
+colunas são as máquinas; cada célula é **livre**, **intervalo** (vermelho) ou
+**reservada**, com o nome de quem reservou.
+
+É a última aba de Escalas e **não vem do cadastro de tipos de escala** — existe
+mesmo quando não há nenhuma escala cadastrada.
+
+**Semana + dia, e não a planilha inteira.** A planilha original tem 7 dias × 3
+máquinas = 21 colunas, o que no celular só existiria atrás de rolagem
+horizontal. A semana é escolhida no topo, o dia numa faixa abaixo, e as 3
+máquinas aparecem por inteiro.
+
+**Reservar.** Toque numa célula livre → confirmação → RPC `reserve_laundry_slot`.
+A reserva **não** passa pela outbox nem escreve otimista no cache: a vaga é
+disputada, e quem garante que não há reserva dupla é o índice único no Postgres.
+Depois de toda ação a tela sincroniza, com ou sem erro.
+
+**Cancelar.** Só a própria reserva (ou qualquer uma, se admin).
+
+**Conflito.** Se outra pessoa reservou primeiro, o 23505 vira
+`AppErrorCode.conflict` e a tela mostra "horário já reservado, atualize a
+planilha". O pull-to-refresh é o gesto que evita chegar nesse ponto.
+
+**Intervalo.** O admin toca uma célula livre e escolhe "marcar como intervalo",
+ou toca um intervalo para liberá-lo. O bloqueio é **recorrente semanal**: vale
+para aquele dia da semana em todas as semanas.
+
+**Cadastro** (`/admin/lavanderia`): máquinas (nome + observação) e faixas de
+horário. Os intervalos ficam de fora dessa tela de propósito — marcá-los na
+grade é onde a informação já está à vista.
+
 ## §6 — Administração (`/admin`)
 
 Acessível só para admin (guard no router **e** botão oculto no AppBar).

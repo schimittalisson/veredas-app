@@ -6,6 +6,7 @@ import 'package:veredas/data/daos/agenda_dao.dart';
 import 'package:veredas/data/daos/home_dao.dart';
 import 'package:veredas/data/daos/prayer_dao.dart';
 import 'package:veredas/data/daos/profile_dao.dart';
+import 'package:veredas/data/daos/laundry_dao.dart';
 import 'package:veredas/data/daos/scales_dao.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/data/remote/admin_service.dart';
@@ -14,6 +15,9 @@ import 'package:veredas/data/repositories/agenda_repository.dart';
 import 'package:veredas/data/repositories/documents_repository.dart';
 import 'package:veredas/data/repositories/home_repository.dart';
 import 'package:veredas/data/repositories/prayer_repository.dart';
+import 'package:veredas/data/remote/laundry_service.dart';
+import 'package:veredas/data/remote/supabase_laundry_service.dart';
+import 'package:veredas/data/repositories/laundry_repository.dart';
 import 'package:veredas/data/repositories/scales_repository.dart';
 import 'package:veredas/data/sync/connectivity_monitor.dart';
 import 'package:veredas/data/sync/outbox_worker.dart';
@@ -57,6 +61,21 @@ final homeDaoProvider = Provider<HomeDao>(
 
 final agendaDaoProvider = Provider<AgendaDao>(
   (ref) => AgendaDao(ref.watch(appDatabaseProvider)),
+);
+
+final laundryDaoProvider = Provider<LaundryDao>(
+  (ref) => LaundryDao(ref.watch(appDatabaseProvider)),
+);
+
+final laundryServiceProvider = Provider<LaundryService>(
+  (ref) => SupabaseLaundryService(ref.watch(supabaseClientProvider)),
+);
+
+final laundryRepositoryProvider = Provider<LaundryRepository>(
+  (ref) => LaundryRepository(
+    ref.watch(appDatabaseProvider),
+    ref.watch(laundryServiceProvider),
+  ),
 );
 
 final scalesDaoProvider = Provider<ScalesDao>(

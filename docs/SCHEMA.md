@@ -43,6 +43,8 @@ offline. Cada uma tem uma estratégia própria:
 |---|---|---|
 | `invites`, `scale_types`, `scale_assignments`, `events`, `weekly_slots`, `prayer_posts`, `prayer_comments`, `announcements`, `base_info`, `social_links` | **Incremental** por `updated_at` + *soft delete* | Volume pode crescer; incremental é eficiente |
 | `profiles` | **Substituição total** a cada sync | Tem `deleted_at`, mas o soft delete não é o único caminho: apagar a conta em `auth.users` (pelo painel, ou um `delete` direto no banco) leva o perfil junto em cascata, sem deixar *tombstone*. O incremental nunca descobria, e a tela de Membros listava contas que não existiam mais. Base pequena — dezenas de obreiros —, então baixar tudo é barato |
+| `laundry_machines`, `laundry_time_slots`, `laundry_blocks` | **Substituição total** | Cadastro pequeno cuja policy de leitura filtra `deleted_at` — o incremental nunca veria uma remoção |
+| `laundry_reservations` (lida pela view `laundry_grid`) | **Incremental** | Cresce com o tempo. A policy dela é a única do projeto que **não** filtra `deleted_at`, justamente para o cancelamento (soft delete) chegar aos outros aparelhos |
 | `scale_managers` | **Substituição total** (`delete from` local + insert de tudo) a cada sync | Máximo ~50 linhas. Remover um responsável é um `DELETE` físico, que o incremental não detectaria. Full replace é trivial e sempre correto |
 | `prayer_interactions` | **Não é cacheada.** Os contadores e o `is_praying` vêm da view `prayer_feed`; o cache local guarda o resultado da view | "Desmarcar estou orando" é um `DELETE` físico. Cachear a tabela crua exigiria *tombstones* sem ganho algum |
 

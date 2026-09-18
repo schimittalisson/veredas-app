@@ -7,6 +7,7 @@ import 'package:veredas/data/remote/auth_service.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/ui/screens/admin/admin_screen.dart';
 import 'package:veredas/ui/screens/admin/convites_screen.dart';
+import 'package:veredas/ui/screens/admin/lavanderia_screen.dart';
 import 'package:veredas/ui/screens/admin/membros_screen.dart';
 import 'package:veredas/ui/screens/admin/escalas_screen.dart';
 import 'package:veredas/ui/screens/admin/responsaveis_screen.dart';
@@ -57,6 +58,7 @@ class Routes {
   static const String adminEscalaNova = '/admin/escalas/nova';
   static const String adminEscalaEditar = '/admin/escalas/editar';
   static const String adminBase = '/admin/base';
+  static const String adminLavanderia = '/admin/lavanderia';
 
   // Rotas de editores (acima da NavigationBar, tela inteira).
   static const String avisoNovo = '/aviso/novo';
@@ -184,6 +186,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.admin,
         builder: (context, state) => const AdminScreen(),
+      ),
+      GoRoute(
+        path: Routes.adminLavanderia,
+        builder: (context, state) => const LavanderiaScreen(),
       ),
       GoRoute(
         path: Routes.adminMembros,
