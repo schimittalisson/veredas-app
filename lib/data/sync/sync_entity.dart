@@ -46,6 +46,24 @@ class SyncEntity {
   final SyncMode mode;
   final int order;
 
+  /// A exclusão desta entidade é **soft delete** (`update deleted_at`).
+  ///
+  /// **Por que isto existe.** O `DELETE` físico é invisível para o pull
+  /// incremental: a linha simplesmente deixa de voltar, e um pull não tem como
+  /// distinguir "foi apagada" de "não mudou". O cache dos outros aparelhos
+  /// guardava a linha para sempre — um aviso excluído continuava na tela de
+  /// todo mundo, menos na de quem apagou.
+  ///
+  /// Com soft delete, a linha volta com `deleted_at` preenchido e `updated_at`
+  /// novo (o trigger `touch_updated_at` cuida disso), o pull a enxerga na
+  /// janela incremental e a remove do cache.
+  ///
+  /// `false` só onde a tabela **não tem** a coluna `deleted_at`, e por decisão
+  /// consciente: `prayer_interactions` ("desmarcar estou orando" é um
+  /// contador, não um registro) e `scale_managers`. As duas são sincronizadas
+  /// por substituição total justamente porque sofrem DELETE físico.
+  final bool softDelete;
+
   /// Coluna usada pelo OutboxWorker para filtrar UPDATE/DELETE.
   /// Default: `'id'`. Entidades com PK composta ou chave diferente
   /// (ex.: `prayer_interactions` filtra por `post_id`) precisam sobrescrever.
@@ -85,6 +103,7 @@ class SyncEntity {
     required this.restore,
     this.eqColumn = 'id',
     this.writeTableOverride,
+    this.softDelete = true,
   });
 }
 
@@ -774,6 +793,7 @@ final List<SyncEntity> syncEntities = [
   ),
   const SyncEntity(
     name: 'scale_managers',
+    softDelete: false,
     remoteTable: 'scale_managers',
     mode: SyncMode.fullReplace,
     order: 2,
@@ -944,6 +964,7 @@ final List<SyncEntity> syncEntities = [
   // é suficiente.
   const SyncEntity(
     name: 'prayer_interactions',
+    softDelete: false,
     remoteTable: 'prayer_interactions',
     mode: SyncMode.fullReplace,
     order: 99,

@@ -255,6 +255,58 @@ void main() {
     });
   });
 
+  // O bug: um aviso excluído por um admin continuava visível PARA SEMPRE no
+  // aparelho de todos os outros obreiros.
+  //
+  // Três peças que, isoladas, pareciam certas: o app apagava com DELETE
+  // físico; o pull incremental só aprende a remoção quando a linha volta com
+  // `deleted_at`; e linha apagada fisicamente nunca volta. A correção foi
+  // fazer a exclusão ser soft delete de verdade (`SyncEntity.softDelete`) e
+  // deixar a lápide passar pela RLS (migration 20260918000200).
+  group('SyncService.pull — exclusão chega aos outros aparelhos', () {
+    test('a lápide remove a linha do cache', () async {
+      remote.fetchData['announcements'] = [
+        makeAnnouncementJson(id: 'a1', updatedAt: DateTime.utc(2026, 9, 1)),
+      ];
+      await syncService.pull(syncEntityByName('announcements')!);
+      expect(await db.announcementRows.count().getSingle(), 1);
+
+      // O admin excluiu. A linha volta com `deleted_at` e `updated_at` novo —
+      // é o que o trigger `touch_updated_at` garante, e é o que a coloca
+      // dentro da janela do pull incremental.
+      remote.fetchData['announcements'] = [
+        makeAnnouncementJson(
+          id: 'a1',
+          updatedAt: DateTime.utc(2026, 9, 20),
+          deletedAt: DateTime.utc(2026, 9, 20),
+        ),
+      ];
+      await syncService.pull(syncEntityByName('announcements')!);
+
+      expect(await db.announcementRows.count().getSingle(), 0);
+    });
+
+    test('sem lápide, a linha some do servidor e o fantasma fica', () async {
+      // Este é o comportamento que NÃO queremos, fixado para deixar explícito
+      // por que o soft delete é obrigatório aqui. Se um dia alguém trocar a
+      // exclusão de volta para DELETE físico numa entidade incremental, é este
+      // cenário que volta a acontecer em produção.
+      remote.fetchData['announcements'] = [
+        makeAnnouncementJson(id: 'a1', updatedAt: DateTime.utc(2026, 9, 1)),
+      ];
+      await syncService.pull(syncEntityByName('announcements')!);
+
+      remote.fetchData['announcements'] = [];
+      await syncService.pull(syncEntityByName('announcements')!);
+
+      expect(
+        await db.announcementRows.count().getSingle(),
+        1,
+        reason: 'o pull incremental não distingue "apagada" de "não mudou"',
+      );
+    });
+  });
+
   group('SyncService.pullAll', () {
     test('sincroniza múltiplas entidades em ordem', () async {
       remote.fetchData['profiles'] = [

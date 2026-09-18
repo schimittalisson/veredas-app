@@ -149,11 +149,13 @@ void main() {
       await worker.drain();
 
       expect(await db.outboxEntries.count().getSingle(), 0);
-      // O delete chegou ao servidor.
-      final deleteCall = remote.calls
-          .where((c) => c.method == 'delete' && c.table == 'announcements')
-          .toList();
-      expect(deleteCall.length, 1);
+      // A exclusão chega ao servidor como `update deleted_at`, e não como
+      // DELETE: é a lápide que faz os outros aparelhos aprenderem a remoção no
+      // pull incremental. Ver `SyncEntity.softDelete`.
+      final call = remote.calls
+          .where((c) => c.method == 'update' && c.table == 'announcements')
+          .single;
+      expect(call.extra, contains('deleted_at'));
     });
 
     test('não drena se não houver conexão', () async {
@@ -281,8 +283,8 @@ void main() {
         previousRow: previousRow,
       );
 
-      // O servidor recusa o delete.
-      remote.deleteErrors['announcements'] = makeRlsException();
+      // O servidor recusa a exclusão — que agora é um update.
+      remote.updateErrors['announcements'] = makeRlsException();
 
       await worker.drain();
 
@@ -371,7 +373,7 @@ void main() {
       );
 
       // O servidor devolve 0 linhas.
-      remote.deleteResults['announcements'] = [];
+      remote.updateResults['announcements'] = [];
 
       await worker.drain();
 
@@ -597,13 +599,17 @@ void main() {
       expect(remote.updatedPayloads['prayer_feed'], isNull);
     });
 
-    test('delete de oração vai para prayer_posts', () async {
+    test('exclusão de oração vai para prayer_posts', () async {
       await enqueuePrayerPost('delete');
 
       await worker.drain();
 
-      final deletes = remote.calls.where((c) => c.method == 'delete');
-      expect(deletes.map((c) => c.table), ['prayer_posts']);
+      // A exclusão é soft delete (update de `deleted_at`), mas o roteamento é
+      // o que este teste protege: a view `prayer_feed` não aceita escrita, e
+      // sem o writeTableOverride o update iria para ela e falharia.
+      final writes = remote.calls.where((c) => c.method == 'update');
+      expect(writes.map((c) => c.table), ['prayer_posts']);
+      expect(writes.single.extra, contains('deleted_at'));
     });
 
     test('writeTable cai em remoteTable para as demais entidades', () {

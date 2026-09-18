@@ -148,7 +148,10 @@ class ScalesRepository {
     );
   }
 
-  /// Remove uma atribuição (soft delete no servidor).
+  /// Remove uma atribuição.
+  ///
+  /// No servidor vira `update deleted_at`, e não `DELETE` — quem decide isso é
+  /// `SyncEntity.softDelete`, para a exclusão chegar aos outros aparelhos.
   Future<void> deleteAssignment(String id) async {
     await OutboxHelper.delete(
       db: _db,

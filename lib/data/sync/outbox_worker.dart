@@ -128,11 +128,31 @@ class OutboxWorker {
         // não podemos distinguir de "RLS negou", e tratar como sucesso quando
         // o RLS negou deixaria o cache local sem a linha enquanto o servidor
         // ainda a tem. Então tratamos como negação e revertemos.
-        final result = await remote.delete(
-          table: entity.writeTable,
-          eqColumn: entity.eqColumn,
-          eqValue: entry.rowId,
-        );
+        //
+        // **Soft delete onde a tabela tem `deleted_at`.** Um DELETE físico é
+        // invisível para o pull incremental dos outros aparelhos: a linha só
+        // some, e "sumiu" não se distingue de "não mudou". O resultado era um
+        // aviso excluído que continuava na tela de todo mundo, menos na de
+        // quem apagou. Marcando `deleted_at`, a linha volta no próximo pull
+        // com `updated_at` novo (trigger `touch_updated_at`) e cada aparelho a
+        // remove do próprio cache.
+        //
+        // O DELETE físico fica para as tabelas sem a coluna — ver
+        // `SyncEntity.softDelete`.
+        final result = entity.softDelete
+            ? await remote.update(
+                table: entity.writeTable,
+                payload: {
+                  'deleted_at': DateTime.now().toUtc().toIso8601String(),
+                },
+                eqColumn: entity.eqColumn,
+                eqValue: entry.rowId,
+              )
+            : await remote.delete(
+                table: entity.writeTable,
+                eqColumn: entity.eqColumn,
+                eqValue: entry.rowId,
+              );
         if (result.isEmpty) {
           throw const AppException(AppErrorCode.permissionDeniedOrStale);
         }

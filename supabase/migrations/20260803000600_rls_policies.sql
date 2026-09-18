@@ -104,8 +104,15 @@ create policy scale_assignments_update on public.scale_assignments
   using (public.manages_scale(scale_type_id))
   with check (public.manages_scale(scale_type_id));
 
--- Delete físico existe apenas para admin (limpeza). O app usa soft delete
--- (update de deleted_at), coberto pela policy de update acima.
+-- Delete físico existe apenas para admin (limpeza manual).
+--
+-- O app usa soft delete (update de `deleted_at`), coberto pela policy de
+-- update acima — o que também permite ao responsável pela escala excluir uma
+-- atribuição, e não só ao admin.
+--
+-- NOTA: até a migration 20260918000200 este comentário descrevia uma intenção,
+-- não o código: o `OutboxWorker` mandava DELETE físico, e a exclusão ficava
+-- invisível para o pull incremental dos outros aparelhos.
 create policy scale_assignments_delete on public.scale_assignments
   for delete to authenticated
   using (public.is_admin());
