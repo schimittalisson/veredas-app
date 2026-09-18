@@ -32,7 +32,11 @@ class _WeeklySlotEditorScreenState
   final _locationController = TextEditingController();
   final _categoryController = TextEditingController();
   final _notesController = TextEditingController();
-  int _weekday = 1; // 1=segunda ... 7=domingo
+  /// Dias marcados. Na criação pode ter vários — é o que evita cadastrar
+  /// sete vezes o mesmo horário de meditação. Na edição fica sempre com
+  /// um: mudar os dias de um slot que já existe viraria duplicação
+  /// silenciosa, e não é o que quem toca em "editar" está pedindo.
+  Set<int> _weekdays = {1}; // 1=segunda ... 7=domingo
 
   // O horário passa a ser guardado em minutos desde a meia-noite, e não mais
   // em `TimeOfDay`: aquele tipo é do Material e some junto com o import. Como
@@ -125,9 +129,13 @@ class _WeeklySlotEditorScreenState
                 ),
                 children: [
                   _ValueRow(
-                    label: l.agenda_slot_weekday,
-                    value: weekdayLabels[_weekday] ?? '—',
-                    onTap: () => _pickWeekday(weekdayLabels),
+                    label: _isEditing
+                        ? l.agenda_slot_weekday
+                        : l.agenda_slot_weekdays,
+                    value: _weekdaysLabel(weekdayLabels, l),
+                    onTap: () => _isEditing
+                        ? _pickWeekday(weekdayLabels)
+                        : _pickWeekdays(weekdayLabels),
                   ),
                   CupertinoTextFormFieldRow(
                     controller: _titleController,
@@ -211,7 +219,7 @@ class _WeeklySlotEditorScreenState
       _categoryController.text = row.category ?? '';
       _notesController.text = row.notes ?? '';
       setState(() {
-        _weekday = row.weekday;
+        _weekdays = {row.weekday};
         _startsAtMinutes = row.startsAtMinutes;
         _endsAtMinutes = row.endsAtMinutes;
         // Nulo aqui é registro antigo, anterior à coluna de cor: o
@@ -223,6 +231,91 @@ class _WeeklySlotEditorScreenState
     }
   }
 
+  /// Texto da linha "dias da semana": "Seg, Qua, Sex", ou "Todos os dias"
+  /// quando os sete estão marcados — sete siglas não cabem na linha do iOS.
+  String _weekdaysLabel(Map<int, String> labels, AppLocalizations l) {
+    if (_weekdays.isEmpty) return '—';
+    if (_weekdays.length == 7) return l.agenda_slot_weekdays_all;
+    final ordered = _weekdays.toList()..sort();
+    return ordered.map((d) => labels[d] ?? '?').join(', ');
+  }
+
+  /// Seleção de vários dias, usada só na criação.
+  ///
+  /// Não é uma `CupertinoPicker`: roda serve para escolher **um** valor. Para
+  /// marcar vários, o iOS usa uma lista com check — e a lista ainda cabe na
+  /// mesma folha modal do resto da tela.
+  ///
+  /// O conjunto só é aplicado ao confirmar: mexer direto em `_weekdays` faria
+  /// um cancelamento deixar as marcações alteradas.
+  Future<void> _pickWeekdays(Map<int, String> labels) async {
+    final colors = context.colors;
+    final l = AppLocalizations.of(context);
+    final selected = Set<int>.from(_weekdays);
+
+    final confirmed = await showCupertinoModalPopup<bool>(
+      context: context,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => Container(
+          height: 380,
+          color: colors.surface,
+          child: SafeArea(
+            top: false,
+            child: Column(
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: CupertinoButton(
+                    // Confirmar sem nada marcado deixaria a tela num estado
+                    // que o save recusaria depois, sem dizer por quê.
+                    onPressed: selected.isEmpty
+                        ? null
+                        : () => Navigator.of(sheetContext).pop(true),
+                    child: Text(l.action_done),
+                  ),
+                ),
+                Expanded(
+                  child: ListView(
+                    children: [
+                      for (final entry in labels.entries)
+                        CupertinoButton(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                          onPressed: () => setSheetState(() {
+                            if (!selected.remove(entry.key)) {
+                              selected.add(entry.key);
+                            }
+                          }),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  entry.value,
+                                  textAlign: TextAlign.start,
+                                  style: AppTypography.body
+                                      .copyWith(color: colors.label),
+                                ),
+                              ),
+                              if (selected.contains(entry.key))
+                                Icon(CupertinoIcons.check_mark,
+                                    size: 20, color: colors.tint),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    setState(() => _weekdays = selected);
+  }
+
   /// Dia da semana numa roda, no lugar do `DropdownButtonFormField`.
   ///
   /// O iOS não tem menu suspenso em formulário: a escolha entre poucas opções
@@ -231,7 +324,7 @@ class _WeeklySlotEditorScreenState
   /// mesmos.
   Future<void> _pickWeekday(Map<int, String> labels) async {
     final values = labels.keys.toList();
-    var selected = _weekday;
+    var selected = _weekdays.first;
 
     final confirmed = await _showPickerSheet(
       child: CupertinoPicker(
@@ -239,7 +332,8 @@ class _WeeklySlotEditorScreenState
         squeeze: 1.2,
         itemExtent: 32,
         scrollController: FixedExtentScrollController(
-          initialItem: values.indexOf(_weekday).clamp(0, values.length - 1),
+          initialItem:
+              values.indexOf(_weekdays.first).clamp(0, values.length - 1),
         ),
         onSelectedItemChanged: (i) => selected = values[i],
         children: [
@@ -249,7 +343,7 @@ class _WeeklySlotEditorScreenState
       ),
     );
     if (!confirmed || !mounted) return;
-    setState(() => _weekday = selected);
+    setState(() => _weekdays = {selected});
   }
 
   /// Roda de hora no lugar do `showTimePicker`.
@@ -328,6 +422,14 @@ class _WeeklySlotEditorScreenState
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // O seletor já impede confirmar vazio; esta guarda cobre o resto dos
+    // caminhos até aqui, e dá a mensagem em vez de gravar nada.
+    if (_weekdays.isEmpty) {
+      showAppToast(context, AppLocalizations.of(context).agenda_slot_weekdays_none,
+          isError: true);
+      return;
+    }
+
     setState(() => _saving = true);
     final l = AppLocalizations.of(context);
     final repo = ref.read(agendaRepositoryProvider);
@@ -339,7 +441,7 @@ class _WeeklySlotEditorScreenState
       if (_isEditing) {
         await repo.updateWeeklySlot(
           id: widget.slotId!,
-          weekday: _weekday,
+          weekday: _weekdays.first,
           startsAtMinutes: startsAtMinutes,
           endsAtMinutes: endsAtMinutes,
           title: _titleController.text.trim(),
@@ -355,8 +457,8 @@ class _WeeklySlotEditorScreenState
               : _notesController.text.trim(),
         );
       } else {
-        await repo.createWeeklySlot(
-          weekday: _weekday,
+        await repo.createWeeklySlotsForWeekdays(
+          weekdays: _weekdays,
           startsAtMinutes: startsAtMinutes,
           endsAtMinutes: endsAtMinutes,
           title: _titleController.text.trim(),
@@ -374,7 +476,12 @@ class _WeeklySlotEditorScreenState
       }
 
       if (mounted) {
-        showAppToast(context, l.agenda_slot_saved);
+        showAppToast(
+          context,
+          _isEditing
+              ? l.agenda_slot_saved
+              : l.agenda_slots_saved(_weekdays.length),
+        );
         context.pop();
       }
     } catch (e) {

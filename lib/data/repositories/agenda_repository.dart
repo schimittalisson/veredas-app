@@ -206,6 +206,45 @@ class AgendaRepository {
     return id;
   }
 
+  /// Cria o **mesmo** slot em vários dias da semana de uma vez.
+  ///
+  /// Cada dia vira uma linha independente, com id próprio — e não uma linha só
+  /// com uma lista de dias. Assim, editar ou apagar a terça não mexe na quinta,
+  /// que é o que se espera de um cronograma: "meditação na palavra" pode mudar
+  /// de horário só na sexta sem virar um caso especial no modelo.
+  ///
+  /// Consequência aceita: são N entradas na outbox. Como cada uma é uma linha
+  /// diferente, não há conflito entre elas.
+  Future<List<String>> createWeeklySlotsForWeekdays({
+    required Set<int> weekdays,
+    required int startsAtMinutes,
+    int? endsAtMinutes,
+    required String title,
+    String? location,
+    String? category,
+    int? colorIndex,
+    String? notes,
+    int ordering = 0,
+  }) async {
+    final ids = <String>[];
+    // Ordenado para as linhas nascerem na ordem da semana — o cronograma
+    // agrupa por dia, e criar fora de ordem só embaralharia a outbox.
+    for (final weekday in weekdays.toList()..sort()) {
+      ids.add(await createWeeklySlot(
+        weekday: weekday,
+        startsAtMinutes: startsAtMinutes,
+        endsAtMinutes: endsAtMinutes,
+        title: title,
+        location: location,
+        category: category,
+        colorIndex: colorIndex,
+        notes: notes,
+        ordering: ordering,
+      ));
+    }
+    return ids;
+  }
+
   /// Edita um slot do cronograma.
   Future<void> updateWeeklySlot({
     required String id,

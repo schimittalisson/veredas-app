@@ -241,6 +241,13 @@
   "agenda_slot_category": "Categoria",
   "agenda_slot_notes": "Notas",
   "agenda_slot_saved": "Slot salvo.",
+  "agenda_slot_weekdays": "Dias da semana",
+  "agenda_slot_weekdays_all": "Todos os dias",
+  "agenda_slot_weekdays_none": "Selecione ao menos um dia",
+  "agenda_slots_saved": "{n, plural, =1{Slot salvo.} other{{n} slots salvos.}}",
+  "@agenda_slots_saved": {
+    "placeholders": { "n": { "type": "int" } }
+  },
   "agenda_slot_delete_confirm": "Excluir este item do cronograma?",
 
   "scales_no_types": "Nenhuma escala cadastrada.",

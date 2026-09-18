@@ -187,9 +187,17 @@ aceitável. Ofereça um `SegmentedButton` para alternar entre **Grade** e
 **Lista por dia** (`ExpansionTile` por dia da semana), que é mais confortável no
 celular. A grade é o diferencial pedido; a lista é o *fallback* de conforto.
 
-**Editor de slot** (`/cronograma/novo`) — só admin: dia da semana
-(`SegmentedButton` ou dropdown), hora início/fim (`showTimePicker`), título,
-local, categoria, observações, `SwitchListTile` "Ativo".
+**Editor de slot** (`/cronograma/novo`) — só admin: dia da semana, hora
+início/fim, título, local, categoria, observações, "Ativo".
+
+Na **criação**, o campo de dia aceita **vários dias de uma vez**: marcar
+segunda, quarta e sexta cria três slots. Evita cadastrar sete vezes um horário
+que se repete, como a meditação na palavra.
+
+Cada dia vira uma **linha independente**, e não uma linha com lista de dias —
+assim mudar o horário só da sexta não vira caso especial no modelo. Por isso a
+multi-seleção não vale na **edição**: ali o campo continua com um dia só, senão
+uma edição simples viraria duplicação silenciosa.
 
 ### Permissões
 
