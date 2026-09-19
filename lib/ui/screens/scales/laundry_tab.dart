@@ -42,17 +42,16 @@ class LaundryTab extends ConsumerWidget {
 
     // Sem cadastro não há grade que desenhar. O estado vazio continua
     // arrastável: é onde o obreiro mais quer puxar para buscar novidade.
+    //
+    // `RefreshableBox` já é um `CustomScrollView` completo, com o próprio
+    // `SyncRefreshControl` dentro — não é um sliver. Aninhá-lo numa lista de
+    // slivers compila, mas estoura no layout e a aba fica em branco.
     if (machines.isEmpty || timeSlots.isEmpty) {
-      return CustomScrollView(
-        slivers: [
-          const SyncRefreshControl(),
-          RefreshableBox(
-            child: EmptyState(
-              title: l.laundry_empty_setup,
-              icon: CupertinoIcons.drop,
-            ),
-          ),
-        ],
+      return RefreshableBox(
+        child: EmptyState(
+          title: l.laundry_empty_setup,
+          icon: CupertinoIcons.drop,
+        ),
       );
     }
 
@@ -266,31 +265,39 @@ class _Grid extends ConsumerWidget {
             ],
           ),
           for (final slot in timeSlots)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                SizedBox(
-                  width: 56,
-                  child: Center(
-                    child: Text(
-                      _formatMinutes(slot.startsAtMinutes),
-                      style: AppTypography.caption
-                          .copyWith(color: colors.secondaryLabel),
+            // `IntrinsicHeight` é o que permite o `stretch`: dentro de uma
+            // Column sem altura definida, esticar no eixo cruzado pediria
+            // altura infinita e a grade estouraria no layout. Com ele, a
+            // linha mede a célula mais alta e as demais acompanham — que é o
+            // que mantém as colunas alinhadas quando um nome quebra em duas
+            // linhas.
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: 56,
+                    child: Center(
+                      child: Text(
+                        _formatMinutes(slot.startsAtMinutes),
+                        style: AppTypography.caption
+                            .copyWith(color: colors.secondaryLabel),
+                      ),
                     ),
                   ),
-                ),
-                for (final machine in machines)
-                  Expanded(
-                    child: _Cell(
-                      machine: machine,
-                      slot: slot,
-                      date: date,
-                      blockId: blocks[blockKey(machine.id, slot.id, weekday)],
-                      reservation: reservations[
-                          reservationKey(machine.id, slot.id, date)],
+                  for (final machine in machines)
+                    Expanded(
+                      child: _Cell(
+                        machine: machine,
+                        slot: slot,
+                        date: date,
+                        blockId: blocks[blockKey(machine.id, slot.id, weekday)],
+                        reservation: reservations[
+                            reservationKey(machine.id, slot.id, date)],
+                      ),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
         ],
       ),
