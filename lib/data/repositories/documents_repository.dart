@@ -107,16 +107,22 @@ class DocumentsRepository {
 
   /// Remove um atalho.
   ///
-  /// **É um UPDATE de `deleted_at`, não um DELETE.** A operação vai para a
-  /// outbox como `update` de propósito: o `OutboxHelper.delete` mandaria um
-  /// DELETE físico ao PostgREST, e aí a linha sairia do banco sem deixar
-  /// rastro. Com o soft delete, um admin ainda consegue recuperar o item pelo
-  /// SQL Editor, e a policy `documents_select` (que filtra `deleted_at is
-  /// null`) faz o item desaparecer para todos no próximo pull — que é
-  /// `fullReplace`, então o cache local é reconstruído sem ele.
+  /// **É um UPDATE de `deleted_at`, não um DELETE.** Com o soft delete, um
+  /// admin ainda consegue recuperar o item pelo SQL Editor, e o item
+  /// desaparece para todos no próximo pull — que é `fullReplace`, então o
+  /// cache local é reconstruído sem ele.
+  ///
+  /// A operação vai para a outbox como `update` explícito. Quando isto foi
+  /// escrito era a única forma: o `OutboxHelper.delete` mandava um DELETE
+  /// físico. Hoje o `OutboxWorker` faz soft delete sozinho em toda entidade
+  /// com `softDelete: true` (o caso desta), então os dois caminhos chegam ao
+  /// mesmo lugar — este continua aqui por ser o explícito.
   ///
   /// Localmente a linha é removida na hora, porque o cache não guarda
-  /// `deleted_at` (ver `tables.dart`).
+  /// `deleted_at` (ver `tables.dart`). **Quem garante que ela não volta pelo
+  /// pull é o filtro de lápide em `SyncService._doPull`** — a policy de
+  /// leitura não basta, porque a policy de escrita do admin é `for all` e o
+  /// `using` dela também libera o SELECT da linha apagada.
   Future<void> deleteDocument(String id) async {
     await OutboxHelper.update(
       db: _db,

@@ -192,6 +192,39 @@ void main() {
       expect(rows.map((r) => r.id), ['d1']);
     });
 
+    test('lápide não entra no cache, nem vinda do fullReplace', () async {
+      final syncService = SyncService(db: db, remote: remote);
+      final entity = syncEntityByName('documents')!;
+
+      // O servidor devolve a linha apagada para QUEM É ADMIN: a policy
+      // `documents_admin_write` é `for all`, e o `using` de uma policy FOR ALL
+      // também vale para SELECT — policies permissivas se somam com OR, então
+      // `is_admin()` sozinho passa por cima do `deleted_at is null` da
+      // `documents_select`. Confirmado no harness de RLS (§7b).
+      remote.fetchData['documents'] = [
+        makeDocumentJson(id: 'd1', title: 'Manual'),
+        makeDocumentJson(
+          id: 'd2',
+          title: 'Arquivo de teste',
+          deletedAt: DateTime.utc(2026, 9, 21, 17, 30),
+        ),
+      ];
+      await syncService.pull(entity);
+
+      final rows = await db.select(db.documentRows).get();
+      expect(
+        rows.map((r) => r.id),
+        ['d1'],
+        reason: 'o cache não tem coluna deleted_at: gravar a lápide a torna '
+            'uma linha viva, e ela volta a cada pull',
+      );
+
+      // E continua fora depois de sincronizar de novo — era este o sintoma:
+      // o arquivo excluído reaparecia em toda sincronização.
+      await syncService.pull(entity);
+      expect((await db.select(db.documentRows).get()).map((r) => r.id), ['d1']);
+    });
+
     test('a entidade documents está registrada como fullReplace', () {
       final entity = syncEntityByName('documents')!;
       expect(entity.mode, SyncMode.fullReplace);

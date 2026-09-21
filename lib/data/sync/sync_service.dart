@@ -84,6 +84,26 @@ class SyncService {
       await db.transaction(() async {
         await entity.clear(db);
         for (final j in rows) {
+          // **Lápide nunca entra no cache, nem no fullReplace.**
+          //
+          // O desenho era o servidor filtrar: as policies de leitura destas
+          // tabelas têm `deleted_at is null`, então a linha apagada só
+          // desapareceria da resposta e o clear+repopula bastaria. Só que a
+          // policy de escrita do admin é `for all`, e no Postgres o `using`
+          // de uma policy `FOR ALL` **também vale para SELECT** — policies
+          // permissivas se somam com OR. Para quem é admin, `is_admin()`
+          // sozinho libera a leitura e o filtro de `deleted_at` da outra
+          // policy deixa de importar.
+          //
+          // O efeito era um arquivo excluído que voltava a cada pull, **só na
+          // tela do admin**: o `deleted_at` chegava preenchido e era gravado
+          // como linha viva (o cache não tem essa coluna — ver `tables.dart`).
+          // Quem não é admin nunca viu o problema, e por isso ele passou pelo
+          // harness de RLS, que media a visibilidade pelo obreiro comum.
+          //
+          // Filtrar aqui é a correção certa mesmo que a policy mude: o cliente
+          // não deve depender de o servidor lembrar de esconder a lápide.
+          if (j['deleted_at'] != null) continue;
           await entity.upsert(db, j);
         }
         await _setSyncState(

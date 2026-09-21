@@ -456,6 +456,23 @@ begin;
   select test.act_as(:'comum');
   select test.expect_count('arquivo excluido desaparece para o obreiro',
     $q$select count(*) from public.documents$q$, 0);
+  reset role;
+
+  -- ...MAS NAO PARA O ADMIN, e isto nao e um descuido do teste: e o que o
+  -- servidor faz. `documents_admin_write` e `for all`, e no Postgres o `using`
+  -- de uma policy FOR ALL vale tambem para SELECT; policies permissivas se
+  -- somam com OR, entao `is_admin()` sozinho passa por cima do
+  -- `deleted_at is null` da `documents_select`.
+  --
+  -- Custou um bug real: o pull `fullReplace` gravava a lapide como linha viva
+  -- (o cache do drift nao tem a coluna `deleted_at`), e o arquivo excluido
+  -- voltava em toda sincronizacao — so na tela do admin. Quem filtra hoje e o
+  -- cliente (`SyncService._doPull`). Esta assercao existe para documentar o
+  -- porque: se um dia ela virar 0, o filtro do cliente passa a ser redundante,
+  -- e nao o contrario.
+  select test.act_as(:'gerente');
+  select test.expect_count('admin AINDA VE o arquivo excluido (policy FOR ALL)',
+    $q$select count(*) from public.documents$q$, 1);
 rollback;
 
 -- O check constraint impede uma linha sem destino, que apareceria na lista como

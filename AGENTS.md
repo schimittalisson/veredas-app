@@ -1147,3 +1147,43 @@ registro.
    exige `is_admin()`, vale só para o DELETE físico, que o app não usa.
 7. Coberto por `test/ui/scale_tab_view_test.dart`: o toque abre o editor com o
    id certo na lista e na grade, e não abre nada para quem não pode editar.
+
+#### Arquivo excluído voltava a cada sync — só para o admin (pós-Fase 10)
+
+Sintoma relatado: um atalho na aba Arquivos sumia ao ser excluído e voltava na
+sincronização seguinte, para sempre.
+
+1. **A exclusão funcionava.** A linha no servidor estava com `deleted_at`
+   preenchido. Nada errado no repositório, no outbox nem nas policies — o
+   defeito estava no caminho de **volta**.
+2. **`FOR ALL` inclui SELECT.** `documents_admin_write` é
+   `for all ... using (is_admin())`, e no Postgres o `using` de uma policy
+   `FOR ALL` vale também para SELECT. Policies permissivas se somam com **OR**,
+   então para quem é admin `is_admin()` sozinho libera a leitura e o
+   `deleted_at is null` da `documents_select` deixa de importar. O servidor
+   devolvia a lápide.
+3. **O pull `fullReplace` gravava a lápide como linha viva.** O descarte de
+   `deleted_at != null` existia **só no ramo incremental** de
+   `SyncService._doPull`; o `fullReplace` dava `upsert` em tudo o que chegava.
+   Como o cache do drift não tem a coluna `deleted_at` (por desenho — nenhuma
+   query de leitura precisa lembrar de filtrar), a lápide entrava como
+   documento normal, em todo pull.
+4. **Por que passou pelo harness de RLS.** A asserção de §7b media a
+   visibilidade do arquivo excluído pelo **obreiro comum**, que de fato não o
+   vê. O admin nunca foi testado. Adicionada a asserção
+   `admin AINDA VE o arquivo excluido (policy FOR ALL)`, que documenta o
+   comportamento do servidor em vez de escondê-lo.
+5. **A correção é no cliente, não na policy.** Filtrar a lápide no pull vale
+   mesmo que a policy mude, e o contrário não: o cliente não deve depender de
+   o servidor lembrar de esconder a linha morta. Mexer nas 13 policies `FOR
+   ALL` do schema seria uma mudança larga para nenhum ganho visível — e a
+   leitura da lápide pelo admin é justamente o que permite recuperar o item.
+6. **Era a mesma armadilha em todas as entidades `fullReplace`**, não só em
+   `documents`: `profiles` (conta excluída pelo `delete_own_account`) e as três
+   tabelas de cadastro da lavanderia têm policy `FOR ALL` de admin e são
+   `fullReplace`. Um único filtro no pull fecha a classe inteira.
+7. **Nada a limpar no aparelho.** O primeiro pull depois da atualização
+   reconstrói a tabela sem a lápide.
+8. Coberto por `test/sync/documents_test.dart` ("lápide não entra no cache,
+   nem vinda do fullReplace"), que também verifica que ela não volta num
+   segundo pull.
