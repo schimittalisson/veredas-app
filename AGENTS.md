@@ -1072,3 +1072,42 @@ do SQL Editor.
 4. **A tela Escalas passou a guardar a aba aberta por id**, não por posição.
    Com a ordem editável, o índice deixou de ser identidade: uma reordenação
    chegando pelo sync trocaria a escala embaixo do dedo de quem está olhando.
+
+#### Faixa de "aguardando envio" removida, e o envio que não acontecia (pós-Fase 10)
+
+Pedido do solicitante: a faixa no topo da tela confunde o usuário. Ao olhar o
+caso, apareceu um problema atrás dele.
+
+1. **`drain()` só rodava na abertura, no login, na volta da conexão e no
+   resume.** Salvar algo com internet funcionando não disparava nada: a linha
+   entrava na outbox e ficava lá até o app ir para o segundo plano e voltar. A
+   faixa "1 alteração aguardando envio" não era o bug — era o único sintoma
+   visível dele. `SyncCoordinator` ganhou um quinto gatilho: a transição de
+   outbox **vazia para não vazia**. Só a transição, porque a stream reemite a
+   cada mudança na tabela e um ciclo por reemissão seria um ciclo por entrada.
+2. **`pullAll()` descartava pedido concorrente, e isso prendia escritas.** O
+   guard era `if (_isSyncing) return`. Uma escrita que entrasse na fila depois
+   de o `drain()` daquele ciclo já ter lido as entradas ficava presa: a fila
+   nunca voltava de vazia para cheia, então o gatilho novo também não
+   dispararia de novo. Agora o pedido é anotado em `_syncRequested` e o ciclo
+   se repete. Sem o gatilho concorrente não há loop — só um `pullAll()` externo
+   levanta a flag, e entradas em backoff não a levantam.
+3. **A faixa de pendentes saiu; a de "sem conexão" e a de erro ficaram.**
+   Offline é informação que o usuário precisa (na base o sinal cai, e sem o
+   aviso a pessoa lê dado velho achando que é o atual); "aguardando envio"
+   expõe a outbox, que é detalhe de implementação. Com o gatilho do item 1 o
+   estado de pendente vira questão de milissegundos.
+4. **`error` passou a vir antes de `hasPending` em `SyncStatus`.** Enquanto a
+   faixa de pendentes existia, a ordem inversa fazia sentido — "aguardando
+   envio" já avisava que algo não subiu. Com ela removida, `syncing` na frente
+   engoliria o aviso de falha exatamente no caso em que ele importa: a entrada
+   que falhou continua na fila, `hasPending` fica `true`, e o banner de erro
+   com "tentar de novo" nunca apareceria. `offline` continua na frente de tudo.
+5. **A derivação do estado virou um método só** (`_derive`). Havia duas cópias
+   da regra, no `build()` e no `finally` do `pullAll()`, e elas já divergiam.
+6. **`offline_pending_changes` continua no `.arb`.** A chave ficou sem uso, de
+   propósito: se a base pedir a faixa de volta (ou um indicador discreto), o
+   plural ICU já está escrito e traduzido.
+7. Coberto por `test/sync/sync_status_test.dart` (5 testes). Os dois casos
+   centrais — erro visível com a fila cheia, e escrita que entra no meio do
+   ciclo — foram confirmados falhando no código antigo antes de ficarem verdes.

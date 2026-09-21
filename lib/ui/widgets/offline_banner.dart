@@ -4,17 +4,23 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/l10n/app_localizations.dart';
-import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/providers/sync_providers.dart';
 
 /// Banner no topo do body que indica o estado de sincronização.
 ///
-/// Visível apenas quando há algo a comunicar:
+/// Visível apenas quando há algo que o usuário precisa saber:
 /// - **offline**: "Sem conexão — mostrando dados salvos"
-/// - **syncing** com pendentes: "N alterações aguardando envio"
 /// - **error**: "Não foi possível sincronizar" com botão de tentar de novo
 ///
-/// No estado `idle`, o banner não aparece — a UI fica limpa.
+/// Nos estados `idle` e `syncing`, o banner não aparece.
+///
+/// **`syncing` não mostra nada de propósito.** A faixa "N alterações
+/// aguardando envio" existia e foi retirada a pedido do solicitante: ela
+/// expunha a outbox, que é detalhe de implementação, e confundia — a pessoa
+/// salva algo, vê a tela já atualizada e ainda assim lê um aviso de que falta
+/// enviar. Quem garante que a fila não fica parada é o gatilho de drenagem em
+/// `SyncCoordinator`; se o envio falhar de verdade, o estado vira `error` e a
+/// faixa volta com o botão de tentar de novo.
 ///
 /// Era um `MaterialBanner`, que não tem equivalente no Cupertino. A versão
 /// própria é uma faixa fina e discreta: o iOS comunica estado de conexão sem
@@ -33,7 +39,7 @@ class OfflineBanner extends ConsumerWidget {
           icon: CupertinoIcons.wifi_slash,
           text: l.offline_showing_cached,
         ),
-      SyncStatus.syncing => _PendingBanner(l: l),
+      SyncStatus.syncing => const SizedBox.shrink(),
       SyncStatus.error => _Banner(
           icon: CupertinoIcons.exclamationmark_triangle,
           text: l.error_generic,
@@ -53,45 +59,16 @@ class OfflineBanner extends ConsumerWidget {
   }
 }
 
-class _PendingBanner extends ConsumerWidget {
-  const _PendingBanner({required this.l});
-
-  final AppLocalizations l;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    // O número de pendentes vem da outbox. O StreamProvider pode não ter
-    // resolvido ainda no primeiro frame; usa 0 como fallback (o banner
-    // aparece quando o stream emite).
-    final count = ref.watch(pendingOutboxCountProvider).value ?? 0;
-
-    if (count == 0) {
-      // Sincronizando sem pendentes: é um pull em andamento.
-      return _Banner(
-        leading: const CupertinoActivityIndicator(radius: 7),
-        text: l.offline_showing_cached,
-      );
-    }
-
-    return _Banner(
-      icon: CupertinoIcons.arrow_up_circle,
-      text: l.offline_pending_changes(count),
-    );
-  }
-}
-
 class _Banner extends StatelessWidget {
   const _Banner({
     required this.text,
     this.icon,
-    this.leading,
     this.trailing,
     this.isError = false,
   });
 
   final String text;
   final IconData? icon;
-  final Widget? leading;
   final Widget? trailing;
   final bool isError;
 
@@ -111,7 +88,7 @@ class _Banner extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
-            leading ?? Icon(icon, size: 16, color: foreground),
+            Icon(icon, size: 16, color: foreground),
             const SizedBox(width: 8),
             Expanded(
               child: Text(

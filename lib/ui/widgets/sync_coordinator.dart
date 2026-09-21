@@ -14,15 +14,15 @@ import 'package:veredas/providers/sync_providers.dart';
 /// `OutboxWorker` e os cobriu com testes, mas nada no app chamava `pullAll()`.
 /// O resultado era um app que parecia funcionar e não sincronizava: alterações
 /// feitas no servidor nunca chegavam ao cache, e escritas feitas no app
-/// ficavam na outbox para sempre — o banner "alterações aguardando envio" não
-/// tinha como sair da tela, porque `drain()` só roda dentro de `pullAll()`.
+/// ficavam na outbox para sempre, porque `drain()` só roda dentro de
+/// `pullAll()`.
 ///
 /// Não dá para pendurar isso numa tela: o Riverpod 3 **pausa providers fora de
 /// tela**, e um listener presos a um widget que sai da árvore para de receber
 /// eventos. Por isso o coordenador fica no nível do `app.dart`, acima do
 /// router, como o `AGENTS.md` §4 já prescrevia.
 ///
-/// Os três gatilhos:
+/// Os gatilhos:
 /// - **Abertura do app**, se já houver sessão (post-frame, para não
 ///   sincronizar antes da árvore montar).
 /// - **Login**, na transição de não autenticado para autenticado.
@@ -30,6 +30,7 @@ import 'package:veredas/providers/sync_providers.dart';
 ///   em que a outbox precisa drenar.
 /// - **Retorno do segundo plano** (`resumed`), que é quando o usuário volta ao
 ///   app depois de um tempo e espera ver dados atuais.
+/// - **Escrita nova na fila**, na transição de outbox vazia para não vazia.
 ///
 /// `pullAll()` já se protege de chamadas concorrentes com `_isSyncing`, então
 /// dois gatilhos disparando juntos não causam sync duplicado.
@@ -90,6 +91,24 @@ class _SyncCoordinatorState extends ConsumerState<SyncCoordinator>
       // Só na transição para online. Sem o `previous != true`, qualquer
       // rebuild do provider de conectividade dispararia um sync.
       if (previous != true && next) _syncIfAuthenticated();
+    });
+
+    ref.listen<AsyncValue<bool>>(hasPendingOutboxProvider, (previous, next) {
+      // **Uma escrita acabou de entrar na fila.** Faltava este gatilho: com
+      // internet funcionando, salvar algo não disparava nada, e a entrada só
+      // subia no próximo resume do app ou numa oscilação de rede. Ficava
+      // invisível porque a faixa "N alterações aguardando envio" era a única
+      // pista — e ela foi removida (ver `OfflineBanner`), então agora o envio
+      // precisa mesmo acontecer na hora.
+      //
+      // Só na transição de vazia para não vazia: a stream reemite a cada
+      // mudança na tabela, e sincronizar a cada reemissão de `true` faria um
+      // ciclo por entrada.
+      if (previous?.value == true || next.value != true) return;
+      // Offline não tenta: `drain()` sairia na checagem de conectividade e a
+      // volta da conexão já é gatilho próprio.
+      if (!ref.read(isOnlineProvider)) return;
+      _syncIfAuthenticated();
     });
 
     return widget.child;
