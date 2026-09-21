@@ -397,6 +397,7 @@ class _CellState extends ConsumerState<_Cell> {
         context,
         title: l.laundry_admin_unblock,
         message: l.laundry_admin_block_hint,
+        isDestructive: false,
       );
       if (ok != true) return;
       await _run(() async {
@@ -421,6 +422,7 @@ class _CellState extends ConsumerState<_Cell> {
           widget.machine.name,
           _Grid._formatMinutes(widget.slot.startsAtMinutes),
         ),
+        confirmLabel: l.laundry_cancel,
       );
       if (ok != true) return;
       await _run(() async {
@@ -479,6 +481,9 @@ class _CellState extends ConsumerState<_Cell> {
             '${widget.date.month.toString().padLeft(2, '0')}',
         _Grid._formatMinutes(widget.slot.startsAtMinutes),
       ),
+      // Reservar não apaga nada: o padrão destrutivo do diálogo rotularia o
+      // botão como "Excluir", em vermelho.
+      isDestructive: false,
     );
     if (ok != true) return;
 
