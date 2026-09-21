@@ -9,6 +9,7 @@ import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/admin_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
+import 'package:veredas/ui/widgets/confirm_dialog.dart';
 
 /// Editor de atribuição de escala — cria ou edita.
 ///
@@ -228,11 +229,65 @@ class _ScaleAssignmentEditorScreenState
                   ),
                 ],
               ),
+
+              // Excluir mora aqui, e não num menu na tela Escalas: a grade de
+              // slots é densa e um gesto destrutivo sobre uma célula de poucos
+              // milímetros erra fácil. Mesma posição do editor de escala em
+              // `admin/scale_type_editor_screen.dart` — última seção, em
+              // vermelho, atrás de uma confirmação.
+              if (_isEditing)
+                CupertinoListSection.insetGrouped(
+                  backgroundColor: colors.groupedBackground,
+                  separatorColor: colors.separator,
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  children: [
+                    CupertinoListTile(
+                      title: Text(
+                        l.scales_assignment_delete,
+                        style: AppTypography.body
+                            .copyWith(color: colors.destructive),
+                      ),
+                      onTap: _saving ? null : _delete,
+                    ),
+                  ],
+                ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _delete() async {
+    final l = AppLocalizations.of(context);
+
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: l.scales_assignment_delete_confirm,
+      // Aponta a alternativa: quem só quer trocar a pessoa escalada deve
+      // editar, senão perde a tarefa, as notas e o slot junto.
+      message: l.scales_assignment_delete_message,
+    );
+    if (!confirmed || !mounted) return;
+
+    setState(() => _saving = true);
+    try {
+      await ref
+          .read(scalesRepositoryProvider)
+          .deleteAssignment(widget.assignmentId!);
+      if (mounted) {
+        showAppToast(context, l.scales_assignment_deleted);
+        context.pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        showAppToast(context, e.toString(), isError: true);
+        setState(() => _saving = false);
+      }
+    }
   }
 
   Future<void> _loadExisting() async {

@@ -506,7 +506,8 @@ Atualize esta seção ao concluir cada fase.
       período (weekly/monthly/adhoc), tabela com slots / lista sem slots,
       destaque "Você" (primaryContainer + Chip), resumo "N× no período".
       FAB só se canEditScale. Editor de atribuição implementado
-      (`scale_assignment_editor_screen.dart`). Atribuição em equipe +
+      (`scale_assignment_editor_screen.dart`), alcançável tocando numa
+      atribuição já montada, com exclusão dentro dele. Atribuição em equipe +
       responsável geral e escala de Almoço (ver decisões no fim deste
       arquivo). TODO: duplicar semana, seleção múltipla com exclusão em lote.
 - [x] Fase 8 — Mural de Oração — feed com busca por título (debounce 400ms),
@@ -1111,3 +1112,38 @@ caso, apareceu um problema atrás dele.
 7. Coberto por `test/sync/sync_status_test.dart` (5 testes). Os dois casos
    centrais — erro visível com a fila cheia, e escrita que entra no meio do
    ciclo — foram confirmados falhando no código antigo antes de ficarem verdes.
+
+#### Editar e excluir uma atribuição já montada (pós-Fase 10)
+
+Pedido: depois de salvar uma escala, não havia como editar nem remover o
+registro.
+
+1. **Não faltava nada na camada de dados.** A rota `escalaAtribuicaoEditar`, o
+   modo de edição do `ScaleAssignmentEditorScreen` (`assignmentId != null`) e o
+   `ScalesRepository.deleteAssignment` já existiam e funcionavam desde a Fase 7
+   — o que nunca foi escrito é o caminho da tela até eles. A `scale_tab_view`
+   só tinha o botão de criar. A chave `scales_assignment_delete_confirm`
+   estava no `.arb` desde o plano, sem nenhum uso.
+2. **Toque na célula abre o editor; excluir mora dentro do editor.** A
+   alternativa era uma `CupertinoActionSheet` com "Editar/Excluir" no toque,
+   mas ela cobra um passo extra no caso comum (editar) e a exclusão teria de
+   repetir a confirmação de qualquer forma. A linha vermelha no fim do
+   formulário é o mesmo desenho de `admin/scale_type_editor_screen.dart`.
+3. **Um gesto de arrastar sobre a célula ficou de fora.** Na grade de sete
+   dias uma célula tem poucos milímetros de largura; arrastar ali erraria de
+   coluna com frequência, e o `Dismissible` do aviso na tela Início (que
+   funciona porque a célula ocupa a largura da tela) não se traduz para cá.
+4. **O chevron só aparece para quem pode editar**, e na lista, não na grade.
+   Célula com chevron que não abre nada engana; e na grade o ícone empurraria
+   os nomes para fora da coluna. Quem pode editar descobre a grade pelo toque
+   — tem `Semantics(button: true)` para o leitor de tela.
+5. **`scaleTypeId` sai da própria linha, não da aba aberta.** Nas listas adhoc
+   e "Anteriores" o recorte não é por período, e amarrar a rota à aba mandaria
+   o editor para a escala errada se essas listas algum dia misturarem tipos.
+6. **Responsável de escala também exclui, não só admin.** O gate da UI é
+   `canEditScale`, e no servidor a exclusão é soft delete — um `update` de
+   `deleted_at`, coberto por `scale_assignments_update`
+   (`manages_scale(scale_type_id)`). A policy `scale_assignments_delete`, que
+   exige `is_admin()`, vale só para o DELETE físico, que o app não usa.
+7. Coberto por `test/ui/scale_tab_view_test.dart`: o toque abre o editor com o
+   id certo na lista e na grade, e não abre nada para quem não pode editar.

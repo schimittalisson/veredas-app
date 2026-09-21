@@ -1,9 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/data/models/app_role.dart';
 import 'package:veredas/data/sync/sync_entity.dart';
+import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/screens/scales/scale_tab_view.dart';
 
 import '../helpers/test_helpers.dart';
@@ -63,13 +65,14 @@ void main() {
     List<String> memberIds = const [],
     List<String> memberNames = const [],
     String? assigneeId,
+    String? slot,
   }) async {
     await syncEntityByName('scale_assignments')!.upsert(db, {
       'id': 'sa1',
-      'scale_type_id': 'st-almoco',
+      'scale_type_id': slot == null ? 'st-almoco' : 'st-lixo',
       'starts_on': thisMonday().toIso8601String(),
       'ends_on': null,
-      'slot': null,
+      'slot': slot,
       'task': null,
       'assignee_id': assigneeId,
       'assignee_name': null,
@@ -81,13 +84,44 @@ void main() {
     });
   }
 
-  Future<void> pumpTab(WidgetTester tester) async {
+  ScaleTypeRow choreType() => ScaleTypeRow(
+        id: 'st-lixo',
+        slug: 'lixo',
+        name: 'Lixo',
+        // Com slots: a tela cai na grade (linhas = slots, colunas = dias).
+        slots: const ['Recolher'],
+        cadence: 'weekly',
+        ordering: 5,
+        isActive: true,
+        updatedAt: DateTime.utc(2026, 9, 1),
+      );
+
+  /// Guarda a rota que o toque abriu, para as asserções de navegação.
+  String? openedUri;
+
+  Future<void> pumpTab(
+    WidgetTester tester, {
+    bool canEdit = false,
+    ScaleTypeRow? scaleType,
+  }) async {
+    openedUri = null;
     await tester.pumpWidget(
-      buildTestWidget(
+      buildTestWidgetWithRouter(
         db: db,
         auth: auth,
+        initialLocation: '/escalas',
         child: CupertinoPageScaffold(
-          child: ScaleTabView(scaleType: lunchType(), canEdit: false),
+          child: ScaleTabView(
+            scaleType: scaleType ?? lunchType(),
+            canEdit: canEdit,
+          ),
+        ),
+        destinationPath: Routes.escalaAtribuicaoEditar,
+        destination: Builder(
+          builder: (context) {
+            openedUri = GoRouterState.of(context).uri.toString();
+            return const Text('EDITOR');
+          },
         ),
       ),
     );
@@ -148,5 +182,75 @@ void main() {
     expect(find.textContaining('Você está escalado 1×'), findsOneWidget);
 
     await unmount(tester);
+  });
+
+  // O pedido: "após salvar uma escala não há a opção de editar nem de remover".
+  // O editor e o `deleteAssignment` já existiam — faltava o caminho até eles.
+  group('toque abre o editor', () {
+    testWidgets('na lista, quem pode editar abre a atribuição', (tester) async {
+      await seedAssignment(memberIds: ['u1', 'u2']);
+
+      await pumpTab(tester, canEdit: true);
+
+      // O chevron é o que anuncia que a célula abre algo.
+      expect(
+        find.descendant(
+          of: find.byType(CupertinoListTile),
+          matching: find.byIcon(CupertinoIcons.chevron_right),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Ana, Bia'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(find.text('EDITOR'), findsOneWidget);
+      // O id da atribuição E o do tipo: sem o segundo o editor não sabe quais
+      // slots oferecer, e a rota exige o parâmetro.
+      expect(openedUri, contains('id=sa1'));
+      expect(openedUri, contains('scaleTypeId=st-almoco'));
+
+      await unmount(tester);
+    });
+
+    testWidgets('na grade de slots também', (tester) async {
+      await seedAssignment(memberIds: ['u1'], slot: 'Recolher');
+
+      await pumpTab(tester, canEdit: true, scaleType: choreType());
+      await tester.tap(find.text('Ana'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(find.text('EDITOR'), findsOneWidget);
+      expect(openedUri, contains('id=sa1'));
+
+      await unmount(tester);
+    });
+
+    testWidgets('quem não pode editar não abre nada', (tester) async {
+      await seedAssignment(memberIds: ['u1', 'u2']);
+
+      await pumpTab(tester, canEdit: false);
+      await tester.tap(find.text('Ana, Bia'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      expect(find.text('EDITOR'), findsNothing);
+      expect(openedUri, isNull);
+      // E a célula não promete o que não cumpre: sem chevron.
+      // O finder é ancorado na célula porque o navegador de período tem um
+      // chevron próprio (avançar a semana) que aparece nos dois casos.
+      expect(
+        find.descendant(
+          of: find.byType(CupertinoListTile),
+          matching: find.byIcon(CupertinoIcons.chevron_right),
+        ),
+        findsNothing,
+        reason: 'chevron em célula que não abre nada engana o usuário',
+      );
+
+      await unmount(tester);
+    });
   });
 }

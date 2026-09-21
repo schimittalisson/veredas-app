@@ -94,7 +94,10 @@ class _ScaleTabViewState extends ConsumerState<ScaleTabView> {
     final cadence = widget.scaleType.cadence;
 
     if (cadence == 'adhoc') {
-      return _AdhocView(scaleType: widget.scaleType);
+      return _AdhocView(
+        scaleType: widget.scaleType,
+        canEdit: widget.canEdit,
+      );
     }
 
     return Column(
@@ -119,6 +122,18 @@ class _ScaleTabViewState extends ConsumerState<ScaleTabView> {
       ],
     );
   }
+}
+
+/// Abre o editor de uma atribuição já montada.
+///
+/// O `scaleTypeId` sai da própria linha, e não da aba aberta: na visão adhoc
+/// e na seção "Anteriores" a lista não é recortada por período, e amarrar a
+/// rota à aba mandaria o editor para a escala errada se algum dia essas listas
+/// passarem a misturar tipos.
+void _editAssignment(BuildContext context, ScaleAssignmentRow a) {
+  context.push(
+    '${Routes.escalaAtribuicaoEditar}?scaleTypeId=${a.scaleTypeId}&id=${a.id}',
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -291,6 +306,7 @@ class _PeriodBody extends ConsumerWidget {
                       periodStart: periodStart,
                       currentUserId: currentUserId,
                       profileNames: profileNames,
+                      canEdit: canEdit,
                     )
                   : _SimpleList(
                       assignments: data,
@@ -298,6 +314,7 @@ class _PeriodBody extends ConsumerWidget {
                       cadence: cadence,
                       currentUserId: currentUserId,
                       profileNames: profileNames,
+                      canEdit: canEdit,
                     ),
             ),
           ],
@@ -318,6 +335,7 @@ class _SlotsTable extends StatelessWidget {
     required this.periodStart,
     required this.currentUserId,
     required this.profileNames,
+    required this.canEdit,
   });
 
   final ScaleTypeRow scaleType;
@@ -325,6 +343,7 @@ class _SlotsTable extends StatelessWidget {
   final DateTime periodStart;
   final String? currentUserId;
   final Map<String, String> profileNames;
+  final bool canEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -396,6 +415,7 @@ class _SlotsTable extends StatelessWidget {
                         assignment: bySlotAndDay[slot]?[day],
                         currentUserId: currentUserId,
                         profileNames: profileNames,
+                        canEdit: canEdit,
                       ),
                   ],
                 ),
@@ -425,11 +445,13 @@ class _AssignmentCell extends StatelessWidget {
     required this.assignment,
     required this.currentUserId,
     required this.profileNames,
+    required this.canEdit,
   });
 
   final ScaleAssignmentRow? assignment;
   final String? currentUserId;
   final Map<String, String> profileNames;
+  final bool canEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -452,7 +474,7 @@ class _AssignmentCell extends StatelessWidget {
     final people = _peopleOf(assignment!, profileNames, l);
     final labelColor = isMe ? colors.onTintContainer : colors.label;
 
-    return Container(
+    final cell = Container(
       padding: const EdgeInsets.all(4),
       decoration: isMe
           ? BoxDecoration(
@@ -490,6 +512,23 @@ class _AssignmentCell extends StatelessWidget {
                   .copyWith(color: colors.onTintContainer),
             ),
         ],
+      ),
+    );
+
+    if (!canEdit) return cell;
+
+    // A célula não ganha chevron: na grade de sete dias ela tem poucos
+    // milímetros de largura, e um ícone ali empurraria os nomes para fora.
+    // Quem pode editar descobre pelo toque; para quem não pode, não há o que
+    // descobrir. `opaque` faz o toque valer na célula inteira, inclusive no
+    // vão entre as linhas de nome.
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => _editAssignment(context, assignment!),
+      child: Semantics(
+        button: true,
+        label: '${l.action_edit}: ${people.team.join(', ')}',
+        child: cell,
       ),
     );
   }
@@ -543,6 +582,7 @@ class _SimpleList extends StatelessWidget {
     required this.cadence,
     required this.currentUserId,
     required this.profileNames,
+    required this.canEdit,
   });
 
   final List<ScaleAssignmentRow> assignments;
@@ -550,6 +590,7 @@ class _SimpleList extends StatelessWidget {
   final String cadence;
   final String? currentUserId;
   final Map<String, String> profileNames;
+  final bool canEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -588,6 +629,7 @@ class _SimpleList extends StatelessWidget {
                     isMe: currentUserId != null &&
                         isAssignedTo(a, currentUserId!),
                     profileNames: profileNames,
+                    canEdit: canEdit,
                   ),
               ],
           ],
@@ -606,11 +648,13 @@ class _AssignmentListTile extends StatelessWidget {
     required this.assignment,
     required this.isMe,
     required this.profileNames,
+    required this.canEdit,
   });
 
   final ScaleAssignmentRow assignment;
   final bool isMe;
   final Map<String, String> profileNames;
+  final bool canEdit;
 
   @override
   Widget build(BuildContext context) {
@@ -652,19 +696,40 @@ class _AssignmentListTile extends StatelessWidget {
           : null,
       // O Chip do Material vira uma cápsula desenhada à mão: o iOS não tem
       // chips, e o destaque "Você" só precisa de um fundo arredondado.
-      trailing: isMe
-          ? Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: colors.fill,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                l.scales_you,
-                style: AppTypography.caption.copyWith(color: colors.label),
-              ),
+      //
+      // O chevron entra ao lado da cápsula, e não no lugar dela: é o que diz
+      // que a célula abre algo. Só para quem pode editar — chevron em célula
+      // que não faz nada é pior que célula sem chevron.
+      trailing: (isMe || canEdit)
+          ? Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isMe)
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: colors.fill,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      l.scales_you,
+                      style:
+                          AppTypography.caption.copyWith(color: colors.label),
+                    ),
+                  ),
+                if (canEdit) ...[
+                  const SizedBox(width: 6),
+                  Icon(
+                    CupertinoIcons.chevron_right,
+                    size: 16,
+                    color: colors.secondaryLabel,
+                  ),
+                ],
+              ],
             )
           : null,
+      onTap: canEdit ? () => _editAssignment(context, assignment) : null,
     );
   }
 }
@@ -674,9 +739,10 @@ class _AssignmentListTile extends StatelessWidget {
 // ---------------------------------------------------------------------------
 
 class _AdhocView extends ConsumerWidget {
-  const _AdhocView({required this.scaleType});
+  const _AdhocView({required this.scaleType, required this.canEdit});
 
   final ScaleTypeRow scaleType;
+  final bool canEdit;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -723,12 +789,14 @@ class _AdhocView extends ConsumerWidget {
                     isMe: currentUserId != null &&
                         isAssignedTo(a, currentUserId),
                     profileNames: profileNames,
+                    canEdit: canEdit,
                   ),
                 if (past.isNotEmpty)
                   _PreviousSection(
                     assignments: past.take(20).toList(),
                     currentUserId: currentUserId,
                     profileNames: profileNames,
+                    canEdit: canEdit,
                   ),
               ],
             ),
@@ -753,11 +821,13 @@ class _PreviousSection extends StatefulWidget {
     required this.assignments,
     required this.currentUserId,
     required this.profileNames,
+    required this.canEdit,
   });
 
   final List<ScaleAssignmentRow> assignments;
   final String? currentUserId;
   final Map<String, String> profileNames;
+  final bool canEdit;
 
   @override
   State<_PreviousSection> createState() => _PreviousSectionState();
@@ -804,6 +874,7 @@ class _PreviousSectionState extends State<_PreviousSection> {
               isMe: widget.currentUserId != null &&
                   isAssignedTo(a, widget.currentUserId!),
               profileNames: widget.profileNames,
+              canEdit: widget.canEdit,
             ),
       ],
     );
