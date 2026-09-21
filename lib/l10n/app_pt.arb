@@ -279,6 +279,16 @@
   "agenda_event_description_label": "Descrição",
   "agenda_event_starts_at": "Início",
   "agenda_event_ends_at": "Fim",
+  "agenda_event_starts_on": "Data de início",
+  "agenda_event_ends_on": "Data de fim",
+  "agenda_event_end_before_start": "O fim não pode ser antes do início.",
+  "agenda_event_date_range": "{start} – {end}",
+  "@agenda_event_date_range": {
+    "placeholders": {
+      "start": { "type": "String" },
+      "end": { "type": "String" }
+    }
+  },
   "agenda_event_all_day": "Dia inteiro",
   "agenda_event_location": "Local",
   "agenda_event_category": "Categoria",
@@ -288,7 +298,10 @@
   "agenda_calendar_format_month": "Mês",
   "agenda_calendar_format_week": "Semana",
   "agenda_event_saved": "Evento salvo.",
+  "agenda_event_delete": "Excluir evento",
   "agenda_event_delete_confirm": "Excluir este evento?",
+  "agenda_event_delete_message": "Ele sai da agenda de todo mundo. Para mudar data, horário ou local, edite em vez de excluir.",
+  "agenda_event_deleted": "Evento excluído.",
   "agenda_slot_title_label": "Título",
   "agenda_slot_weekday": "Dia da semana",
   "agenda_slot_starts_at": "Início",

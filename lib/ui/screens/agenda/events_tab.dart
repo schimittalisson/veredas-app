@@ -103,18 +103,14 @@ class _EventsTabState extends ConsumerState<EventsTab> {
               },
               eventLoader: (day) {
                 final normalized = _normalize(day);
-                // O eventLoader recebe um DateTime; filtramos os eventos cujo
-                // startsAt cai neste dia. O daysWithEventsProvider já tem o
-                // conjunto de dias; aqui usamos o allEventsProvider para obter
-                // os eventos completos.
+                // O `daysWithEventsProvider` é o atalho: ele já tem o conjunto
+                // de dias ocupados e evita varrer a lista inteira nos dias
+                // vazios, que são a maioria de um mês.
                 if (!daysWithEvents.contains(normalized)) return const [];
                 final events = ref.read(allEventsProvider).value ?? const [];
-                return events.where((e) {
-                  final s = e.startsAt;
-                  return s.year == day.year &&
-                      s.month == day.month &&
-                      s.day == day.day;
-                }).toList();
+                // `eventOccursOn`, e não `startsAt == day`: um evento de
+                // vários dias precisa aparecer em todos eles.
+                return events.where((e) => eventOccursOn(e, day)).toList();
               },
               headerStyle: HeaderStyle(
                 titleCentered: true,
@@ -315,8 +311,27 @@ class EventCard extends StatelessWidget {
     final l = AppLocalizations.of(context);
     final colors = context.colors;
 
+    // Um evento de vários dias aparece agora em cada dia que atravessa, então
+    // o rótulo precisa dizer de quando a quando — só "20:00 – 08:00" numa
+    // quarta-feira, para um evento que começou na segunda, engana.
+    final range = eventDayRange(event);
+    final spansDays = range.last.isAfter(range.first);
+    final dayFmt = DateFormat('d/M');
+
     String timeLabel;
-    if (event.allDay) {
+    if (spansDays) {
+      timeLabel = event.allDay
+          ? l.agenda_event_date_range(
+              dayFmt.format(range.first),
+              dayFmt.format(range.last),
+            )
+          : l.agenda_event_date_range(
+              '${dayFmt.format(event.startsAt)} '
+                  '${DateFormat.Hm().format(event.startsAt)}',
+              '${dayFmt.format(event.endsAt!)} '
+                  '${DateFormat.Hm().format(event.endsAt!)}',
+            );
+    } else if (event.allDay) {
       timeLabel = l.agenda_all_day;
     } else if (event.endsAt != null) {
       timeLabel =
@@ -401,10 +416,17 @@ class EventCard extends StatelessWidget {
                               color: colors.secondaryLabel,
                             ),
                             const SizedBox(width: 4),
-                            Text(
-                              timeLabel,
-                              style: AppTypography.caption
-                                  .copyWith(color: colors.secondaryLabel),
+                            // `Flexible`: o rótulo de intervalo de datas é
+                            // bem mais longo que um "20:00" e estourava a
+                            // linha quando o evento também tinha local.
+                            Flexible(
+                              child: Text(
+                                timeLabel,
+                                style: AppTypography.caption
+                                    .copyWith(color: colors.secondaryLabel),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             // O local entra na mesma linha do horário: numa
                             // linha compacta ele não merece uma terceira.

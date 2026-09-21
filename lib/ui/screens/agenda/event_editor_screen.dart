@@ -6,8 +6,10 @@ import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/agenda_providers.dart';
+import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
+import 'package:veredas/ui/widgets/confirm_dialog.dart';
 import 'package:veredas/ui/widgets/color_picker_row.dart';
 
 /// Editor de evento — cria ou edita.
@@ -144,17 +146,25 @@ class _EventEditorScreenState extends ConsumerState<EventEditorScreen> {
                       onChanged: (v) => setState(() => _allDay = v),
                     ),
                   ),
+                  // **O "Fim" fica visível também no dia inteiro.** Antes ele
+                  // era escondido, e com isso um evento de dia inteiro só
+                  // podia durar um dia — retiro, conferência e viagem de
+                  // equipe não cabiam. O que o dia inteiro muda é a roda de
+                  // seleção, que abre só a data (ver `_pickDateTime`), e os
+                  // rótulos, que passam a falar de data e não de horário.
                   _ValueRow(
-                    label: l.agenda_event_starts_at,
+                    label: _allDay
+                        ? l.agenda_event_starts_on
+                        : l.agenda_event_starts_at,
                     value: _formatDateTime(_startsAt),
                     onTap: () => _pickDateTime(isStart: true),
                   ),
-                  if (!_allDay)
-                    _ValueRow(
-                      label: l.agenda_event_ends_at,
-                      value: _endsAt != null ? _formatDateTime(_endsAt!) : '—',
-                      onTap: () => _pickDateTime(isStart: false),
-                    ),
+                  _ValueRow(
+                    label:
+                        _allDay ? l.agenda_event_ends_on : l.agenda_event_ends_at,
+                    value: _endsAt != null ? _formatDateTime(_endsAt!) : '—',
+                    onTap: () => _pickDateTime(isStart: false),
+                  ),
                 ],
               ),
 
@@ -192,11 +202,67 @@ class _EventEditorScreenState extends ConsumerState<EventEditorScreen> {
                   ),
                 ],
               ),
+
+              // Excluir mora no fim do editor, mesma posição de
+              // `admin/scale_type_editor_screen.dart` e do editor de
+              // atribuição. O cartão na lista abre o editor, então é aqui que
+              // a pessoa chega querendo tirar o evento da agenda.
+              //
+              // **Só para admin.** O cartão abre este editor para qualquer
+              // obreiro (ver o TODO da tela de detalhe em `events_tab.dart`),
+              // e `events_admin_write` exige `is_admin()`: para quem não é,
+              // a exclusão sairia otimista e voltaria no primeiro sync. Quem
+              // garante a permissão é a policy — esconder o botão é só não
+              // oferecer o que não funciona.
+              if (_isEditing && ref.watch(isAdminProvider))
+                CupertinoListSection.insetGrouped(
+                  backgroundColor: colors.groupedBackground,
+                  separatorColor: colors.separator,
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  children: [
+                    CupertinoListTile(
+                      title: Text(
+                        l.agenda_event_delete,
+                        style: AppTypography.body
+                            .copyWith(color: colors.destructive),
+                      ),
+                      onTap: _saving ? null : _delete,
+                    ),
+                  ],
+                ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Future<void> _delete() async {
+    final l = AppLocalizations.of(context);
+
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: l.agenda_event_delete_confirm,
+      message: l.agenda_event_delete_message,
+    );
+    if (!confirmed || !mounted) return;
+
+    setState(() => _saving = true);
+    try {
+      await ref.read(agendaRepositoryProvider).deleteEvent(widget.eventId!);
+      if (mounted) {
+        showAppToast(context, l.agenda_event_deleted);
+        context.pop();
+      }
+    } catch (e) {
+      if (mounted) {
+        showAppToast(context, e.toString(), isError: true);
+        setState(() => _saving = false);
+      }
+    }
   }
 
   Future<void> _loadExisting() async {
@@ -346,9 +412,18 @@ class _EventEditorScreenState extends ConsumerState<EventEditorScreen> {
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
+    final l = AppLocalizations.of(context);
+
+    // Mesma regra do CHECK `events_dates_ordered` no servidor. Aqui ela existe
+    // para o erro aparecer antes da viagem até o Supabase — e passou a poder
+    // acontecer de verdade, porque o dia inteiro agora tem campo de fim.
+    final end = _endsAt;
+    if (end != null && end.isBefore(_startsAt)) {
+      showAppToast(context, l.agenda_event_end_before_start, isError: true);
+      return;
+    }
 
     setState(() => _saving = true);
-    final l = AppLocalizations.of(context);
     final repo = ref.read(agendaRepositoryProvider);
 
     try {

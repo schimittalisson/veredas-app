@@ -501,6 +501,8 @@ Atualize esta seção ao concluir cada fase.
       próximos, `cached_network_image` para capas) e Cronograma (grade
       semanal proporcional + lista por dia). FAB só admin. Editores de
       evento e slot implementados com seletor de cor (`color_index`).
+      Evento de vários dias marca todos os dias no calendário; dia inteiro
+      aceita intervalo; exclusão no editor (só admin).
       TODO: detalhe do evento.
 - [x] Fase 7 — Tela Escalas — TabBar dinâmica de scale_types, seletor de
       período (weekly/monthly/adhoc), tabela com slots / lista sem slots,
@@ -1187,3 +1189,54 @@ sincronização seguinte, para sempre.
 8. Coberto por `test/sync/documents_test.dart` ("lápide não entra no cache,
    nem vinda do fullReplace"), que também verifica que ela não volta num
    segundo pull.
+
+#### Eventos: dia inteiro de vários dias, marcação no calendário e exclusão (pós-Fase 10)
+
+Três pedidos sobre a aba Eventos.
+
+1. **"Dia inteiro" já existia; o que faltava era o campo de fim.** A chave
+   estava lá desde a Fase 6, mas escondia a linha "Fim" — e com isso um evento
+   de dia inteiro só podia durar um dia, o que exclui retiro, conferência e
+   viagem de equipe. Agora o dia inteiro muda só duas coisas: a roda de seleção
+   abre apenas a data e os rótulos passam a "Data de início"/"Data de fim".
+   Mesmo desenho do Calendário do iOS.
+2. **O calendário lia só `startsAt`.** `daysWithEventsProvider`,
+   `eventsForDayProvider` e o `eventLoader` do `TableCalendar` comparavam a
+   data de início com o dia, então um evento de sexta a domingo existia só na
+   sexta. Passaram todos a usar `eventDayRange`/`eventOccursOn`
+   (`agenda_providers.dart`), que devolvem o intervalo de dias ocupados.
+3. **Fim à meia-noite é ambíguo, e a resposta depende do `all_day`.** Num
+   evento com hora, 20:00→00:00 termina no instante em que o outro dia começa:
+   marcar o dia seguinte poria bolinha em dia vazio. Num evento de dia inteiro,
+   a meia-noite é exatamente como o editor grava a data de fim (a roda não pede
+   hora) e significa "este dia todo" — descontar um dia encurtaria um retiro de
+   21 a 23 para 21 a 22. A regra vale só quando `allDay` é falso.
+4. **Aritmética de dia por componente, não por `Duration`.** `DateTime(y, m, d
+   ± 1)` em vez de somar 24 h: na virada do horário de verão o `Duration` erra
+   o dia. O Brasil não tem mais DST, mas as datas vêm do servidor.
+5. **Teto de um ano no intervalo.** Erro de digitação na data (2126 em vez de
+   2026) pontilharia o calendário por um século, e "tem algo todo dia" não é
+   informação.
+6. **O rótulo do cartão passou a dizer o intervalo** quando o evento atravessa
+   dias — só "20:00 – 08:00" numa quarta, para um evento que começou na
+   segunda, engana. E o `Text` do horário virou `Flexible`: o rótulo de
+   intervalo é bem mais longo que um "20:00" e estourava a linha quando o
+   evento também tinha local.
+7. **Excluir só aparece para admin.** `deleteEvent` já existia no repositório;
+   faltava o caminho na UI. A linha vermelha vai no fim do editor, como nos
+   outros editores. O gate por `isAdminProvider` não é cosmético: o cartão do
+   evento abre este editor para **qualquer** obreiro (ver o TODO da tela de
+   detalhe), e `events_admin_write` exige `is_admin()` — oferecer a exclusão a
+   quem a policy vai recusar faria o evento sumir e voltar no primeiro sync.
+8. **Validação local de `ends_at >= starts_at`.** Espelha o CHECK
+   `events_dates_ordered`; passou a poder acontecer de verdade agora que o dia
+   inteiro tem campo de fim.
+9. **Fica registrado o que não foi tocado:** o editor de evento continua
+   abrindo para obreiro comum, e o botão Salvar dele continua visível — uma
+   edição feita por quem não é admin sai otimista e é revertida no sync, sem
+   mensagem. É anterior a esta mudança e o conserto certo é a tela de detalhe
+   do evento, que o TODO da Fase 6 já prevê.
+10. Coberto por `test/core/event_days_test.dart` (15 testes de intervalo de
+    dias, incluindo meia-noite, dia inteiro, virada de mês e o teto) e
+    `test/ui/event_editor_test.dart` (6 testes de rótulo, campo de fim e
+    visibilidade do excluir).
