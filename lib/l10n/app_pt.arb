@@ -439,12 +439,23 @@
   "admin_invite_status_exhausted": "Esgotado",
   "admin_invite_status_revoked": "Revogado",
   "admin_invite_create_title": "Criar convite",
+  "admin_invite_edit_title": "Editar convite",
   "admin_invite_note": "Observação",
   "admin_invite_max_uses": "Número de usos",
+  "admin_invite_max_uses_hint": "Número de usos (vazio = sem limite)",
+  "admin_invite_uses_unlimited": "{uses, plural, =0{Nenhum uso} =1{1 uso} other{{uses} usos}} · sem limite",
+  "@admin_invite_uses_unlimited": {
+    "placeholders": {
+      "uses": { "type": "int" }
+    }
+  },
   "admin_invite_expiry_date": "Data de validade (opcional)",
   "admin_invite_copy": "Copiar código",
+  "admin_invite_edit": "Editar",
   "admin_invite_revoke": "Revogar",
   "admin_invite_copied": "Código copiado",
+  "admin_invite_error_code_taken": "Já existe um convite com esse código.",
+  "admin_invite_error_code_empty": "Informe um código para o convite.",
 
   "admin_managers_no_types": "Nenhum tipo de escala cadastrado.",
   "admin_managers_add": "Adicionar responsável",

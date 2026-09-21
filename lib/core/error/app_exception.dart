@@ -33,6 +33,10 @@ enum AppErrorCode {
   inviteExhausted,
   inviteRevoked,
 
+  /// Já existe outro convite com o código escolhido. O índice único é em
+  /// `upper(code)`, então difere só na caixa também colide.
+  inviteCodeTaken,
+
   // --- Permissão ---
   /// O RLS recusou a escrita, ou a linha foi alterada/removida por outra
   /// pessoa. Os dois casos são indistinguíveis num `UPDATE` que afeta 0 linhas

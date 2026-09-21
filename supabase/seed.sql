@@ -130,7 +130,10 @@ select m.weekday::smallint, m.starts_at, m.ends_at, m.title, m.location, m.categ
  );
 
 -- ---- Convite inicial ----
--- max_uses 20 = um por obreiro da base. O índice único é em upper(code).
+-- max_uses null = sem limite. Era 20 ("um por obreiro"), mas a base cresceu
+-- para ~30 e o número virou um teto arbitrário que barrava gente de entrar.
+-- Quem fecha o convite é o admin, revogando ou pondo um limite pela tela de
+-- Convites. O índice único é em upper(code).
 insert into public.invites (code, role, max_uses, note)
-values ('VEREDAS2026', 'obreiro', 20, 'Convite inicial dos obreiros')
+values ('VEREDAS2026', 'obreiro', null, 'Convite inicial dos obreiros')
 on conflict do nothing;

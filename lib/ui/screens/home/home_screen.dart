@@ -573,7 +573,7 @@ class _PinnedAnnouncement extends ConsumerWidget {
       await ref.read(homeRepositoryProvider).deleteAnnouncement(id);
     } catch (e) {
       if (context.mounted) {
-        showAppToast(context, e.toString(), isError: true);
+        showAppToast(context, _deleteErrorMessage(l, e), isError: true);
       }
     }
   }
@@ -939,6 +939,10 @@ class _RecentAnnouncements extends ConsumerWidget {
               color: colors.surface,
               borderRadius: BorderRadius.circular(12),
             ),
+            // Recorta porque a faixa vermelha do arrasto é um retângulo cheio:
+            // sem o clip ela vaza por cima dos cantos arredondados do cartão
+            // na primeira e na última célula.
+            clipBehavior: Clip.antiAlias,
             child: Column(
               children: [
                 for (var i = 0; i < announcements.length; i++) ...[
@@ -961,13 +965,66 @@ class _RecentAnnouncements extends ConsumerWidget {
 // _AnnouncementTile
 // ---------------------------------------------------------------------------
 
-class _AnnouncementTile extends StatelessWidget {
+/// Célula de um aviso na lista.
+///
+/// Para o admin, arrastar para a esquerda revela a faixa vermelha de excluir —
+/// o gesto padrão do iOS para apagar item de lista. Para o obreiro comum a
+/// célula é a mesma, sem gesto: esconder o botão não é controle de acesso
+/// (AGENTS.md §8.3), quem barra de verdade é a policy `announcements_admin_write`,
+/// e o 403 reverte o cache otimista.
+class _AnnouncementTile extends ConsumerWidget {
   const _AnnouncementTile({required this.announcement});
 
   final AnnouncementRow announcement;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tile = _buildTile(context);
+
+    if (!ref.watch(isAdminProvider)) return tile;
+
+    return Dismissible(
+      key: ValueKey(announcement.id),
+      // Só da direita para a esquerda. O outro sentido é o gesto de voltar do
+      // iOS, e a borda esquerda da tela pertence a ele.
+      direction: DismissDirection.endToStart,
+      background: const _DeleteSwipeBackground(),
+      confirmDismiss: (_) => _confirmDelete(context, ref),
+      child: tile,
+    );
+  }
+
+  /// Pergunta e, na confirmação, exclui — mas **sempre devolve `false`**.
+  ///
+  /// Devolver `true` faria o `Dismissible` tirar a célula da tela por conta
+  /// própria, e a lista não é dele: ela vem de um `StreamProvider` sobre o
+  /// drift. Enquanto o stream não emitisse, o item continuaria na árvore e o
+  /// Flutter lançaria "A dismissed Dismissible widget is still part of the
+  /// tree". Com `false`, quem tira a célula é a emissão do stream — que vem
+  /// junto, porque a escrita no cache local é síncrona (a viagem ao servidor
+  /// fica com a outbox).
+  Future<bool> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final l = AppLocalizations.of(context);
+
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: l.home_announcement_delete,
+      message: l.home_announcement_delete_confirm,
+      confirmLabel: l.home_announcement_delete,
+    );
+    if (!confirmed) return false;
+
+    try {
+      await ref.read(homeRepositoryProvider).deleteAnnouncement(announcement.id);
+    } catch (e) {
+      if (context.mounted) {
+        showAppToast(context, _deleteErrorMessage(l, e), isError: true);
+      }
+    }
+    return false;
+  }
+
+  Widget _buildTile(BuildContext context) {
     final colors = context.colors;
 
     return CupertinoListTile(
@@ -998,4 +1055,62 @@ class _AnnouncementTile extends StatelessWidget {
       },
     );
   }
+}
+
+/// A faixa que aparece atrás da célula durante o arrasto.
+///
+/// O conteúdo fica encostado à direita porque é de lá que ele surge: o dedo
+/// puxa a célula para a esquerda e descobre o que está embaixo.
+class _DeleteSwipeBackground extends StatelessWidget {
+  const _DeleteSwipeBackground();
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final colors = context.colors;
+
+    return ColoredBox(
+      color: colors.destructive,
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                CupertinoIcons.delete,
+                size: 18,
+                color: CupertinoColors.white,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                l.home_announcement_delete,
+                style: AppTypography.subheadlineEmphasis
+                    .copyWith(color: CupertinoColors.white),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Mensagem do l10n para uma falha ao excluir — a tela nunca mostra o
+/// `toString()` de uma exceção do Postgrest (AGENTS.md §6, regra 6).
+String _deleteErrorMessage(AppLocalizations l, Object error) {
+  final code = error is AppException ? error.code : null;
+  return switch (code) {
+    AppErrorCode.permissionDenied ||
+    AppErrorCode.forbidden =>
+      l.auth_error_permission_denied,
+    AppErrorCode.permissionDeniedOrStale ||
+    AppErrorCode.notFound =>
+      l.auth_error_permission_denied_or_stale,
+    AppErrorCode.noConnection => l.error_no_connection,
+    AppErrorCode.timeout => l.auth_error_timeout,
+    AppErrorCode.serverUnavailable => l.auth_error_server_unavailable,
+    _ => l.auth_error_unknown,
+  };
 }

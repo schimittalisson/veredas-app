@@ -31,12 +31,30 @@ abstract interface class AdminService {
   ///
   /// Se [code] for null, o servidor gera um automaticamente (6 chars
   /// alfanuméricos maiúsculos, sem 0/O/1/I).
+  /// [maxUses] null significa **sem limite** de resgates.
   Future<CreatedInvite> createInvite({
     required AppRole role,
-    required int maxUses,
+    int? maxUses,
     DateTime? expiresAt,
     String? note,
     String? code,
+  });
+
+  /// Edita um convite que já existe — inclusive o código, que é como a base
+  /// rotaciona o convite sem criar outro (o índice único em `upper(code)`
+  /// impede reaproveitar o mesmo código em duas linhas).
+  ///
+  /// **Substitui todos os campos**, não faz patch: `null` em [maxUses],
+  /// [expiresAt] ou [note] grava null (sem limite / sem validade / sem
+  /// observação). A tela abre o formulário preenchido e devolve o estado
+  /// inteiro, então não há campo "não mexido".
+  Future<CreatedInvite> updateInvite({
+    required String inviteId,
+    required String code,
+    required AppRole role,
+    int? maxUses,
+    DateTime? expiresAt,
+    String? note,
   });
 
   /// Revoga um convite (set revoked_at = now()).
@@ -61,7 +79,7 @@ class CreatedInvite {
     required this.id,
     required this.code,
     required this.role,
-    required this.maxUses,
+    this.maxUses,
     this.expiresAt,
     this.note,
   });
@@ -69,7 +87,8 @@ class CreatedInvite {
   final String id;
   final String code;
   final AppRole role;
-  final int maxUses;
+  /// Null = sem limite de usos.
+  final int? maxUses;
   final DateTime? expiresAt;
   final String? note;
 }

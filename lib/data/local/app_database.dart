@@ -42,7 +42,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -108,6 +108,15 @@ class AppDatabase extends _$AppDatabase {
             await m.createTable(laundryTimeSlotRows);
             await m.createTable(laundryBlockRows);
             await m.createTable(laundryReservationRows);
+          }
+
+          // v6 — convite sem limite de usos: `maxUses` passou a aceitar null.
+          // O SQLite não sabe afrouxar um NOT NULL com ALTER TABLE, então o
+          // `alterTable` do drift recria a tabela e copia as linhas. Nenhuma
+          // linha existente muda de valor: quem tinha teto continua com ele, e
+          // "sem limite" só aparece quando o servidor mandar null.
+          if (from < 6) {
+            await m.alterTable(TableMigration(inviteRows));
           }
         },
         beforeOpen: (details) async {

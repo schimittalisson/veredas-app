@@ -59,7 +59,7 @@ class SupabaseAdminService implements AdminService {
   @override
   Future<CreatedInvite> createInvite({
     required AppRole role,
-    required int maxUses,
+    int? maxUses,
     DateTime? expiresAt,
     String? note,
     String? code,
@@ -73,20 +73,48 @@ class SupabaseAdminService implements AdminService {
         'p_code': code,
       }) as Map<String, dynamic>;
 
-      return CreatedInvite(
+      return _invite(result);
+    } catch (e) {
+      throw _mapError(e);
+    }
+  }
+
+  @override
+  Future<CreatedInvite> updateInvite({
+    required String inviteId,
+    required String code,
+    required AppRole role,
+    int? maxUses,
+    DateTime? expiresAt,
+    String? note,
+  }) async {
+    try {
+      final result = await _client.rpc('update_invite', params: {
+        'p_invite_id': inviteId,
+        'p_code': code,
+        'p_role': role.name,
+        'p_max_uses': maxUses,
+        'p_expires_at': expiresAt?.toIso8601String(),
+        'p_note': note,
+      }) as Map<String, dynamic>;
+
+      return _invite(result);
+    } catch (e) {
+      throw _mapError(e);
+    }
+  }
+
+  /// Converte a linha de `public.invites` devolvida pelas RPCs de convite.
+  CreatedInvite _invite(Map<String, dynamic> result) => CreatedInvite(
         id: result['id'] as String,
         code: result['code'] as String,
         role: AppRole.values.byName(result['role'] as String),
-        maxUses: result['max_uses'] as int,
+        maxUses: result['max_uses'] as int?,
         expiresAt: result['expires_at'] != null
             ? DateTime.parse(result['expires_at'] as String)
             : null,
         note: result['note'] as String?,
       );
-    } catch (e) {
-      throw _mapError(e);
-    }
-  }
 
   @override
   Future<void> revokeInvite({required String inviteId}) async {

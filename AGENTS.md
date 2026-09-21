@@ -974,6 +974,81 @@ almoço) e, opcionalmente, um responsável geral sobre elas.
    `prayer_repository` e `documents_repository`** e continua lá: não foi tocado
    por estar fora do escopo do pedido.
 
+#### Convite sem limite de usos e edição do convite (pós-Fase 10)
+
+A base passou de ~20 para ~30 obreiros. O convite `VEREDAS2026` nasceu no seed
+com `max_uses = 20` ("um por obreiro") e o 21º cadastro bateria em
+`INVITE_EXHAUSTED` — sem saída pelo app: não havia RPC de edição de convite, e
+criar outro com o mesmo código esbarra no índice único em `upper(code)`.
+
+1. **`max_uses` null = sem limite**, em vez de um número grande. Um teto alto
+   é o mesmo bug adiado, e some da tela: ninguém lembra que existe até alguém
+   bater nele. O CHECK `max_uses > 0` não precisou mudar — em SQL um CHECK só
+   reprova quando a expressão é FALSE, e `null > 0` é NULL. Quem checa
+   esgotamento (`redeem_invite`) passou a testar `max_uses is not null` antes.
+2. **`update_invite` substitui todos os campos, não faz patch.** Null em
+   `p_max_uses`/`p_expires_at`/`p_note` GRAVA null. Um patch parcial precisaria
+   de um sentinela por campo para separar "não mexer" de "limpar", e é
+   exatamente essa ambiguidade que já mordeu o cache antes (o
+   `nullToAbsent` do `insertOnConflictUpdate`). A tela abre o formulário
+   preenchido e devolve o estado inteiro, então não existe campo "não mexido".
+3. **Trocar o código é a forma de rotacionar o convite.** Com ~30 pessoas, um
+   código que circula por um ano vaza; revogar e criar outro funciona, mas
+   perde o histórico de usos e não permite voltar a um código conhecido. Como
+   o índice único não deixa duas linhas com o mesmo código (nem se a antiga
+   estiver revogada), editar o código in loco era a peça que faltava.
+4. **O mesmo bug do `nullToAbsent`, agora no pull.** `_upsertInvite` usava
+   `insertOnConflictUpdate(InviteRow(...))`, que monta os valores com
+   `toColumns(nullToAbsent: true)` e **omite as colunas nulas**. O admin tirar
+   o teto no servidor não limparia o teto no cache de quem já tinha o convite
+   sincronizado — a tela seguiria dizendo "Esgotado" para sempre. Trocado por
+   `InviteRowsCompanion` com `Value(...)` explícito em cada coluna, onde
+   `Value(null)` grava null. Coberto por teste (`test/sync/invites_test.dart`).
+   **Os outros `_upsertX` de `sync_entity.dart` continuam com o padrão antigo**
+   e têm o mesmo defeito para qualquer coluna nula — não foram tocados por
+   estarem fora do escopo do pedido.
+5. **Cache: schemaVersion 5 → 6.** O SQLite não afrouxa um NOT NULL com ALTER
+   TABLE, então a v6 usa `m.alterTable(TableMigration(inviteRows))`, que recria
+   a tabela e copia as linhas. Nenhum valor muda de significado: quem tinha
+   teto continua com ele.
+6. **Segurança: um convite ilimitado e sem validade é uma porta aberta.**
+   `redeem_invite` já aprova o perfil (`is_approved = true`), então quem souber
+   o código entra sem passar por um admin — é assim desde a Fase 3, mas o teto
+   de 20 limitava o estrago. Quem passa a limitar é a rotação: trocar o código
+   pela tela de Convites invalida o antigo na hora. Se a base preferir a porta
+   fechada, o caminho é pôr `expires_at` ou um teto de volta no mesmo
+   formulário — nada disso saiu.
+
+#### Excluir aviso arrastando para a esquerda (pós-Fase 10)
+
+A exclusão de aviso só existia no aviso **fixado**, pelo menu de reticências.
+Os avisos da lista "Avisos anteriores" não tinham como sair pelo app.
+
+1. **`Dismissible` puro, sem dependência nova.** `flutter_slidable` daria o
+   botão revelado que o iOS mostra de verdade, mas o `Dismissible` já vem no
+   `package:flutter/widgets.dart` (não é Material, então não fere a regra da
+   UI Cupertino) e entrega o mesmo gesto. `direction: endToStart` apenas: o
+   sentido oposto é o gesto de voltar do iOS e a borda esquerda é dele.
+2. **`confirmDismiss` devolve `false` mesmo quando exclui.** Devolver `true`
+   faria o `Dismissible` tirar a célula da árvore por conta própria, mas a
+   lista vem de um `StreamProvider` sobre o drift: enquanto o stream não
+   emitisse, o item continuaria montado e o Flutter lançaria *"A dismissed
+   Dismissible widget is still part of the tree"*. Com `false`, quem tira a
+   célula é a emissão do stream — que chega junto, porque a escrita no cache é
+   síncrona (a viagem ao servidor fica com a outbox). **Não "conserte" para
+   `true`**; há teste cobrindo (`test/ui/home_announcement_swipe_test.dart`).
+3. **O cartão da lista ganhou `clipBehavior: Clip.antiAlias`.** A faixa
+   vermelha é um retângulo cheio e vazava por cima dos cantos arredondados na
+   primeira e na última célula.
+4. **O aviso fixado não ganhou o gesto.** É faixa de destaque, não célula de
+   lista — arrastar ali moveria o banner inteiro. Continua com o menu.
+5. **A janela padrão do `flutter_test` (800x600) não serve para a tela
+   Início.** A seção de avisos cai fora da viewport e o que está fora não
+   recebe arrasto (o finder acha o widget, o `drag` avisa "would not hit test"
+   e o teste falha sem dizer por quê). O teste fixa `tester.view.physicalSize`
+   em 1080x2400 com `devicePixelRatio = 1`, e desfaz com
+   `addTearDown(tester.view.reset)`.
+
 #### Administração das escalas pelo app (pós-Fase 10)
 
 Pedido: o admin quer criar, renomear, reordenar e remover escalas sem depender

@@ -168,7 +168,7 @@ create table public.invites (
   code        text not null,
   role        public.app_role not null default 'obreiro',
   note        text,
-  max_uses    integer not null default 1 check (max_uses > 0),
+  max_uses    integer check (max_uses > 0),   -- null = sem limite de usos
   uses        integer not null default 0,
   expires_at  timestamptz,
   revoked_at  timestamptz,
@@ -604,7 +604,8 @@ begin
   if v_invite.revoked_at is not null                      then raise exception 'INVITE_REVOKED';   end if;
   if v_invite.expires_at is not null
      and v_invite.expires_at < now()                      then raise exception 'INVITE_EXPIRED';    end if;
-  if v_invite.uses >= v_invite.max_uses                   then raise exception 'INVITE_EXHAUSTED';  end if;
+  if v_invite.max_uses is not null
+     and v_invite.uses >= v_invite.max_uses              then raise exception 'INVITE_EXHAUSTED';  end if;
 
   -- Idempotente: se já aprovado, não consome outro uso.
   if exists (select 1 from public.profiles
@@ -1000,7 +1001,7 @@ on conflict do nothing;
 
 -- ---- Convite inicial ----
 insert into public.invites (code, role, max_uses, note)
-values ('VEREDAS2026', 'obreiro', 20, 'Convite inicial dos obreiros')
+values ('VEREDAS2026', 'obreiro', null, 'Convite inicial dos obreiros')
 on conflict do nothing;
 ```
 

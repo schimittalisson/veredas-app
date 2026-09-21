@@ -126,6 +126,9 @@ sem elas o app compila mas quebra em funcionalidades específicas:
 | 13 | `20260828000100_documents.sql` | tabela `documents` (aba Arquivos) | **O sync inteiro passa a falhar** — ver abaixo |
 | 14 | `20260917000100_scale_teams_and_lunch.sql` | equipe na atribuição (`member_ids`/`member_names`), escala de Almoço, `delete_own_account` ciente de equipes | Salvar escala em grupo falha (coluna inexistente); aba Almoço não aparece |
 | 15 | `20260917000200_fix_self_delete_privilege.sql` | trigger `protect_profile_privileges` reconhece a flag de `delete_own_account` | **Obreiro não consegue excluir a própria conta** (`FORBIDDEN_PRIVILEGE_CHANGE`) — exigência da Play |
+| 16 | `20260918000100_laundry.sql` | tabelas e RPCs da lavanderia (reserva de máquina) | Aba Lavanderia falha; **o sync inteiro para**, como no caso da 13 |
+| 17 | `20260918000200_soft_delete_tombstones.sql` | exclusão vira `deleted_at`, para o pull incremental enxergar a lápide | Item excluído por um admin continua na tela dos outros para sempre |
+| 18 | `20260921000100_invite_unlimited_and_update.sql` | `max_uses` aceita null (convite sem limite) e RPC `update_invite` | Convite da base trava em 20 usos; admin não consegue trocar o código pelo app |
 
 > **A 14 também vai antes do app.** Ela não derruba o pull (o app tolera a
 > linha sem as colunas de equipe), mas enquanto ela não estiver aplicada toda
@@ -149,7 +152,8 @@ numa base limpa e roda as asserções de RLS:
 ## Passo 5 — Aplicar os seeds
 
 Execute `seed.sql`. Ele cria os 5 tipos de escala, os itens de "Dados da Base",
-as redes sociais, um cronograma de exemplo e o convite `VEREDAS2026`.
+as redes sociais, um cronograma de exemplo e o convite `VEREDAS2026` (sem
+limite de usos — o admin ajusta ou troca o código pela tela de Convites).
 
 O arquivo é **reaplicável**: rodar duas vezes não duplica nada.
 

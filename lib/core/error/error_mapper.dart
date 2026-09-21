@@ -112,6 +112,15 @@ AppException _mapPostgrest(PostgrestException e, StackTrace? st) {
   if (message.contains('INVITE_REVOKED')) {
     return AppException(AppErrorCode.inviteRevoked, cause: e, stackTrace: st);
   }
+  if (message.contains('INVITE_CODE_TAKEN')) {
+    return AppException(AppErrorCode.inviteCodeTaken, cause: e, stackTrace: st);
+  }
+  // O admin mandou um limite <= 0 ou um código vazio: erro de formulário, não
+  // de permissão.
+  if (message.contains('INVALID_MAX_USES') ||
+      message.contains('INVALID_INVITE_CODE')) {
+    return AppException(AppErrorCode.validation, cause: e, stackTrace: st);
+  }
   if (message.contains('NOT_AUTHENTICATED')) {
     return AppException(AppErrorCode.notAuthenticated, cause: e, stackTrace: st);
   }
@@ -130,6 +139,7 @@ AppException _mapPostgrest(PostgrestException e, StackTrace? st) {
     return AppException(AppErrorCode.conflict, cause: e, stackTrace: st);
   }
   if (message.contains('FORBIDDEN_NOT_OWNER') ||
+      message.contains('FORBIDDEN_NOT_ADMIN') ||
       message.contains('FORBIDDEN_NOT_APPROVED')) {
     return AppException(AppErrorCode.permissionDenied, cause: e, stackTrace: st);
   }

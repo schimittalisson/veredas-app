@@ -474,7 +474,8 @@ Faça um commit por fase.
 6. Criar um usuário admin manualmente e promovê-lo:
    `update profiles set role='admin', is_approved=true where email='...';`
 7. Gerar um convite de teste:
-   `insert into invites (code, role, max_uses) values ('VEREDAS2026','obreiro',20);`
+   `insert into invites (code, role, max_uses) values ('VEREDAS2026','obreiro',null);`
+   (`max_uses` null = sem limite; ver a migration 20260921000100)
 
 **Aceite (verificar com dois usuários no SQL Editor / `supabase` CLI):**
 

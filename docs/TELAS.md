@@ -101,6 +101,12 @@ Se a URL falhar em abrir, `SnackBar` com o erro — não falhe em silêncio.
 
 `SectionHeader` + lista dos `announcements` não fixados (limite 10) + "Ver tudo".
 
+Para o admin, **arrastar a célula para a esquerda revela a faixa vermelha de
+excluir** (`Dismissible` com `direction: endToStart`), seguida de confirmação.
+Só nesse sentido: o arrasto da esquerda para a direita é o gesto de voltar do
+iOS. O aviso fixado (§1.1) fica de fora — lá a exclusão é pelo menu de
+reticências, porque a faixa de destaque não é célula de lista.
+
 ### Permissões
 
 | Ação | Quem |
@@ -512,15 +518,17 @@ urgente do admin.
 ### 6.2 Convites (`/admin/convites`)
 
 Lista de convites com código, papel, `uses/max_uses`, validade, status
-(ativo/expirado/esgotado/revogado).
+(ativo/expirado/esgotado/revogado). Convite sem limite (`max_uses` null)
+mostra "N usos · sem limite" e nunca fica "esgotado".
 
-FAB → diálogo de criação: papel, número de usos, validade
+FAB → diálogo de criação: papel, número de usos (vazio = sem limite), validade
 (`showDatePicker`, opcional), observação. Código gerado automaticamente
 (6 caracteres alfanuméricos maiúsculos, sem `0/O/1/I` para evitar confusão ao
 ditar por telefone) e editável.
 
-Ações: copiar código, compartilhar (`share_plus` — adicionar a dependência se
-usar), revogar.
+Ações: copiar código, editar (mesmo formulário, e é onde se **troca o código**
+de um convite que circulou demais), compartilhar (`share_plus` — adicionar a
+dependência se usar), revogar.
 
 ### 6.3 Responsáveis por escala (`/admin/responsaveis`)
 

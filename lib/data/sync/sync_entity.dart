@@ -220,19 +220,25 @@ Future<void> _restoreProfile(AppDatabase db, Map<String, dynamic> j) async {
 // --- invites ---------------------------------------------------------------
 
 Future<void> _upsertInvite(AppDatabase db, Map<String, dynamic> j) async {
+  // Companion, e não a data class, de propósito: `insertOnConflictUpdate` de
+  // uma data class monta os valores com `toColumns(nullToAbsent: true)`, que
+  // OMITE as colunas nulas. Num convite que já está no cache, o admin tirar o
+  // teto de usos (`max_uses` → null) não limparia nada — o cache guardaria o
+  // teto antigo e a tela seguiria mostrando "Esgotado" até o convite sumir.
+  // Num Companion, `Value(null)` é "presente e nulo", e grava null.
   await db.into(db.inviteRows).insertOnConflictUpdate(
-        InviteRow(
-          id: j['id'] as String,
-          code: j['code'] as String,
-          role: AppRole.fromWire(j['role'] as String?),
-          note: j['note'] as String?,
-          maxUses: _intReq(j['max_uses'], d: 1),
-          uses: _intReq(j['uses']),
-          expiresAt: _dt(j['expires_at']),
-          revokedAt: _dt(j['revoked_at']),
-          createdBy: j['created_by'] as String?,
-          createdAt: _dt(j['created_at']),
-          updatedAt: _dtReq(j['updated_at']),
+        InviteRowsCompanion(
+          id: Value(j['id'] as String),
+          code: Value(j['code'] as String),
+          role: Value(AppRole.fromWire(j['role'] as String?)),
+          note: Value(j['note'] as String?),
+          maxUses: Value(_int(j['max_uses'])),   // null = sem limite de usos
+          uses: Value(_intReq(j['uses'])),
+          expiresAt: Value(_dt(j['expires_at'])),
+          revokedAt: Value(_dt(j['revoked_at'])),
+          createdBy: Value(j['created_by'] as String?),
+          createdAt: Value(_dt(j['created_at'])),
+          updatedAt: Value(_dtReq(j['updated_at'])),
         ),
       );
 }

@@ -93,6 +93,29 @@ exception
 end;
 $$;
 
+-- Espera um erro cuja mensagem case com o padrão (LIKE). Usado para os
+-- códigos que as RPCs levantam com `raise exception`: expect_denied prova que
+-- houve recusa, este prova QUAL recusa foi — a diferença entre "o convite
+-- esgotou" e "você não é admin" é o que a tela mostra para o usuário.
+create or replace function test.expect_error_like(
+  p_label text, p_sql text, p_pattern text
+)
+returns void
+language plpgsql
+as $$
+begin
+  execute p_sql;
+  raise notice 'FAIL  % -> nao houve erro', p_label;
+exception
+  when others then
+    if sqlerrm like p_pattern then
+      raise notice 'PASS  % (%)', p_label, sqlerrm;
+    else
+      raise notice 'FAIL  % -> erro inesperado: % (%)', p_label, sqlerrm, sqlstate;
+    end if;
+end;
+$$;
+
 -- Espera que um UPDATE afete exatamente N linhas (RLS filtra sem erro).
 create or replace function test.expect_rowcount(
   p_label text, p_sql text, p_expected integer
@@ -290,6 +313,34 @@ begin;
     $q$select uses from public.invites where code='VEREDAS2026'$q$, 1);
 rollback;
 
+-- O convite inicial passou a ser ilimitado (migration 20260921000100): a base
+-- cresceu alem dos 20 usos com que ele nasceu. As duas asseroes abaixo sao um
+-- par — a primeira prova que max_uses null nao esgota, a segunda prova que o
+-- limite continua valendo quando existe. Se so a primeira passasse, teriamos
+-- removido a checagem em vez de torna-la condicional.
+begin;
+  select test.expect_count('convite inicial e ilimitado',
+    $q$select count(*) from public.invites
+        where code='VEREDAS2026' and max_uses is null$q$, 1);
+  select test.act_as(:'nao_aprovado');
+  select test.expect_allowed('resgate em convite ilimitado (uses > 20)',
+    $q$select public.redeem_invite('VEREDAS2026')$q$);
+rollback;
+
+begin;
+  update public.invites set max_uses = 1, uses = 1 where code='VEREDAS2026';
+  select test.act_as(:'nao_aprovado');
+  select test.expect_error_like('convite COM limite ainda esgota',
+    $q$select public.redeem_invite('VEREDAS2026')$q$, '%INVITE_EXHAUSTED%');
+rollback;
+
+begin;
+  select test.act_as(:'comum');
+  select test.expect_error_like('obreiro NAO edita convite',
+    $q$select public.update_invite(gen_random_uuid(), 'ROUBADO')$q$,
+    '%FORBIDDEN_NOT_ADMIN%');
+rollback;
+
 \echo ''
 \echo '=========== 6. Mural de oracao ==========='
 begin;
@@ -459,6 +510,24 @@ begin;
                current_date, 'Admin pode')$q$);
   select test.expect_count('admin VE convites',
     $q$select count(*) from public.invites$q$, 1);
+  select test.expect_allowed('admin cria convite sem limite',
+    $q$select public.create_invite('obreiro', null, null, 'Sem limite', 'SEMLIMITE')$q$);
+  select test.expect_count('convite criado nasce ilimitado',
+    $q$select count(*) from public.invites
+        where code='SEMLIMITE' and max_uses is null$q$, 1);
+  -- Rotacionar o codigo: e o que substitui "criar outro convite", que o indice
+  -- unico em upper(code) impede quando o codigo se repete.
+  select test.expect_allowed('admin troca o codigo do convite',
+    $q$select public.update_invite(
+         (select id from public.invites where code='VEREDAS2026'),
+         'veredas2027', 'obreiro', 5, null, 'Rotacionado')$q$);
+  select test.expect_count('codigo novo gravado em maiusculas, com limite',
+    $q$select count(*) from public.invites
+        where code='VEREDAS2027' and max_uses=5$q$, 1);
+  select test.expect_error_like('codigo duplicado e recusado',
+    $q$select public.update_invite(
+         (select id from public.invites where code='SEMLIMITE'),
+         'veredas2027')$q$, '%INVITE_CODE_TAKEN%');
   select test.expect_allowed('admin cria aviso',
     $q$insert into public.announcements (author_id, body)
        values ('22222222-2222-2222-2222-222222222222','Aviso do admin')$q$);

@@ -54,7 +54,9 @@ class InviteRows extends Table {
   TextColumn get code => text()();
   TextColumn get role => textEnum<AppRole>()();
   TextColumn get note => text().nullable()();
-  IntColumn get maxUses => integer().withDefault(const Constant(1))();
+  /// Null = sem limite de usos. Ver a migration 20260921000100: o convite
+  /// da base nasceu com teto 20 e a base passou disso.
+  IntColumn get maxUses => integer().nullable()();
   IntColumn get uses => integer().withDefault(const Constant(0))();
   DateTimeColumn get expiresAt => dateTime().nullable()();
   DateTimeColumn get revokedAt => dateTime().nullable()();
