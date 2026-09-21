@@ -168,26 +168,57 @@ workflows:
         auth: integration
 
   # -----------------------------------------------------------------------
-  # Workflow 3: Android release AAB — equivalente ao build local.
+  # Workflow 3: Android release APK.
+  #
+  # **Este workflow é opcional, e na prática você não precisa dele.** O
+  # Android compila na máquina Linux local, de graça; os 500 minutos gratuitos
+  # de macOS existem para o iOS, que não compila lá. Ele fica aqui para o caso
+  # de alguém precisar de um APK sem acesso à máquina de desenvolvimento.
+  #
+  # APK e não AAB: não há conta na Play Store, a distribuição é o APK instalado
+  # à mão (ver docs/LANCAMENTO.md). AAB só serve para a loja.
+  #
+  # **Exige o keystore cadastrado no Codemagic** com o reference name
+  # `veredas_upload` (App Settings > Code signing > Android: upload do
+  # veredas-upload.jks + senhas + alias). Sem isso o build falha na validação
+  # do yaml com "references to unknown ...", que é o comportamento desejado: o
+  # Gradle também recusa um release sem chave, porque um APK debug-signed
+  # instala sem reclamar e impede a atualização seguinte.
   # -----------------------------------------------------------------------
   android-release:
-    name: Android (release AAB)
+    name: Android (release APK)
     max_build_duration: 60
     instance_type: mac_mini_m2
     environment:
       <<: *env_versions
       groups:
         - supabase_credentials
+      android_signing:
+        - veredas_upload
     scripts:
       - *write_env_prod
       - *flutter_codegen
-      - name: Build AAB release
-        # Mesmo motivo do iOS: a Play Store recusa um AAB com versionCode
-        # igual ou menor que o do último envio.
+      - name: Build APK release
+        # APK universal: split-per-abi geraria três arquivos e alguém
+        # instalaria o errado.
         script: |
           set -e
-          flutter build appbundle --release \
+          flutter build apk --release \
             --build-number="$PROJECT_BUILD_NUMBER" \
             --dart-define-from-file=env/prod.json
+      - name: Conferir quem assinou
+        # No artefato, não no fonte. O jarsigner NÃO serve para APK (só lê
+        # assinatura v1, que o APK não tem) — ver docs/LANCAMENTO.md §2.3.
+        script: |
+          set -e
+          BT=$(ls -d "$ANDROID_SDK_ROOT"/build-tools/*/ | tail -1)
+          "$BT/apksigner" verify --print-certs \
+            build/app/outputs/flutter-apk/app-release.apk | grep "certificate DN"
+          if "$BT/apksigner" verify --print-certs \
+               build/app/outputs/flutter-apk/app-release.apk \
+               | grep -q "Android Debug"; then
+            echo "ERRO: APK assinado com debug key. Não distribua."
+            exit 1
+          fi
     artifacts:
-      - build/app/outputs/bundle/release/*.aab
+      - build/app/outputs/flutter-apk/app-release.apk

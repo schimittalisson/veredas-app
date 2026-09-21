@@ -1240,3 +1240,53 @@ Três pedidos sobre a aba Eventos.
     dias, incluindo meia-noite, dia inteiro, virada de mês e o teto) e
     `test/ui/event_editor_test.dart` (6 testes de rótulo, campo de fim e
     visibilidade do excluir).
+
+#### Distribuição: APK à mão no Android, App Store não listada no iOS (pós-Fase 10)
+
+Decisão do solicitante: não há conta paga na Play Store, e o app é interno —
+não precisa ficar aberto ao público. Android sai como APK instalado à mão; iOS
+vai para a App Store com **distribuição não listada**, por conta de
+organização. Passo a passo em `docs/LANCAMENTO.md`.
+
+1. **O build de release do Android passou a FALHAR sem a chave**, em vez de
+   cair nas debug keys. O fallback silencioso era aceitável quando o destino
+   era a Play, que recusa o artefato e avisa. Distribuindo APK à mão o silêncio
+   cobra caro: um APK debug-signed **instala sem reclamar**, e o APK seguinte —
+   assinado com a chave de verdade — não instala em cima
+   (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`). As 30 pessoas teriam de desinstalar
+   e entrar de novo, e quem descobre é o usuário, semanas depois. Escape
+   explícito para medir tamanho: `-Pveredas.allowDebugSigning=true`.
+2. **A chave deixou de ser "de upload".** Sem Play App Signing não existe o
+   reset pelo suporte do Google que o §3 deste arquivo menciona: perder o
+   `.jks` significa que ninguém atualiza o app instalado. O `keyAlias=upload` e
+   o nome do arquivo ficaram impróprios e continuam assim — trocar o alias
+   troca a chave.
+3. **Os comandos de verificação do §3 são para o AAB e devolvem vazio num
+   APK**, o que se lê como "não assinado" e "sem INTERNET" — os dois falsos. O
+   `jarsigner` só entende assinatura v1, que o APK não tem (v2/v3 apenas), e o
+   `AndroidManifest.xml` do APK é binário com strings em UTF-16, que o
+   `strings` não acha sem `-el`. Para APK: `apksigner verify --print-certs` e
+   `aapt2 dump badging`. Verificado num APK real: `CN=Base Missionaria JOCUM
+   Veredas`, V2, `INTERNET` presente, versionCode 1, 67,5 MB.
+4. **A impressão digital SHA-256 do certificado está em `docs/LANCAMENTO.md`.**
+   Não é segredo, e permite conferir um APK sem ter o keystore.
+5. **O workflow `android-release` do Codemagic virou APK e exige assinatura.**
+   Antes gerava um AAB **sem signing config** — a máquina do CI não tem o
+   `key.properties`, que é gitignored, então o artefato saía com debug keys e a
+   Play o recusaria. Agora declara `android_signing: [veredas_upload]` e
+   confere o signatário no artefato. Fica registrado que o workflow é
+   dispensável: Android compila de graça na máquina Linux, e os 500 minutos
+   gratuitos de macOS existem para o iOS.
+6. **O `ios-release` continua parando no TestFlight de propósito.** A primeira
+   submissão precisa da ficha da loja, do pedido de não listagem e da conta de
+   demonstração — nada disso um build automático resolve. Comentado no
+   `codemagic.yaml` para ninguém "consertar".
+7. **A conta de demonstração é o que mais reprova este app.** O cadastro exige
+   convite e aprovação de admin, então o revisor da Apple não entra sozinho
+   (Guideline 2.1) — e a Play pergunta o mesmo em "Acesso ao app". Precisa de
+   um perfil já aprovado, criado para isso, e confirmado antes de cada
+   submissão.
+8. **TestFlight não serve como destino final:** o build expira em 90 dias.
+   Ad Hoc pede UDID de cada aparelho; o Enterprise Program custa US$ 299/ano e
+   a Apple recusa organização pequena. A distribuição não listada é permanente
+   e instala por link.

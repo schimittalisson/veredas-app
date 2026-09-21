@@ -1,5 +1,9 @@
 gradle-wrapper.jar
 /.gradle
+# O `/build/` do .gitignore da raiz é ancorado na raiz e NÃO cobre este. Sem a
+# linha abaixo, um `flutter build apk` deixa android/build/ como não rastreado
+# e um `git add -A` commita artefato de build.
+/build/
 /captures/
 /gradlew
 /gradlew.bat

@@ -292,21 +292,35 @@ flutter build appbundle --release --dart-define-from-file=env/prod.json
 flutter build ipa --release --dart-define-from-file=env/prod.json
 ```
 
+### Distribuição
+
+**Android é APK instalado à mão** (não há conta na Play Store) e **iOS é App
+Store não listada**. O passo a passo das duas pontas, com os comandos de
+verificação e o checklist de release, está em
+[docs/LANCAMENTO.md](docs/LANCAMENTO.md).
+
 ### Assinatura do Android
 
-A chave de upload fica **fora do repositório**, em
-`~/.android-keys/veredas-upload.jks`, apontada por `android/key.properties`
-(gitignored).
+A chave fica **fora do repositório**, em `~/.android-keys/veredas-upload.jks`,
+apontada por `android/key.properties` (gitignored).
 
-> **Sem esse arquivo o build de release não falha** — ele cai nas debug keys e
-> gera um AAB que a Play recusa, sem aviso. Depois de todo build destinado à
-> loja, confirme quem assinou:
+> Sem Play App Signing, **esta é a chave de assinatura do app**, não só a de
+> envio: perdê-la significa que ninguém atualiza o app instalado, só
+> reinstala. Faça backup do `.jks` e da senha.
+>
+> O build de release **falha** sem ela, de propósito — um APK debug-signed
+> instala sem reclamar e bloqueia a atualização seguinte. Confirme quem
+> assinou no artefato:
 >
 > ```bash
-> /usr/lib/jvm/java-17-openjdk-amd64/bin/jarsigner -verify -certs \
->   build/app/outputs/bundle/release/app-release.aab | grep "Signed by"
+> BT=$(ls -d "$ANDROID_HOME"/build-tools/*/ | tail -1)
+> "$BT/apksigner" verify --print-certs \
+>   build/app/outputs/flutter-apk/app-release.apk | grep "certificate DN"
 > # esperado: CN=Base Missionaria JOCUM Veredas, ...
 > ```
+>
+> O `jarsigner` do [AGENTS.md §3](AGENTS.md) serve para o **AAB**; num APK ele
+> devolve vazio, porque o APK não tem assinatura v1.
 
 O passo a passo completo, incluindo qual `keytool` usar, está em
 [AGENTS.md §3](AGENTS.md).
