@@ -519,7 +519,7 @@ urgente do admin.
 
 Lista de convites com código, papel, `uses/max_uses`, validade, status
 (ativo/expirado/esgotado/revogado). Convite sem limite (`max_uses` null)
-mostra "N usos · sem limite" e nunca fica "esgotado".
+mostra só "N usos", sem denominador, e nunca fica "esgotado".
 
 FAB → diálogo de criação: papel, número de usos (vazio = sem limite), validade
 (`showDatePicker`, opcional), observação. Código gerado automaticamente

@@ -23,14 +23,22 @@ alter table public.invites alter column max_uses drop not null;
 comment on column public.invites.max_uses is
   'Número máximo de resgates. NULL = sem limite.';
 
--- O convite inicial da base. O guard `= 20` é para não desfazer um limite que
--- o admin tenha ajustado de propósito depois; num banco novo esta linha ainda
--- não existe (o seed roda depois das migrations) e o UPDATE é no-op — lá o
--- próprio seed já insere com null.
+-- O convite inicial da base, seja qual for o teto que ele tenha hoje.
+--
+-- A primeira versão desta migration só zerava `max_uses = 20`, o valor que o
+-- seed original usava. No banco de produção a linha estava com OUTRO valor, e
+-- o UPDATE não pegou nela: o app seguiu mostrando "Esgotado" num convite que
+-- deveria ser aberto. O guard agora é só "tem teto" — o pedido era tirar o
+-- limite deste convite, não preservar o número que estava lá.
+--
+-- Num banco novo esta linha ainda não existe (o seed roda depois das
+-- migrations) e o UPDATE é no-op; lá o próprio seed já insere com null. Por
+-- isso o harness de RLS não cobre este UPDATE: ele só tem efeito sobre dado
+-- que já existia antes da migration.
 update public.invites
    set max_uses = null, updated_at = now()
  where upper(code) = 'VEREDAS2026'
-   and max_uses = 20;
+   and max_uses is not null;
 
 -- -------------------------------------------------------------------------
 -- 2. redeem_invite — só checa esgotamento quando há limite.

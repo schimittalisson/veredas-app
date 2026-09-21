@@ -443,7 +443,7 @@
   "admin_invite_note": "Observação",
   "admin_invite_max_uses": "Número de usos",
   "admin_invite_max_uses_hint": "Número de usos (vazio = sem limite)",
-  "admin_invite_uses_unlimited": "{uses, plural, =0{Nenhum uso} =1{1 uso} other{{uses} usos}} · sem limite",
+  "admin_invite_uses_unlimited": "{uses, plural, =0{Nenhum uso} =1{1 uso} other{{uses} usos}}",
   "@admin_invite_uses_unlimited": {
     "placeholders": {
       "uses": { "type": "int" }
