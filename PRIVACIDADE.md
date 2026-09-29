@@ -1,6 +1,6 @@
 # Política de Privacidade — Veredas
 
-**Última atualização:** 4 de agosto de 2026
+**Última atualização:** 29 de setembro de 2026
 
 ## 1. Quem somos
 
@@ -49,8 +49,9 @@ direito a:
 - **Exclusão:** solicitar a exclusão da sua conta e dados associados.
 - **Portabilidade:** receber seus dados em formato estruturado.
 
-Para exercer qualquer direito, contate a liderança da base ou use o botão
-"Excluir minha conta" no perfil do app.
+Para exercer qualquer direito, escreva para **veredas@jocum.org.br** (ver
+§10) ou, no caso da exclusão, use o botão "Excluir minha conta" no perfil do
+app.
 
 ## 6. Exclusão de conta
 
@@ -83,8 +84,11 @@ Se você for o **único administrador ativo**, o app não permite a exclusão at
 que outra pessoa seja promovida a administrador — sem isso a base ficaria sem
 ninguém capaz de aprovar novos obreiros.
 
-Para solicitar a exclusão sem acesso ao app, contate a liderança da Base
-Missionária JOCUM Veredas.
+Para solicitar a exclusão sem acesso ao app — por exemplo, se você perdeu a
+senha ou já desinstalou o app —, envie um e-mail para
+**veredas@jocum.org.br** a partir do endereço cadastrado na sua conta.
+Sem acesso a esse endereço, informe seu nome completo para que possamos
+confirmar a sua identidade antes de excluir.
 
 ## 7. Segurança
 
@@ -109,5 +113,10 @@ crianças.
 
 ## 10. Contato
 
-Para dúvidas sobre esta política, contate a liderança da Base Missionária
- JOCUM Veredas.
+Base Missionária JOCUM Veredas — Joinville/SC
+
+- **E-mail:** veredas@jocum.org.br
+- **Telefone:** (47) 3085-7873
+
+Use estes contatos para dúvidas sobre esta política, para exercer os direitos
+da §5 ou para pedir a exclusão dos seus dados.
