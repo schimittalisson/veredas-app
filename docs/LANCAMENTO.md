@@ -42,8 +42,8 @@ O que muda com isso:
 2. **Perder a chave não tem reset.** Com a Play, o suporte do Google reemite a
    chave de upload. Aqui não existe esse caminho: perder o `.jks` significa que
    ninguém mais atualiza o app instalado, só reinstala. **Faça backup do `.jks`
-   e da senha** (que está no `android/key.properties`) num gerenciador de
-   senhas, hoje.
+   e das senhas** (que estão no `android/key.properties`) — procedimento em
+   §2.2.
 3. **O build de release falha sem a chave**, em vez de cair nas debug keys — ver
    `android/app/build.gradle.kts`. Era um fallback silencioso, aceitável
    enquanto o destino era a Play (que recusa o artefato e avisa). Entregando
@@ -56,7 +56,69 @@ Impressão digital do certificado, para conferir um APK sem ter o keystore:
 SHA-256: E2:6F:7C:A3:92:83:85:EB:A4:24:43:25:5D:8C:EB:FF:B1:40:68:46:C9:AA:F8:92:87:2C:52:13:11:95:F4:39
 ```
 
-### 2.2 Gerar o APK
+### 2.2 Backup da chave — como fazer
+
+O backup são **quatro coisas**, não uma. O arquivo sozinho não serve:
+
+| O quê | Onde está hoje |
+|---|---|
+| `veredas-upload.jks` | `~/.android-keys/veredas-upload.jks` (2776 bytes) |
+| `storePassword` | `android/key.properties` |
+| `keyPassword` | `android/key.properties` |
+| `keyAlias` | `android/key.properties` — vale `upload` |
+
+**Cópia 1 — gerenciador de senhas** (a principal). Crie uma entrada só para
+isso, por exemplo "Veredas — chave de assinatura Android":
+
+- **anexe o arquivo** `~/.android-keys/veredas-upload.jks` à entrada (o
+  gerenciador já cifra o anexo; não precisa cifrar antes);
+- guarde `storePassword`, `keyPassword` e `keyAlias` como campos da **mesma**
+  entrada — copie do `key.properties`;
+- na nota, escreva para que serve: *"assina o APK do Veredas. Sem ela, nenhuma
+  atualização instala em cima do app já instalado."*
+
+**Cópia 2 — fora do gerenciador** (pendrive, segunda nuvem, outro computador).
+Existe para o caso de perder o acesso ao gerenciador:
+
+```bash
+gpg --symmetric --cipher-algo AES256 \
+  --output ~/veredas-upload.jks.gpg \
+  ~/.android-keys/veredas-upload.jks
+```
+
+O `gpg` pede a senha duas vezes, interativamente — ela **não** fica no
+histórico do shell. Mova o `.gpg` para o destino e apague da pasta pessoal.
+
+> **A senha desse arquivo não pode morar só no gerenciador de senhas.** Se
+> morar, as duas cópias caem juntas no mesmo acidente, e a cópia 2 deixa de
+> ter razão de existir. Anote em papel, ou use uma senha que você saiba de
+> cabeça e não use em outro lugar.
+
+**Teste de restauração** — é o passo que todo mundo pula, e é o único que
+prova que o backup vale algo:
+
+```bash
+gpg --decrypt --output /tmp/teste.jks ~/veredas-upload.jks.gpg
+
+/usr/lib/jvm/java-17-openjdk-amd64/bin/keytool -J-Duser.language=en \
+  -list -v -keystore /tmp/teste.jks -alias upload
+# O keytool pede a senha: digite a que você guardou no gerenciador.
+# Confirme no resultado:
+#   Alias name: upload
+#   Owner: CN=Base Missionaria JOCUM Veredas, OU=TI, O=JOCUM Veredas, ...
+#   SHA-256: igual à impressão digital registrada em §2.1
+
+rm /tmp/teste.jks
+```
+
+Se o `keytool` recusar a senha, o backup está inútil e você descobriu agora, e
+não no dia de mandar uma correção para a base.
+
+**Sem localizar a saída:** o `keytool` traduz os rótulos conforme o idioma do
+sistema, então `grep "Owner"` não acha nada numa máquina em português. O
+`-J-Duser.language=en` acima resolve.
+
+### 2.3 Gerar o APK
 
 ```bash
 export PATH="$HOME/development/flutter/bin:$PATH"
@@ -72,7 +134,7 @@ arquivos (armeabi-v7a, arm64-v8a, x86_64) e alguém vai instalar o errado e
 receber "app não instalado" sem entender por quê. Os ~67 MB são o preço de não
 ter essa conversa 30 vezes.
 
-### 2.3 Conferir o artefato, não o fonte
+### 2.4 Conferir o artefato, não o fonte
 
 **Os comandos do `AGENTS.md` §3 são para o AAB e devolvem vazio num APK** — o
 que se lê como "não assinado" e "sem INTERNET", os dois falsos. Motivo: o APK
@@ -100,7 +162,7 @@ BT=$(ls -d "$ANDROID_HOME"/build-tools/*/ | tail -1)
 Sem a linha do `INTERNET` o app instala, abre e não alcança o Supabase — e o
 teste no emulador não pega, porque ali roda debug (ver `AGENTS.md` §3).
 
-### 2.4 Numeração
+### 2.5 Numeração
 
 O `versionCode` sai do `+N` do `version:` no `pubspec.yaml`. **Incremente o
 `+N` a cada APK distribuído.** Com o mesmo `versionCode`, o Android trata a
@@ -112,7 +174,7 @@ version: 1.0.0+1   # primeiro APK
 version: 1.0.1+2   # correção seguinte
 ```
 
-### 2.5 Entregar e atualizar
+### 2.6 Entregar e atualizar
 
 - **Primeira entrega**: por fora do app (grupo de WhatsApp, e-mail, Drive).
   Quem ainda não tem o app não alcança um link que esteja dentro dele.

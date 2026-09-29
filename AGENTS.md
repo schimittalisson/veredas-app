@@ -1290,3 +1290,8 @@ organização. Passo a passo em `docs/LANCAMENTO.md`.
    Ad Hoc pede UDID de cada aparelho; o Enterprise Program custa US$ 299/ano e
    a Apple recusa organização pequena. A distribuição não listada é permanente
    e instala por link.
+9. **iOS só para iPhone** (`TARGETED_DEVICE_FAMILY = 1`, era `"1,2"`). Com
+   iPad declarado, a App Store exige screenshots de iPad 13" e o revisor
+   testa no iPad, onde o layout nunca foi pensado para tablet — motivo comum
+   de recusa. Um app só de iPhone continua instalando no iPad, em modo de
+   compatibilidade. Voltar ao iPad é trocar de novo e passar a testar lá.
