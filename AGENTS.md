@@ -1465,3 +1465,47 @@ do autor; "Excluir" é do autor e do admin.
    sync.
 4. Coberto por 4 asserções no harness (§14) e por um teste de widget em
    `test/ui/prayer_moderation_test.dart`.
+
+#### Restaurar membro removido, e o aviso para quem tenta voltar (pós-Fase 10)
+
+Caso real: um admin removeu um obreiro, e a pessoa tentou se cadastrar de novo
+com o mesmo e-mail. O código de confirmação nunca chegou.
+
+1. **`soft_delete_user` não apaga o login.** Só marca o perfil (`deleted_at`,
+   `is_approved = false`); o `auth.users` fica, porque apagá-lo exige a
+   service_role. Com o e-mail já registrado, o Supabase responde ao `signUp`
+   **como se tivesse dado certo** e não envia nada (proteção contra
+   enumeração de e-mails). O único sinal é o usuário voltar com `identities`
+   vazio — `SupabaseAuthService.signUpHitExistingAccount`. O cadastro passa a
+   lançar `emailAlreadyRegistered`, cuja mensagem manda pedir a restauração a
+   um admin (ou entrar com a senha, se a conta não foi removida). A checagem
+   vem **antes** de guardar o convite pendente, que seria resgatado por engano
+   no login seguinte.
+2. **O login de quem foi removido caía em "aguardando aprovação".** O login no
+   Supabase continua válido, e o perfil removido nunca chega ao cache (o sync
+   descarta lápides). Depois do `signInWithPassword`, o app lê o próprio
+   perfil (`profiles_select_self` deixa ver a linha removida), encerra a
+   sessão e lança `accountRemoved` (removido por admin) ou `accountDeleted`
+   (excluiu a própria conta). Falha de rede nessa leitura não barra ninguém.
+   É a única exceção deliberada à regra "nada relança depois do login" do
+   `signIn`, e a sessão é encerrada antes do throw.
+3. **Restaurar é RPC** (`restore_member`, migration `20260930000400`), e a
+   lista vem de outra RPC (`list_removed_members`), consultada na hora: os
+   removidos não estão no cache. A pessoa volta **aprovada e como obreiro**
+   mesmo que fosse admin — devolver privilégio é decisão à parte.
+4. **Quem excluiu a própria conta não é listado nem restaurado**
+   (`USER_SELF_DELETED`): os dados já foram apagados e a saída foi dela. O
+   sinal é `email is null` — todo perfil nasce com e-mail, e só o
+   `delete_own_account` o apaga. Se um dia o e-mail virar opcional no perfil,
+   esse sinal precisa virar coluna própria.
+5. **Não apagar o usuário em Authentication → Users para "recomeçar"**: o
+   `profiles.id` tem `on delete cascade`, e a cascata leva os pedidos de
+   oração da pessoa — o contrário da decisão sobre o mural.
+6. **Bug pego pelo teste de widget:** `setState(() => _members = _load())`
+   devolve o Future da atribuição, o Flutter recusa o callback, e a lista não
+   recarregava depois de restaurar. Use chaves em `setState` com atribuição de
+   Future.
+7. De passagem: o "reenviar confirmação" da tela de login mostrava o texto da
+   recuperação de senha; passou a usar `auth_confirm_email_resent`.
+8. Coberto por 8 asserções no harness (§15), `test/auth/removed_account_test.dart`
+   (os dois sinais) e `test/ui/membros_removidos_screen_test.dart`.

@@ -30,6 +30,16 @@ enum AppErrorCode {
   /// e a saída é a mesma: pedir de novo e usar o código do e-mail.
   authLinkInvalid,
 
+  /// A conta existe, mas foi removida da base por um admin
+  /// (`soft_delete_user`). O login continua válido no Supabase; o que falta é
+  /// um admin restaurar o perfil (Administração → Membros → Membros
+  /// removidos).
+  accountRemoved,
+
+  /// A própria pessoa excluiu a conta (`delete_own_account`). Os dados já
+  /// foram apagados, e não há restauração.
+  accountDeleted,
+
   weakPassword,
   sessionExpired,
   notAuthenticated,

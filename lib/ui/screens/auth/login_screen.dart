@@ -76,7 +76,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     try {
       await ref.read(authActionsProvider.notifier).resendEmailConfirmation(email);
       if (mounted) {
-        showAppToast(context, AppLocalizations.of(context).auth_reset_email_sent);
+        showAppToast(
+          context,
+          AppLocalizations.of(context).auth_confirm_email_resent,
+        );
       }
     } on AppException catch (e) {
       if (mounted) {
@@ -89,6 +92,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final l = AppLocalizations.of(context);
     return switch (code) {
       AppErrorCode.invalidCredentials => l.auth_error_invalid_credentials,
+      AppErrorCode.accountRemoved => l.auth_error_account_removed,
+      AppErrorCode.accountDeleted => l.auth_error_account_deleted,
       AppErrorCode.emailNotConfirmed => l.auth_error_email_not_confirmed,
       AppErrorCode.emailAlreadyRegistered => l.auth_error_email_already_registered,
       AppErrorCode.weakPassword => l.auth_error_weak_password,

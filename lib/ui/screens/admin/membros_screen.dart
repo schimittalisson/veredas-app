@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
@@ -11,6 +12,7 @@ import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/admin_providers.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
+import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/confirm_dialog.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
@@ -123,12 +125,57 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
                             currentUserId: currentUserId,
                             activeAdmins: activeAdmins,
                           ),
+                        // No fim, e não como seção: os removidos não estão no
+                        // cache (o sync descarta lápides), então a lista deles
+                        // é outra tela, que consulta o servidor.
+                        if (_search.isEmpty) const _RemovedMembersLink(),
                       ],
                     ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// _RemovedMembersLink
+// ---------------------------------------------------------------------------
+
+class _RemovedMembersLink extends StatelessWidget {
+  const _RemovedMembersLink();
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final colors = context.colors;
+
+    return CupertinoListSection.insetGrouped(
+      backgroundColor: colors.groupedBackground,
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      children: [
+        CupertinoListTile(
+          leading: Icon(
+            CupertinoIcons.person_crop_circle_badge_xmark,
+            color: colors.secondaryLabel,
+          ),
+          title: Text(
+            l.admin_removed_members,
+            style: AppTypography.body.copyWith(color: colors.label),
+          ),
+          subtitle: Text(
+            l.admin_removed_members_link_desc,
+            style:
+                AppTypography.footnote.copyWith(color: colors.secondaryLabel),
+          ),
+          trailing: const CupertinoListTileChevron(),
+          onTap: () => context.push(Routes.adminMembrosRemovidos),
+        ),
+      ],
     );
   }
 }

@@ -61,12 +61,55 @@ class SupabaseAuthService implements AuthService {
   @override
   Session? get currentSession => _client.auth.currentSession;
 
+  /// O `signUp` bateu num e-mail que já tem conta?
+  ///
+  /// Com a confirmação de e-mail ligada, o Supabase responde a um cadastro de
+  /// e-mail existente **como se tivesse dado certo** e não envia e-mail
+  /// nenhum — é a proteção dele contra descobrir quais e-mails existem. O
+  /// sinal que sobra é o usuário voltar sem nenhuma identidade (forma de
+  /// login) associada. Sem esta checagem, o app mostrava "confirme seu
+  /// e-mail" e a pessoa esperava um código que nunca chegava — o caso típico
+  /// é alguém removido da base tentando voltar.
+  static bool signUpHitExistingAccount(User? user) {
+    return user != null && (user.identities?.isEmpty ?? false);
+  }
+
+  /// Traduz o próprio perfil, lido logo depois do login, num motivo para
+  /// barrar a entrada — ou `null` se a conta está ativa.
+  ///
+  /// `email` nulo distingue quem excluiu a própria conta (o
+  /// `delete_own_account` apaga o e-mail) de quem foi removido por um admin.
+  static AppErrorCode? removalCodeFor(Map<String, dynamic>? profile) {
+    if (profile == null || profile['deleted_at'] == null) return null;
+    return profile['email'] == null
+        ? AppErrorCode.accountDeleted
+        : AppErrorCode.accountRemoved;
+  }
+
   @override
   Future<void> signIn({required String email, required String password}) async {
     try {
       await _client.auth.signInWithPassword(email: email, password: password);
     } catch (e) {
       throw mapError(e);
+    }
+
+    // Conta removida da base. O login no Supabase continua válido — só o
+    // perfil foi marcado —, e sem esta checagem a pessoa caía em "aguardando
+    // aprovação", esperando algo que nenhum admin ia fazer por ali. Encerra a
+    // sessão e explica o que fazer.
+    //
+    // É a única exceção à regra abaixo de não relançar depois do login, e é
+    // deliberada: a sessão é encerrada antes do throw, então a tela não fica
+    // com um usuário logado por trás da mensagem de erro.
+    final removal = await _removalOfCurrentUser();
+    if (removal != null) {
+      try {
+        await _client.auth.signOut();
+      } catch (_) {
+        // Sem rede para avisar o servidor: a sessão local sai do mesmo jeito.
+      }
+      throw AppException(removal);
     }
 
     // Daqui para baixo o login **já aconteceu**: a sessão existe e o router vai
@@ -91,6 +134,26 @@ class SupabaseAuthService implements AuthService {
     }
   }
 
+  /// Lê o próprio perfil (a policy `profiles_select_self` deixa ver a linha
+  /// mesmo removida) e devolve o motivo para barrar a entrada.
+  ///
+  /// Falha de rede aqui não barra ninguém: melhor deixar entrar e o perfil
+  /// chegar pelo sync do que travar o login de quem está com sinal ruim.
+  Future<AppErrorCode?> _removalOfCurrentUser() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return null;
+    try {
+      final row = await _client
+          .from('profiles')
+          .select('deleted_at, email')
+          .eq('id', userId)
+          .maybeSingle();
+      return removalCodeFor(row);
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Future<bool> signUpWithInvite({
     required String fullName,
@@ -108,6 +171,12 @@ class SupabaseAuthService implements AuthService {
           if (phone != null && phone.isNotEmpty) 'phone': phone,
         },
       );
+
+      // E-mail que já tem conta: nada foi criado nem enviado. Antes de
+      // guardar o convite, que seria resgatado por engano no próximo login.
+      if (signUpHitExistingAccount(response.user)) {
+        throw const AppException(AppErrorCode.emailAlreadyRegistered);
+      }
 
       final session = response.session;
       if (session != null) {

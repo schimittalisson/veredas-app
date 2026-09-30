@@ -27,6 +27,15 @@ abstract interface class AdminService {
   /// é feita manualmente via SQL Editor (LGPD).
   Future<void> softDeleteUser({required String userId});
 
+  /// Membros removidos por um admin, os mais recentes primeiro. Consulta o
+  /// servidor na hora: os removidos não chegam ao cache do app (o sync
+  /// descarta lápides). Quem excluiu a própria conta não entra.
+  Future<List<RemovedMember>> listRemovedMembers();
+
+  /// Desfaz a remoção. A pessoa volta aprovada e **como obreiro**, mesmo que
+  /// fosse admin — devolver privilégio é decisão à parte, na tela de Membros.
+  Future<void> restoreMember({required String userId});
+
   /// Cria um convite. Retorna o registro completo do convite criado.
   ///
   /// Se [code] for null, o servidor gera um automaticamente (6 chars
@@ -71,6 +80,21 @@ abstract interface class AdminService {
     required String scaleTypeId,
     required String userId,
   });
+}
+
+/// Um membro removido por um admin (RPC `list_removed_members`).
+class RemovedMember {
+  const RemovedMember({
+    required this.id,
+    required this.fullName,
+    required this.email,
+    required this.deletedAt,
+  });
+
+  final String id;
+  final String fullName;
+  final String email;
+  final DateTime deletedAt;
 }
 
 /// Resultado de `createInvite` — os campos que a UI precisa exibir.

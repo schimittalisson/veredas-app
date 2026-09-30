@@ -10,6 +10,7 @@ import 'package:veredas/ui/screens/admin/admin_screen.dart';
 import 'package:veredas/ui/screens/admin/convites_screen.dart';
 import 'package:veredas/ui/screens/admin/denuncias_screen.dart';
 import 'package:veredas/ui/screens/admin/lavanderia_screen.dart';
+import 'package:veredas/ui/screens/admin/membros_removidos_screen.dart';
 import 'package:veredas/ui/screens/admin/membros_screen.dart';
 import 'package:veredas/ui/screens/admin/escalas_screen.dart';
 import 'package:veredas/ui/screens/admin/responsaveis_screen.dart';
@@ -54,6 +55,7 @@ class Routes {
   // Rotas de administração.
   static const String admin = '/admin';
   static const String adminMembros = '/admin/membros';
+  static const String adminMembrosRemovidos = '/admin/membros/removidos';
   static const String adminConvites = '/admin/convites';
   static const String adminResponsaveis = '/admin/responsaveis';
   static const String adminEscalas = '/admin/escalas';
@@ -208,6 +210,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.adminMembros,
         builder: (context, state) => const MembrosScreen(),
+      ),
+      GoRoute(
+        path: Routes.adminMembrosRemovidos,
+        builder: (context, state) => const MembrosRemovidosScreen(),
       ),
       GoRoute(
         path: Routes.adminConvites,

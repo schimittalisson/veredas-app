@@ -57,6 +57,33 @@ class SupabaseAdminService implements AdminService {
   }
 
   @override
+  Future<List<RemovedMember>> listRemovedMembers() async {
+    try {
+      final rows = await _client.rpc('list_removed_members') as List;
+      return [
+        for (final r in rows.cast<Map<String, dynamic>>())
+          RemovedMember(
+            id: r['id'] as String,
+            fullName: r['full_name'] as String,
+            email: r['email'] as String,
+            deletedAt: DateTime.parse(r['deleted_at'] as String),
+          ),
+      ];
+    } catch (e) {
+      throw _mapError(e);
+    }
+  }
+
+  @override
+  Future<void> restoreMember({required String userId}) async {
+    try {
+      await _client.rpc('restore_member', params: {'p_user_id': userId});
+    } catch (e) {
+      throw _mapError(e);
+    }
+  }
+
+  @override
   Future<CreatedInvite> createInvite({
     required AppRole role,
     int? maxUses,
@@ -184,6 +211,12 @@ class SupabaseAdminService implements AdminService {
         return const AppException(
           AppErrorCode.forbidden,
           debugMessage: 'Você não pode remover a si mesmo se for o único admin.',
+        );
+      }
+      if (msg.contains('USER_SELF_DELETED')) {
+        return const AppException(
+          AppErrorCode.accountDeleted,
+          debugMessage: 'Quem excluiu a própria conta não pode ser restaurado.',
         );
       }
       if (msg.contains('USER_NOT_FOUND')) {

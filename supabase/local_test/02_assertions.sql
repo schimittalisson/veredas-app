@@ -838,6 +838,58 @@ begin;
 rollback;
 
 \echo ''
+\echo '=========== 15. Restaurar membro removido ==========='
+begin;
+  update public.profiles set role = 'admin'
+   where id = '22222222-2222-2222-2222-222222222222';
+  -- O comum era admin tambem: a restauracao tem de devolve-lo como obreiro.
+  update public.profiles set role = 'admin'
+   where id = '33333333-3333-3333-3333-333333333333';
+
+  select test.act_as(:'gerente');
+  select public.soft_delete_user('33333333-3333-3333-3333-333333333333');
+  select test.expect_count('admin ve o removido na lista',
+    'select count(*) from public.list_removed_members()', 1);
+  select test.expect_allowed('admin restaura o removido',
+    $q$select public.restore_member('33333333-3333-3333-3333-333333333333')$q$);
+  reset role;
+  select test.expect_count('restaurado volta aprovado, vivo e como obreiro',
+    $q$select count(*) from public.profiles
+        where id = '33333333-3333-3333-3333-333333333333'
+          and deleted_at is null and is_approved and role = 'obreiro'$q$, 1);
+  select test.act_as(:'gerente');
+  select test.expect_error_like('restaurar quem nao esta removido',
+    $q$select public.restore_member('33333333-3333-3333-3333-333333333333')$q$,
+    '%USER_NOT_FOUND%');
+rollback;
+
+begin;
+  -- Removido por admin, e um obreiro tenta ver/restaurar.
+  update public.profiles set deleted_at = now(), is_approved = false
+   where id = '11111111-1111-1111-1111-111111111111';
+  select test.act_as(:'comum');
+  select test.expect_error_like('obreiro NAO lista removidos',
+    'select count(*) from public.list_removed_members()', '%FORBIDDEN_NOT_ADMIN%');
+  select test.expect_error_like('obreiro NAO restaura',
+    $q$select public.restore_member('11111111-1111-1111-1111-111111111111')$q$,
+    '%FORBIDDEN_NOT_ADMIN%');
+rollback;
+
+begin;
+  -- Quem excluiu a propria conta ja teve os dados apagados: nao volta.
+  update public.profiles set role = 'admin'
+   where id = '22222222-2222-2222-2222-222222222222';
+  select test.act_as(:'comum');
+  select public.delete_own_account();
+  select test.act_as(:'gerente');
+  select test.expect_count('conta autoexcluida NAO aparece na lista',
+    'select count(*) from public.list_removed_members()', 0);
+  select test.expect_error_like('conta autoexcluida NAO e restaurada',
+    $q$select public.restore_member('33333333-3333-3333-3333-333333333333')$q$,
+    '%USER_SELF_DELETED%');
+rollback;
+
+\echo ''
 \echo '=========== 10. Nenhuma tabela publica sem RLS ==========='
 select test.expect_count(
   'tabelas public sem RLS',

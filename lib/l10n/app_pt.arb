@@ -181,7 +181,9 @@
   "auth_error_invalid_credentials": "E-mail ou senha incorretos.",
   "auth_error_email_not_confirmed": "Seu e-mail ainda não foi confirmado.",
   "auth_error_email_not_confirmed_resend": "Reenviar confirmação",
-  "auth_error_email_already_registered": "Este e-mail já está cadastrado.",
+  "auth_error_email_already_registered": "Este e-mail já tem cadastro. Se o seu usuário foi removido da base, peça a um administrador para restaurá-lo. Se não, volte e entre com a sua senha, ou use \"Esqueci minha senha\".",
+  "auth_error_account_removed": "Seu usuário foi removido da base. Peça a um administrador para restaurá-lo; depois é só entrar de novo com o mesmo e-mail e senha.",
+  "auth_error_account_deleted": "Esta conta foi excluída pelo próprio usuário e não pode ser recuperada.",
   "auth_error_weak_password": "A senha é muito fraca. Use pelo menos 8 caracteres.",
   "auth_error_otp_invalid": "Código incorreto. Confira os 6 dígitos do e-mail.",
   "auth_error_otp_expired": "Este código venceu. Toque em \"Reenviar código\" para receber um novo.",
@@ -489,6 +491,26 @@
   "admin_managers_remove": "Remover",
   "admin_managers_none": "Nenhum responsável",
   "admin_managers_select": "Selecione um obreiro",
+  "admin_removed_members": "Membros removidos",
+  "admin_removed_members_link_desc": "Restaurar o acesso de quem foi removido",
+  "admin_removed_members_footer": "Aqui aparece quem foi removido por um administrador. Quem excluiu a própria conta não aparece: os dados dessa pessoa já foram apagados.",
+  "admin_removed_members_empty": "Nenhum membro removido.",
+  "admin_removed_members_load_error": "Não foi possível carregar a lista. Verifique a conexão e tente de novo.",
+  "admin_removed_at": "Removido {when}",
+  "@admin_removed_at": {
+    "placeholders": {
+      "when": { "type": "String" }
+    }
+  },
+  "admin_restore": "Restaurar",
+  "admin_restore_confirm_title": "Restaurar {name}?",
+  "@admin_restore_confirm_title": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "admin_restore_confirm_message": "A pessoa volta a acessar o app com o mesmo e-mail e senha, como obreiro. Se era administradora, promova de novo pela tela de Membros.",
+  "admin_restore_done": "Acesso restaurado.",
 
   "prayer_report": "Denunciar",
   "prayer_report_title": "Por que você está denunciando este pedido?",
