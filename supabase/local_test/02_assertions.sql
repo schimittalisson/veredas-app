@@ -753,6 +753,67 @@ begin;
 rollback;
 
 \echo ''
+\echo '=========== 13. Anonimato do mural e exclusao com RETURNING ==========='
+begin;
+  update public.prayer_posts set is_anonymous = true
+   where id = '44444444-4444-4444-4444-444444444444';
+
+  select test.act_as(:'gerente');
+  select test.expect_count('outro obreiro ve o pedido anonimo no feed',
+    'select count(*) from public.prayer_feed', 1);
+  select test.expect_count('feed NAO revela o autor do pedido anonimo',
+    $q$select count(*) from public.prayer_feed
+        where author_id = '33333333-3333-3333-3333-333333333333'
+           or author_name is not null$q$, 0);
+  select test.expect_count('tabela prayer_posts NAO e legivel por outro obreiro',
+    'select count(*) from public.prayer_posts', 0);
+
+  select test.act_as(:'comum');
+  select test.expect_count('autor ve o proprio id no pedido anonimo',
+    $q$select count(*) from public.prayer_feed
+        where author_id = '33333333-3333-3333-3333-333333333333'$q$, 1);
+rollback;
+
+begin;
+  select test.act_as(:'nao_aprovado');
+  select test.expect_count('nao aprovado NAO le o feed (view roda como dona)',
+    'select count(*) from public.prayer_feed', 0);
+  reset role;
+  set local role anon;
+  select test.expect_count('anon NAO le o feed',
+    'select count(*) from public.prayer_feed', 0);
+rollback;
+
+-- O app apaga com `update ... returning` (o .select() do outbox). O RETURNING
+-- exige que a linha nova passe na policy de SELECT — a antiga filtrava
+-- `deleted_at is null` e reprovava toda exclusao de pedido.
+begin;
+  select test.act_as(:'comum');
+  select test.expect_allowed('autor apaga o proprio pedido com RETURNING',
+    $q$update public.prayer_posts set deleted_at = now()
+        where id = '44444444-4444-4444-4444-444444444444' returning id$q$);
+rollback;
+
+begin;
+  update public.profiles set role = 'admin'
+   where id = '22222222-2222-2222-2222-222222222222';
+  select test.act_as(:'gerente');
+  select test.expect_allowed('admin apaga pedido alheio com RETURNING',
+    $q$update public.prayer_posts set deleted_at = now()
+        where id = '44444444-4444-4444-4444-444444444444' returning id$q$);
+rollback;
+
+begin;
+  -- Decisao do solicitante: o mural registra oracoes feitas, e a remocao de
+  -- quem a registrou nao a apaga.
+  update public.profiles set deleted_at = now(), is_approved = false
+   where id = '33333333-3333-3333-3333-333333333333';
+  select test.act_as(:'gerente');
+  select test.expect_count('pedido de membro removido continua no mural',
+    'select count(*) from public.prayer_feed', 1);
+rollback;
+
+\echo ''
 \echo '=========== 10. Nenhuma tabela publica sem RLS ==========='
 select test.expect_count(
   'tabelas public sem RLS',

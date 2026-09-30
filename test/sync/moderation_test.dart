@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:veredas/data/local/app_database.dart';
+import 'package:veredas/data/local/tables.dart' show hiddenAuthorId;
 import 'package:veredas/data/models/report_reason.dart';
 import 'package:veredas/data/repositories/moderation_repository.dart';
 import 'package:veredas/data/sync/outbox_worker.dart';
@@ -239,6 +240,16 @@ void main() {
 
       final rows = await db.select(db.userBlockRows).get();
       expect(rows.map((r) => r.blockedId), [_other]);
+    });
+
+    test('autor oculto de pedido anônimo não é bloqueável', () async {
+      // A view devolve o UUID nulo no lugar do autor de pedido anônimo alheio
+      // (migration 20260930000200). Bloqueá-lo iria para a outbox e voltaria
+      // recusado pela FK — o repositório nem tenta.
+      await repo.blockUser(blockerId: _me, blockedId: hiddenAuthorId);
+
+      expect(await db.select(db.userBlockRows).get(), isEmpty);
+      expect(await db.outboxEntries.count().getSingle(), 0);
     });
 
     test('fullReplace tira do cache o bloqueio desfeito em outro aparelho',

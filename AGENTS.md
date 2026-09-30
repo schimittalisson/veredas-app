@@ -1338,11 +1338,14 @@ aja sobre as denúncias em 24 horas.
    bloqueios e as denúncias que fez** (trigger em `profiles.deleted_at`). Os
    dois são trigger, e não linhas a mais em `delete_own_account()`, para valer
    também no `soft_delete_user` do admin sem reescrever aqueles RPCs.
-7. **`soft_delete_user` não apaga os posts da pessoa.** Descoberto ao montar a
-   tela de Denúncias: a view junta `profiles` sem olhar `deleted_at`, então os
-   pedidos de um membro removido continuam no mural. "Remover da base" na tela
-   de Denúncias apaga também o pedido denunciado; os outros pedidos da pessoa
-   ficam — não foi tocado por estar fora do escopo.
+7. **`soft_delete_user` não apaga os pedidos da pessoa, e é de propósito.**
+   O mural registra orações feitas ("hoje orei por Portugal"), não pedidos em
+   aberto: outras pessoas continuam orando pelo mesmo motivo, e a remoção de
+   quem registrou não desfaz isso (decisão do solicitante). "Remover da base"
+   na tela de Denúncias apaga só o pedido denunciado. **Não "conserte" isso
+   apagando os pedidos no `soft_delete_user`.** (Até a migration
+   `20260930000200` esses pedidos sumiam do feed por acidente — ver a seção
+   seguinte.)
 8. **Termos de uso em `TERMOS.md`, no GitHub**, pelo mesmo motivo da política
    de privacidade (a URL é `AppLinks.termsOfUse`). O aceite é uma caixa no
    cadastro, que bloqueia o envio. Quem já tinha conta não passa por ele — o
@@ -1358,13 +1361,48 @@ aja sobre as denúncias em 24 horas.
     novas falha sem as tabelas, e o banner de erro de sincronização aparece.
     O contrário é seguro: a view mantém as mesmas colunas, e o app antigo
     ignora as tabelas novas.
-12. **Fica registrado, sem conserto:** a view `prayer_feed` esconde
-    `author_name` de pedido anônimo, mas **expõe `author_id`** a qualquer
-    obreiro aprovado. Quem consultar a API direto e cruzar com `profiles`
-    descobre o autor. O comentário em `tables.dart` ("anonimato garantido no
-    servidor") é otimista. O conserto é devolver `author_id` nulo para
-    anônimo quando quem consulta não é o autor nem admin — e o cache precisa
-    aceitar `authorId` nulo.
+12. O vazamento do autor de pedido anônimo pela API, encontrado aqui, foi
+    corrigido na migration seguinte — ver a próxima seção.
 13. Coberto por 22 asserções novas no harness (§12), `test/sync/
     moderation_test.dart` (13 testes) e `test/ui/prayer_moderation_test.dart`
     (3 testes de widget: menu por tipo de post, denunciar, bloquear).
+
+#### Anonimato do mural pela API, e a exclusão de pedido que nunca funcionou (pós-Fase 10)
+
+Migration `20260930000200_prayer_anonymity.sql`.
+
+1. **O vazamento.** A view `prayer_feed` escondia o nome do autor de pedido
+   anônimo, mas devolvia `author_id` a todo obreiro aprovado — e a tabela
+   `prayer_posts` também era legível por todos, com a coluna. Pela API (a anon
+   key está no app) bastava cruzar com `profiles`. Fechar só a view não
+   bastaria.
+2. **`prayer_posts` passou a ser legível só pelo autor e pelo admin.** O feed
+   é servido só pela view, que passou a rodar como dona (`security_invoker`
+   removido) e por isso **refaz à mão** `is_approved()`, `deleted_at is null`
+   e o filtro de bloqueio. O aviso "não remova" da migration 0500 continua
+   valendo, só mudou de forma: sem o `is_approved()` na view, o mural vaza
+   para não aprovados e para `anon`. Há asserção para os dois.
+3. **`author_id` de anônimo sai como o UUID nulo, não como `null`.** O app
+   instalado guarda `authorId` como coluna obrigatória; um null derrubaria o
+   pull do mural nos aparelhos antigos. O próprio autor recebe o id real (o
+   app precisa dele para oferecer "Editar"). Constante `hiddenAuthorId` em
+   `tables.dart`; o `blockUser` ignora esse id.
+4. **A exclusão de pedido de oração nunca funcionou no servidor.** O outbox
+   apaga com `update ... returning` (o `.select()`), e o RETURNING exige que a
+   linha nova passe na policy de SELECT — que filtrava `deleted_at is null`.
+   Resultado: 42501, rollback do cache, o pedido voltava com o banner de erro.
+   Valia para autor e admin, e teria quebrado o "Excluir o pedido" da tela de
+   Denúncias. O harness não pegava porque testava o UPDATE **sem**
+   RETURNING. A policy nova não filtra `deleted_at` (quem a lê é só o autor ou
+   o admin), e o harness passou a testar com RETURNING (§13). **Ao escrever
+   asserção de UPDATE que o app faz pelo outbox, use `returning`** — é o que o
+   app manda.
+5. **Efeito colateral, desejado: os pedidos de membro removido voltaram ao
+   feed.** A view antiga, com `security_invoker`, fazia o `join profiles`
+   passar pelo RLS de `profiles`, que esconde perfis com `deleted_at`. Os
+   pedidos de quem era removido sumiam por acidente. Rodando como dona, o join
+   enxerga o perfil e o pedido fica — que é a decisão do item 7 da seção
+   anterior. Coberto por asserção.
+6. O admin ainda lê o autor de pedido anônimo pela API (precisa da linha
+   inteira para moderar, e a denúncia já guarda o autor para ele). O
+   anonimato é em relação aos outros obreiros; a tela nunca mostra o autor.

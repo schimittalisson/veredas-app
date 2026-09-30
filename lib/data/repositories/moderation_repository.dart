@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:veredas/data/local/app_database.dart';
+import 'package:veredas/data/local/tables.dart' show hiddenAuthorId;
 import 'package:veredas/data/models/report_reason.dart';
 import 'package:veredas/data/repositories/outbox_helper.dart';
 
@@ -104,11 +105,14 @@ class ModerationRepository {
     );
   }
 
-  /// Bloqueia [blockedId]. Não faz nada se já estava bloqueado.
+  /// Bloqueia [blockedId]. Não faz nada se já estava bloqueado, nem se o
+  /// autor é o [hiddenAuthorId] de um pedido anônimo — a FK recusaria no
+  /// servidor, e a tela já não oferece bloquear nesse caso.
   Future<void> blockUser({
     required String blockerId,
     required String blockedId,
   }) async {
+    if (blockedId == hiddenAuthorId) return;
     final existing = await (_db.select(_db.userBlockRows)
           ..where((t) => t.blockedId.equals(blockedId)))
         .getSingleOrNull();

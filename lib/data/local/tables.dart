@@ -223,6 +223,10 @@ class WeeklySlotRows extends Table {
 @DataClassName('PrayerFeedRow')
 class PrayerFeedRows extends Table {
   TextColumn get id => text()();
+
+  /// Em pedido anônimo de outra pessoa, o servidor devolve [hiddenAuthorId]
+  /// no lugar do autor (migration 20260930000200). Só o próprio autor recebe
+  /// o id verdadeiro — é o que faz o app oferecer "Editar" a ele.
   TextColumn get authorId => text()();
   TextColumn get title => text()();
   TextColumn get body => text()();
@@ -232,7 +236,10 @@ class PrayerFeedRows extends Table {
   TextColumn get answerNote => text().nullable()();
 
   /// Nulos quando o post é anônimo — a própria view esconde o autor, então o
-  /// nome nunca chega ao dispositivo. Anonimato garantido no servidor, não na UI.
+  /// nome nunca chega ao dispositivo. Anonimato garantido no servidor, não na
+  /// UI: desde a migration 20260930000200 isso vale também para o id (ver
+  /// [authorId]) e para a tabela `prayer_posts`, que só o autor e o admin
+  /// leem direto.
   TextColumn get authorName => text().nullable()();
   TextColumn get authorAvatarUrl => text().nullable()();
 
@@ -245,6 +252,12 @@ class PrayerFeedRows extends Table {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
+
+/// O que a view `prayer_feed` devolve em `author_id` quando o pedido é
+/// anônimo e quem pergunta não é o autor. É o UUID nulo, e não `null`, para
+/// não quebrar o pull nos aparelhos com a versão antiga do app, onde a coluna
+/// é obrigatória. Não é id de ninguém.
+const hiddenAuthorId = '00000000-0000-0000-0000-000000000000';
 
 /// Espelho de `public.prayer_comments`.
 @DataClassName('PrayerCommentRow')
