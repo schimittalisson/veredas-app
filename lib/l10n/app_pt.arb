@@ -26,6 +26,7 @@
   "error_no_connection": "Sem conexão com a internet.",
   "action_retry": "Tentar novamente",
   "action_cancel": "Cancelar",
+  "action_ok": "OK",
   "action_confirm": "Confirmar",
   "action_save": "Salvar",
   "action_done": "Pronto",
@@ -142,9 +143,19 @@
   "auth_confirm_email_resent": "Código reenviado. Verifique seu e-mail.",
 
   "auth_forgot_password_title": "Recuperar senha",
-  "auth_forgot_password_subtitle": "Enviaremos um link de recuperação para o seu e-mail.",
-  "auth_send_reset_link": "Enviar link",
-  "auth_reset_email_sent": "Verifique seu e-mail para o link de recuperação.",
+  "auth_forgot_password_subtitle": "Enviaremos um código de recuperação para o seu e-mail.",
+  "auth_send_reset_link": "Enviar código",
+  "auth_reset_email_sent": "Verifique seu e-mail para o código de recuperação.",
+  "auth_reset_code_title": "Digite o código",
+  "auth_reset_code_sent_to": "Enviamos um código de 6 dígitos para {email}. Ele funciona mesmo que você abra o e-mail no computador ou em outro celular. Verifique também a caixa de spam.",
+  "@auth_reset_code_sent_to": {
+    "placeholders": {
+      "email": { "type": "String" }
+    }
+  },
+  "auth_reset_code_resent": "Código reenviado. Use sempre o do e-mail mais recente.",
+  "auth_link_invalid_title": "Não foi possível usar o link",
+  "auth_link_invalid_message": "O link pode ter vencido, já ter sido usado, ser de um e-mail anterior ou ter sido aberto em um aparelho diferente do que pediu. Em \"Esqueci minha senha\", peça de novo e digite o código de 6 dígitos do e-mail.",
   "auth_sending": "Enviando…",
 
   "auth_new_password_title": "Nova senha",

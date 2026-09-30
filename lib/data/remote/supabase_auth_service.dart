@@ -27,11 +27,33 @@ class SupabaseAuthService implements AuthService {
   // existe.
   @override
   Stream<AuthState> get authStateChanges {
-    return _client.auth.onAuthStateChange.map(
-      (event) => AuthState(
-        session: event.session,
-        user: event.session?.user,
-        event: event.event,
+    return _client.auth.onAuthStateChange
+        .map(
+          (event) => AuthState(
+            session: event.session,
+            user: event.session?.user,
+            event: event.event,
+          ),
+        )
+        // Os erros de link saem por `authLinkErrors`. Aqui eles só fariam o
+        // `authStateProvider` virar AsyncError, sem ninguém avisar a pessoa.
+        .handleError(
+          (Object _) {},
+          test: (Object? e) => e != null && isAuthLinkError(e),
+        );
+  }
+
+  @override
+  Stream<AppErrorCode> get authLinkErrors =>
+      _linkErrorsOf(_client.auth.onAuthStateChange);
+
+  static Stream<AppErrorCode> _linkErrorsOf<T>(Stream<T> source) {
+    return source.transform(
+      StreamTransformer<T, AppErrorCode>.fromHandlers(
+        handleData: (_, _) {},
+        handleError: (error, _, sink) {
+          if (isAuthLinkError(error)) sink.add(AppErrorCode.authLinkInvalid);
+        },
       ),
     );
   }
@@ -207,6 +229,24 @@ class SupabaseAuthService implements AuthService {
       await _client.auth.resetPasswordForEmail(
         email,
         redirectTo: 'br.com.veredas.app://login-callback/',
+      );
+    } catch (e) {
+      throw mapError(e);
+    }
+  }
+
+  @override
+  Future<void> verifyRecoveryOtp({
+    required String email,
+    required String token,
+  }) async {
+    try {
+      // O gotrue emite `passwordRecovery` quando o tipo é `recovery` — é o que
+      // liga o `passwordRecoveryProvider` e leva para /nova-senha.
+      await _client.auth.verifyOTP(
+        type: OtpType.recovery,
+        email: email,
+        token: token,
       );
     } catch (e) {
       throw mapError(e);

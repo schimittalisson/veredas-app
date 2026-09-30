@@ -250,6 +250,15 @@ class AuthActions extends Notifier<void> {
 
   Future<void> resetPassword(String email) => _auth.resetPassword(email);
 
+  /// Confirma o código de recuperação. Com sucesso, a sessão nasce em modo
+  /// recuperação e o router leva para /nova-senha — nada a fazer na tela.
+  Future<void> verifyRecoveryOtp({
+    required String email,
+    required String token,
+  }) {
+    return _auth.verifyRecoveryOtp(email: email, token: token);
+  }
+
   /// Troca a senha e encerra o modo recuperação.
   ///
   /// O `clear()` só roda depois do `await`: se o servidor recusar, o usuário

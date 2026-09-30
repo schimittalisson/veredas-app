@@ -1406,3 +1406,41 @@ Migration `20260930000200_prayer_anonymity.sql`.
 6. O admin ainda lê o autor de pedido anônimo pela API (precisa da linha
    inteira para moderar, e a denúncia já guarda o autor para ele). O
    anonimato é em relação aos outros obreiros; a tela nunca mostra o autor.
+
+#### Recuperação de senha por código, e o link que falhava em silêncio (pós-Fase 10)
+
+Sintoma relatado: "Esqueci minha senha" → o link do e-mail abria o app → a
+tela de nova senha não aparecia, sem mensagem nenhuma.
+
+1. **O link de recuperação é PKCE.** `resetPasswordForEmail` guarda um
+   verificador no aparelho, e o link só vira sessão se for aberto **no mesmo
+   aparelho** e for o do **e-mail mais recente** (pedir de novo sobrescreve o
+   verificador). Fora disso a troca falha: "Code verifier could not be
+   found", `flow_state_not_found`, ou `otp_expired` para link vencido/usado.
+2. **O erro existia, mas ninguém o lia.** O `supabase_flutter` põe a falha no
+   `onAuthStateChange` (`notifyException`), e o app só consumia os dados do
+   stream. O `authStateProvider` virava AsyncError com o valor anterior, a
+   tela de login ficava parada, e era isso.
+3. **Correção principal: código de 6 dígitos**, pelo mesmo motivo que já
+   tinha tirado o link da confirmação de cadastro. `verifyRecoveryOtp` chama
+   `verifyOTP(type: recovery)`, que emite `passwordRecovery` — o
+   `passwordRecoveryProvider` e o redirect para `/nova-senha` não mudaram.
+   Exige `{{ .Token }}` no template "Reset Password" (`supabase/README.md`
+   §6-B). O link fica no template durante a transição, porque a versão antiga
+   do app só sabe recuperar por ele.
+4. **Correção secundária: o erro de link agora aparece.**
+   `AuthService.authLinkErrors` separa esses erros (filtro `isAuthLinkError`
+   em `error_mapper.dart`) e o `AuthLinkErrorListener`, no `builder` do
+   `CupertinoApp`, mostra um alerta pelo navigator raiz. O filtro exclui
+   `AuthRetryableFetchException`, que chega pelo mesmo stream quando o
+   refresh do token falha sem rede — sem essa exclusão, toda queda de sinal
+   viraria "link inválido". O `authStateChanges` descarta os mesmos erros,
+   para o `authStateProvider` não virar AsyncError por causa de um link.
+5. **O listener assina o stream direto, não um `StreamProvider`.** O
+   Riverpod 3 filtra valores iguais com `==`, e o segundo link ruim (mesmo
+   `AppErrorCode`) não geraria um segundo aviso.
+6. Coberto por `test/core/error_mapper_test.dart` (o filtro), por
+   `test/auth/password_recovery_test.dart` (código aceito leva a
+   `/nova-senha`; recusado não cria sessão) e por
+   `test/ui/auth_link_error_listener_test.dart` (o alerta aparece, e aparece
+   de novo no segundo link).

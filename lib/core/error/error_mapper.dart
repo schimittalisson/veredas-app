@@ -182,6 +182,34 @@ AppException _mapPostgrest(PostgrestException e, StackTrace? st) {
   );
 }
 
+/// O erro veio de um link de autenticação que falhou ao ser aberto no app?
+///
+/// O `supabase_flutter` troca o link por uma sessão sozinho e, se falhar,
+/// põe o erro no `onAuthStateChange` — que o app lia só pelos dados. O
+/// resultado era o link abrir o app e **nada acontecer**. Este filtro separa
+/// esses erros dos outros que chegam pelo mesmo stream (falha de rede no
+/// refresh do token, sessão salva corrompida), que não têm nada a ver com
+/// link e não devem virar aviso de "link inválido".
+bool isAuthLinkError(Object error) {
+  if (error is! AuthException) return false;
+  // Refresh de token sem rede: chega pelo mesmo stream e é passageiro.
+  if (error is AuthRetryableFetchException) return false;
+  if (error is AuthPKCEGrantCodeExchangeError) return true;
+  const linkCodes = {
+    'otp_expired', // o link venceu ou já foi usado (vem na própria URL)
+    'access_denied', // idem, no parâmetro `error` da URL
+    'flow_state_not_found', // o código do link não casa com o do aparelho
+    'flow_state_expired',
+    'bad_code_verifier',
+  };
+  if (linkCodes.contains(error.code) || linkCodes.contains(error.statusCode)) {
+    return true;
+  }
+  // Link aberto num aparelho que não pediu: não há verificador guardado. O
+  // gotrue lança sem `code`, só com esta mensagem.
+  return error.message.contains('Code verifier could not be found');
+}
+
 AppException _mapAuth(AuthException e, StackTrace? st) {
   final message = e.message.toLowerCase();
 

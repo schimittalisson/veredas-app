@@ -167,4 +167,64 @@ void main() {
       expect(e.isRetryable, isFalse);
     });
   });
+
+  group('isAuthLinkError — link de recuperação que falhou ao abrir o app', () {
+    // Estes erros chegavam pelo onAuthStateChange e eram ignorados: o link
+    // abria o app e nada acontecia. O filtro decide quem vira aviso.
+    test('aparelho diferente do que pediu (sem verificador guardado)', () {
+      expect(
+        isAuthLinkError(
+          AuthException('Code verifier could not be found in local storage.'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('link vencido ou já usado, como vem na URL', () {
+      // `getSessionFromUrl` monta a exceção com `error_code` em statusCode e
+      // `error` em code.
+      expect(
+        isAuthLinkError(
+          AuthException(
+            'Email link is invalid or has expired',
+            statusCode: 'otp_expired',
+            code: 'access_denied',
+          ),
+        ),
+        isTrue,
+      );
+    });
+
+    test('link de um e-mail anterior (verificador não confere)', () {
+      expect(
+        isAuthLinkError(
+          AuthException('invalid flow state', code: 'flow_state_not_found'),
+        ),
+        isTrue,
+      );
+      expect(
+        isAuthLinkError(
+          const AuthPKCEGrantCodeExchangeError('No code detected'),
+        ),
+        isTrue,
+      );
+    });
+
+    test('refresh de token sem rede NÃO é erro de link', () {
+      // Chega pelo mesmo stream. Virar aviso de "link inválido" para quem só
+      // está offline seria um alarme falso a cada queda de sinal.
+      expect(
+        isAuthLinkError(AuthRetryableFetchException(statusCode: '503')),
+        isFalse,
+      );
+    });
+
+    test('outros erros de auth e erros quaisquer NÃO são erro de link', () {
+      expect(
+        isAuthLinkError(AuthException('Invalid login credentials')),
+        isFalse,
+      );
+      expect(isAuthLinkError(const SocketException('offline')), isFalse);
+    });
+  });
 }

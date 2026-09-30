@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import 'package:veredas/core/error/app_exception.dart';
 import 'package:veredas/data/models/app_role.dart';
 
 /// Estado de autenticação emitido pelo [AuthService].
@@ -137,9 +138,32 @@ abstract class AuthService {
 
   /// Envia e-mail de recuperação de senha.
   ///
-  /// O e-mail contém um deep link de volta para o app
-  /// (`br.com.veredas.app://login-callback/`).
+  /// O e-mail traz um **código de 6 dígitos** (confirmado por
+  /// [verifyRecoveryOtp]) e, se o template ainda tiver, um deep link de volta
+  /// para o app (`br.com.veredas.app://login-callback/`). O link só funciona
+  /// no mesmo aparelho e se for o do e-mail mais recente; o código funciona em
+  /// qualquer lugar.
   Future<void> resetPassword(String email);
+
+  /// Confirma o código de recuperação recebido por e-mail.
+  ///
+  /// Mesmo motivo de [verifyEmailOtp] para existir: o link do e-mail é
+  /// amarrado ao aparelho pelo PKCE, e abri-lo no computador, noutro celular
+  /// ou a partir de um e-mail antigo não funciona. Com sucesso, a sessão nasce
+  /// com o evento `passwordRecovery`, e o router leva para `/nova-senha` como
+  /// já fazia com o link.
+  ///
+  /// Exige `{{ .Token }}` no template "Reset Password" do Supabase
+  /// (`supabase/README.md` §6-B).
+  Future<void> verifyRecoveryOtp({
+    required String email,
+    required String token,
+  });
+
+  /// Falhas de links de autenticação abertos no app (ver
+  /// [AppErrorCode.authLinkInvalid]). Emite um código por falha; nunca emite
+  /// erro.
+  Stream<AppErrorCode> get authLinkErrors;
 
   /// Define uma nova senha para o usuário **já logado**.
   ///

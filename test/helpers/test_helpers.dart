@@ -562,6 +562,34 @@ class FakeAuthService implements AuthService {
     calls.add('resetPassword:$email');
   }
 
+  /// Exceção a lançar no próximo verifyRecoveryOtp.
+  dynamic verifyRecoveryOtpError;
+
+  @override
+  Future<void> verifyRecoveryOtp({
+    required String email,
+    required String token,
+  }) async {
+    calls.add('verifyRecoveryOtp:$email:$token');
+    if (verifyRecoveryOtpError != null) {
+      final e = verifyRecoveryOtpError;
+      verifyRecoveryOtpError = null;
+      throw e;
+    }
+    // O serviço real cria a sessão com o evento `passwordRecovery`.
+    simulatePasswordRecovery();
+  }
+
+  final StreamController<AppErrorCode> _linkErrors =
+      StreamController<AppErrorCode>.broadcast(sync: true);
+
+  @override
+  Stream<AppErrorCode> get authLinkErrors => _linkErrors.stream;
+
+  /// Simula um link de recuperação que abriu o app e falhou (vencido, de outro
+  /// aparelho...).
+  void simulateAuthLinkError() => _linkErrors.add(AppErrorCode.authLinkInvalid);
+
   /// Exceção a lançar no próximo updatePassword.
   dynamic updatePasswordError;
 
@@ -592,6 +620,7 @@ class FakeAuthService implements AuthService {
 
   void dispose() {
     _controller.close();
+    _linkErrors.close();
   }
 }
 

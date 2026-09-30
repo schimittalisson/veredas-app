@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:veredas/core/error/app_exception.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/data/models/app_role.dart';
 import 'package:veredas/providers/auth_providers.dart';
@@ -114,6 +115,40 @@ void main() {
 
       // Falhou: o usuário precisa continuar na tela de senha nova.
       expect(container.read(passwordRecoveryProvider), true);
+    });
+  });
+
+  group('código de recuperação', () {
+    // O link do e-mail é amarrado ao aparelho que pediu (PKCE); o código é a
+    // saída que funciona em qualquer lugar. Ele tem de cair no mesmo caminho
+    // do link: modo recuperação ligado e /nova-senha.
+    test('código aceito liga o modo recuperação e leva para /nova-senha',
+        () async {
+      await seedProfile(isApproved: true);
+      await container
+          .read(authActionsProvider.notifier)
+          .verifyRecoveryOtp(email: 'maria@teste.com', token: '123456');
+      await waitForAuthState(container, (s) => s.isAuthenticated);
+      await waitForProfile(container, (p) => p?.id == 'test-user-id');
+
+      expect(auth.calls, contains('verifyRecoveryOtp:maria@teste.com:123456'));
+      expect(container.read(passwordRecoveryProvider), true);
+      expect(
+        redirectForTest(container.read(refProvider), Routes.esqueciSenha),
+        Routes.novaSenha,
+      );
+    });
+
+    test('código recusado não cria sessão', () async {
+      auth.verifyRecoveryOtpError = makeAuthException(AppErrorCode.otpExpired);
+
+      await expectLater(
+        container
+            .read(authActionsProvider.notifier)
+            .verifyRecoveryOtp(email: 'maria@teste.com', token: '000000'),
+        throwsA(isA<AppException>()),
+      );
+      expect(container.read(passwordRecoveryProvider), false);
     });
   });
 

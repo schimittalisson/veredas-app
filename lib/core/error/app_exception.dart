@@ -23,6 +23,13 @@ enum AppErrorCode {
   /// pedir um código novo.
   otpExpired,
 
+  /// Um link de autenticação aberto no app (hoje, o de recuperação de senha)
+  /// não pôde ser trocado por uma sessão. As causas são indistinguíveis do
+  /// lado do app — link vencido, já usado, de um e-mail anterior, ou aberto
+  /// num aparelho diferente do que pediu (o PKCE amarra o link ao aparelho) —
+  /// e a saída é a mesma: pedir de novo e usar o código do e-mail.
+  authLinkInvalid,
+
   weakPassword,
   sessionExpired,
   notAuthenticated,

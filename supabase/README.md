@@ -220,6 +220,35 @@ O tempo de validade do código é o **Email OTP Expiration** em
 mais seguro). A tela de confirmação tem "Reenviar código" para quem passar do
 prazo.
 
+### Passo 6-B — Recuperação de senha por código
+
+**Authentication → Emails → template "Reset Password":** acrescente
+`{{ .Token }}`. Mantenha o link (`{{ .ConfirmationURL }}`) por enquanto: quem
+ainda está com uma versão do app anterior ao código só consegue recuperar a
+senha pelo link.
+
+```html
+<h2>Recuperar senha</h2>
+<p>Seu código para criar uma senha nova é:</p>
+<p style="font-size:32px;font-weight:bold;letter-spacing:4px">{{ .Token }}</p>
+<p>No app, toque em "Esqueci minha senha", informe seu e-mail e digite este
+código. Ele funciona mesmo que você esteja lendo este e-mail no computador.</p>
+<p>Se você está no celular onde pediu a recuperação, também pode
+<a href="{{ .ConfirmationURL }}">abrir direto no app</a>.</p>
+<p>Se não foi você que pediu, ignore este e-mail.</p>
+```
+
+**Por que o código.** O link de recuperação tem o mesmo defeito que o de
+confirmação tinha: o PKCE do `supabase_flutter` o amarra ao aparelho que pediu
+e ao e-mail **mais recente**. Aberto no computador, noutro celular ou a partir
+de um e-mail anterior (pedir duas vezes invalida o primeiro), o link abria o
+app e nada acontecia. Desde esta mudança o app avisa quando o link falha
+(`AuthLinkErrorListener`), mas a saída que funciona em qualquer caso é o
+código: o app chama `verifyOTP(type: recovery)`, a sessão nasce em modo
+recuperação e o router leva para a tela de senha nova.
+
+Quando todo mundo estiver com a versão nova, o link pode sair do template.
+
 ### SMTP próprio — não é opcional
 
 O SMTP embutido do Supabase envia **2 e-mails por hora** (valor oficial, não
