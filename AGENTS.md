@@ -538,6 +538,10 @@ Atualize esta seção ao concluir cada fase.
       iOS). Seletor de cor para eventos/slots. Exclusão de conta
       (RPC `delete_own_account` + proteção último admin). iOS não compila
       no Linux — arquivos configurados, build requer macOS + Xcode.
+- [x] Pós-Fase 10 — Moderação do mural (App Store 1.2): denunciar e bloquear
+      no menu do pedido de oração, Administração → Denúncias, Usuários
+      bloqueados no menu da conta, `TERMOS.md` com aceite no cadastro.
+      Migration `20260930000100_moderation.sql` (ver decisões no fim).
 
 ### Decisões tomadas durante a execução
 
@@ -1295,3 +1299,72 @@ organização. Passo a passo em `docs/LANCAMENTO.md`.
    testa no iPad, onde o layout nunca foi pensado para tablet — motivo comum
    de recusa. Um app só de iPhone continua instalando no iPad, em modo de
    compatibilidade. Voltar ao iPad é trocar de novo e passar a testar lá.
+
+#### Denúncia, bloqueio e Termos de uso — Guideline 1.2 da App Store (pós-Fase 10)
+
+A primeira submissão voltou com um pedido de informações da Apple que exigia
+um vídeo mostrando "os mecanismos obrigatórios de denúncia e bloqueio" de
+conteúdo criado por usuários. O app não tinha nenhum dos dois. A 1.2 pede
+quatro coisas: termos com tolerância zero, denunciar, bloquear e alguém que
+aja sobre as denúncias em 24 horas.
+
+1. **Só `prayer_posts` é conteúdo sujeito a isso.** `prayer_comments` existe
+   no banco mas não tem tela, e os avisos são escritos por admin. Se os
+   comentários ganharem tela, a denúncia ganha uma coluna `comment_id`.
+2. **A denúncia guarda uma cópia do post, tirada pelo servidor.** O trigger
+   `fill_report_snapshot` preenche `post_title`/`post_body`/`post_author_id`
+   da linha real e ignora o que o app mandar. Sem cópia, o autor editaria o
+   texto depois de denunciado e o admin veria a versão limpa; e o admin que
+   bloqueou o autor nem veria mais o post no feed. O payload da outbox manda
+   só `id`, `reporter_id`, `post_id` e `reason` (há teste para isso).
+3. **Pedido anônimo se denuncia, mas não se bloqueia.** A lista de bloqueados
+   mostra o nome de quem foi bloqueado, e o anonimato acabaria ali. Pelo mesmo
+   motivo a tela de Denúncias não mostra o autor de pedido anônimo nem oferece
+   "remover da base" nele — excluir o pedido resolve.
+4. **O filtro do feed existe duas vezes, de propósito.** A view `prayer_feed`
+   passou a excluir os autores bloqueados (o bloqueio acompanha a pessoa em
+   outro aparelho), e `visibleFeedProvider` filtra no cliente (o post some no
+   toque, inclusive offline). O cliente também esconde o que a própria pessoa
+   denunciou — filtrando por `reporterId`, senão o feed do **admin**, cujo
+   cache tem as denúncias de todo mundo, esconderia justamente o que ele
+   precisa moderar.
+5. **`user_blocks` sem `id` e sem `deleted_at`.** A identidade é o par;
+   desbloquear é DELETE físico, sincronizado por `fullReplace`. No cache a
+   chave é só `blockedId` (o `blocker` é sempre quem está logado), que é
+   também o `rowId` da outbox, com `eqColumn: 'blocked_id'` — o mesmo desenho
+   de `prayer_interactions`.
+6. **Post apagado resolve as denúncias dele** (trigger
+   `resolve_reports_of_deleted_post`), e **conta excluída leva junto os
+   bloqueios e as denúncias que fez** (trigger em `profiles.deleted_at`). Os
+   dois são trigger, e não linhas a mais em `delete_own_account()`, para valer
+   também no `soft_delete_user` do admin sem reescrever aqueles RPCs.
+7. **`soft_delete_user` não apaga os posts da pessoa.** Descoberto ao montar a
+   tela de Denúncias: a view junta `profiles` sem olhar `deleted_at`, então os
+   pedidos de um membro removido continuam no mural. "Remover da base" na tela
+   de Denúncias apaga também o pedido denunciado; os outros pedidos da pessoa
+   ficam — não foi tocado por estar fora do escopo.
+8. **Termos de uso em `TERMOS.md`, no GitHub**, pelo mesmo motivo da política
+   de privacidade (a URL é `AppLinks.termsOfUse`). O aceite é uma caixa no
+   cadastro, que bloqueia o envio. Quem já tinha conta não passa por ele — o
+   vídeo para a Apple mostra o cadastro novo.
+9. **`showAppToastIn(overlay, colors, …)`**: o cartão denunciado sai do feed
+   quando o stream do drift emite, e isso pode acontecer antes de o `await` da
+   escrita voltar. O cartão captura overlay, cores e repositório antes do
+   `await`. No `flutter_test` o await volta primeiro, então o teste de widget
+   não prova que a captura é necessária — só que o fluxo funciona com ela.
+10. **Cache: schemaVersion 6 → 7**, duas tabelas novas com `createTable`.
+11. **Ordem de implantação: a migration `20260930000100` vai para o Supabase
+    ANTES de o build novo chegar a qualquer aparelho.** O pull das entidades
+    novas falha sem as tabelas, e o banner de erro de sincronização aparece.
+    O contrário é seguro: a view mantém as mesmas colunas, e o app antigo
+    ignora as tabelas novas.
+12. **Fica registrado, sem conserto:** a view `prayer_feed` esconde
+    `author_name` de pedido anônimo, mas **expõe `author_id`** a qualquer
+    obreiro aprovado. Quem consultar a API direto e cruzar com `profiles`
+    descobre o autor. O comentário em `tables.dart` ("anonimato garantido no
+    servidor") é otimista. O conserto é devolver `author_id` nulo para
+    anônimo quando quem consulta não é o autor nem admin — e o cache precisa
+    aceitar `authorId` nulo.
+13. Coberto por 22 asserções novas no harness (§12), `test/sync/
+    moderation_test.dart` (13 testes) e `test/ui/prayer_moderation_test.dart`
+    (3 testes de widget: menu por tipo de post, denunciar, bloquear).

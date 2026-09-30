@@ -477,5 +477,82 @@
   "admin_managers_add": "Adicionar responsável",
   "admin_managers_remove": "Remover",
   "admin_managers_none": "Nenhum responsável",
-  "admin_managers_select": "Selecione um obreiro"
+  "admin_managers_select": "Selecione um obreiro",
+
+  "prayer_report": "Denunciar",
+  "prayer_report_title": "Por que você está denunciando este pedido?",
+  "prayer_report_message": "A liderança da base analisa em até 24 horas. Quem escreveu não fica sabendo quem denunciou.",
+  "report_reason_offensive": "Conteúdo ofensivo ou inadequado",
+  "report_reason_spam": "Spam ou propaganda",
+  "report_reason_other": "Outro motivo",
+  "prayer_report_sent": "Denúncia enviada. Este pedido não aparece mais para você.",
+  "prayer_report_already": "Você já denunciou este pedido.",
+  "prayer_block": "Bloquear {name}",
+  "@prayer_block": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "prayer_block_confirm_title": "Bloquear {name}?",
+  "@prayer_block_confirm_title": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "prayer_block_confirm_message": "Você deixa de ver os pedidos de oração dessa pessoa, e ela não é avisada. Para desfazer, toque no seu avatar na tela Início e escolha \"Usuários bloqueados\".",
+  "prayer_block_action": "Bloquear",
+  "prayer_block_done": "Bloqueio feito. Os pedidos dessa pessoa não aparecem mais para você.",
+
+  "blocked_users_title": "Usuários bloqueados",
+  "blocked_users_empty": "Você não bloqueou ninguém.",
+  "blocked_users_unblock": "Desbloquear",
+  "blocked_users_unknown": "Perfil indisponível",
+  "blocked_users_footer": "Quem você bloqueia não é avisado. Os pedidos da pessoa voltam a aparecer para você depois de desbloquear.",
+  "blocked_users_unblock_done": "Desbloqueado.",
+
+  "terms_of_use": "Termos de uso",
+  "terms_open_error": "Não foi possível abrir os Termos de uso.",
+  "auth_terms_accept": "Li e aceito os Termos de uso",
+  "auth_terms_read": "Ler",
+  "auth_terms_required": "Para criar a conta, aceite os Termos de uso.",
+
+  "admin_reports": "Denúncias",
+  "admin_reports_desc": "Pedidos de oração denunciados pelos obreiros",
+  "admin_reports_pending": "{n, plural, =1{1 denúncia aguardando análise} other{{n} denúncias aguardando análise}}",
+  "@admin_reports_pending": {
+    "placeholders": {
+      "n": { "type": "int" }
+    }
+  },
+  "admin_reports_empty": "Nenhuma denúncia pendente.",
+  "admin_reports_deadline": "Analise cada denúncia em até 24 horas. É o prazo prometido nos Termos de uso e à App Store.",
+  "admin_reports_author": "Autor: {name}",
+  "@admin_reports_author": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "admin_reports_author_anonymous": "Autor: pedido anônimo",
+  "admin_reports_reported_at": "Denunciado {when}",
+  "@admin_reports_reported_at": {
+    "placeholders": {
+      "when": { "type": "String" }
+    }
+  },
+  "admin_reports_text_unavailable": "Texto indisponível.",
+  "admin_reports_delete_post": "Excluir o pedido",
+  "admin_reports_remove_member": "Remover {name} da base",
+  "@admin_reports_remove_member": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "admin_reports_keep": "Manter o pedido",
+  "admin_reports_remove_confirm": "{name} perde o acesso ao app, e o pedido denunciado é excluído.",
+  "@admin_reports_remove_confirm": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+  "admin_reports_resolved": "Denúncia resolvida."
 }

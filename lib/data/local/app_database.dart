@@ -31,6 +31,8 @@ part 'app_database.g.dart';
     LaundryTimeSlotRows,
     LaundryBlockRows,
     LaundryReservationRows,
+    ContentReportRows,
+    UserBlockRows,
     SyncStates,
     OutboxEntries,
   ],
@@ -42,7 +44,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -117,6 +119,13 @@ class AppDatabase extends _$AppDatabase {
           // "sem limite" só aparece quando o servidor mandar null.
           if (from < 6) {
             await m.alterTable(TableMigration(inviteRows));
+          }
+
+          // v7 — moderação do mural (denúncia e bloqueio). Tabelas novas;
+          // nascem vazias e o primeiro pull as popula.
+          if (from < 7) {
+            await m.createTable(contentReportRows);
+            await m.createTable(userBlockRows);
           }
         },
         beforeOpen: (details) async {

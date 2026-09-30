@@ -620,6 +620,139 @@ begin;
 rollback;
 
 \echo ''
+\echo '=========== 12. Moderacao: denuncia e bloqueio (App Store 1.2) ==========='
+-- Post 4444 e do obreiro comum (fixture). O gerente faz o papel de quem
+-- denuncia e bloqueia.
+begin;
+  select test.act_as(:'gerente');
+  -- O app manda um titulo falso de proposito: a copia tem de vir do post real.
+  select test.expect_allowed('obreiro denuncia um post',
+    $q$insert into public.content_reports (reporter_id, post_id, reason, post_title)
+       values ('22222222-2222-2222-2222-222222222222',
+               '44444444-4444-4444-4444-444444444444', 'offensive', 'forjado')$q$);
+  select test.expect_count('copia do post vem do servidor, nao do app',
+    $q$select count(*) from public.content_reports
+        where post_title = 'Cura da minha mãe'
+          and post_author_id = '33333333-3333-3333-3333-333333333333'$q$, 1);
+  select test.expect_error_like('segunda denuncia do mesmo post e recusada',
+    $q$insert into public.content_reports (reporter_id, post_id, reason)
+       values ('22222222-2222-2222-2222-222222222222',
+               '44444444-4444-4444-4444-444444444444', 'spam')$q$,
+    '%content_reports_unique_idx%');
+  select test.expect_denied('denunciar em nome de outra pessoa',
+    $q$insert into public.content_reports (reporter_id, post_id, reason)
+       values ('33333333-3333-3333-3333-333333333333',
+               '44444444-4444-4444-4444-444444444444', 'spam')$q$);
+  select test.expect_check_violation('motivo fora da lista',
+    $q$insert into public.content_reports (reporter_id, post_id, reason)
+       values ('22222222-2222-2222-2222-222222222222',
+               '44444444-4444-4444-4444-444444444444', 'qualquer')$q$);
+  select test.expect_rowcount('obreiro NAO resolve denuncia',
+    $q$update public.content_reports set resolved_at = now()$q$, 0);
+
+  select test.act_as(:'comum');
+  select test.expect_count('autor do post NAO ve quem o denunciou',
+    'select count(*) from public.content_reports', 0);
+
+  select test.act_as(:'nao_aprovado');
+  select test.expect_denied('nao aprovado NAO denuncia',
+    $q$insert into public.content_reports (reporter_id, post_id, reason)
+       values ('11111111-1111-1111-1111-111111111111',
+               '44444444-4444-4444-4444-444444444444', 'spam')$q$);
+
+  -- O autor apaga o proprio post: a denuncia sai da fila sozinha.
+  select test.act_as(:'comum');
+  update public.prayer_posts set deleted_at = now()
+   where id = '44444444-4444-4444-4444-444444444444';
+  reset role;
+  select test.expect_count('post apagado resolve as denuncias dele',
+    $q$select count(*) from public.content_reports
+        where post_id = '44444444-4444-4444-4444-444444444444'
+          and resolved_at is not null$q$, 1);
+
+  select test.act_as(:'gerente');
+  select test.expect_error_like('post apagado nao pode ser denunciado',
+    $q$insert into public.content_reports (reporter_id, post_id, reason)
+       values ('22222222-2222-2222-2222-222222222222',
+               '44444444-4444-4444-4444-444444444444', 'spam')$q$,
+    '%POST_NOT_FOUND%');
+rollback;
+
+begin;
+  -- Promove o gerente a admin so nesta transacao (auth.uid() nulo aqui).
+  update public.profiles set role = 'admin'
+   where id = '22222222-2222-2222-2222-222222222222';
+  insert into public.content_reports (reporter_id, post_id, reason)
+  values ('33333333-3333-3333-3333-333333333333',
+          '44444444-4444-4444-4444-444444444444', 'spam');
+
+  select test.act_as(:'gerente');
+  select test.expect_count('admin ve as denuncias dos outros',
+    'select count(*) from public.content_reports', 1);
+  select test.expect_rowcount('admin resolve a denuncia',
+    $q$update public.content_reports
+          set resolved_at = now(),
+              resolved_by = '22222222-2222-2222-2222-222222222222'$q$, 1);
+rollback;
+
+begin;
+  select test.act_as(:'gerente');
+  select test.expect_allowed('obreiro bloqueia outro',
+    $q$insert into public.user_blocks (blocker_id, blocked_id)
+       values ('22222222-2222-2222-2222-222222222222',
+               '33333333-3333-3333-3333-333333333333')$q$);
+  select test.expect_count('feed de quem bloqueou esconde o bloqueado',
+    'select count(*) from public.prayer_feed', 0);
+  select test.expect_denied('bloquear em nome de outra pessoa',
+    $q$insert into public.user_blocks (blocker_id, blocked_id)
+       values ('33333333-3333-3333-3333-333333333333',
+               '22222222-2222-2222-2222-222222222222')$q$);
+  select test.expect_check_violation('bloquear a si mesmo',
+    $q$insert into public.user_blocks (blocker_id, blocked_id)
+       values ('22222222-2222-2222-2222-222222222222',
+               '22222222-2222-2222-2222-222222222222')$q$);
+
+  select test.act_as(:'comum');
+  select test.expect_count('bloqueado continua vendo o proprio post',
+    'select count(*) from public.prayer_feed', 1);
+  select test.expect_count('bloqueado NAO descobre quem o bloqueou',
+    'select count(*) from public.user_blocks', 0);
+  select test.expect_rowcount('bloqueado NAO desfaz o bloqueio alheio',
+    $q$delete from public.user_blocks$q$, 0);
+
+  select test.act_as(:'gerente');
+  select test.expect_rowcount('quem bloqueou desbloqueia',
+    $q$delete from public.user_blocks
+        where blocked_id = '33333333-3333-3333-3333-333333333333'$q$, 1);
+  select test.expect_count('desbloqueado volta ao feed',
+    'select count(*) from public.prayer_feed', 1);
+rollback;
+
+begin;
+  -- Quem sai da base leva junto os bloqueios e as denuncias que fez.
+  insert into public.user_blocks (blocker_id, blocked_id)
+  values ('33333333-3333-3333-3333-333333333333',
+          '22222222-2222-2222-2222-222222222222'),
+         ('22222222-2222-2222-2222-222222222222',
+          '33333333-3333-3333-3333-333333333333');
+  insert into public.prayer_posts (id, author_id, title, body) values
+    ('88888888-8888-8888-8888-888888888888',
+     '22222222-2222-2222-2222-222222222222', 'Post do gerente', 'Corpo.');
+  insert into public.content_reports (reporter_id, post_id, reason)
+  values ('33333333-3333-3333-3333-333333333333',
+          '88888888-8888-8888-8888-888888888888', 'spam');
+
+  select test.act_as(:'comum');
+  select public.delete_own_account();
+  reset role;
+
+  select test.expect_count('conta excluida apaga os bloqueios dos dois lados',
+    'select count(*) from public.user_blocks', 0);
+  select test.expect_count('conta excluida apaga as denuncias que fez',
+    'select count(*) from public.content_reports', 0);
+rollback;
+
+\echo ''
 \echo '=========== 10. Nenhuma tabela publica sem RLS ==========='
 select test.expect_count(
   'tabelas public sem RLS',

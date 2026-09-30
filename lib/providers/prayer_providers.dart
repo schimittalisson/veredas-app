@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/providers/infra_providers.dart';
+import 'package:veredas/providers/moderation_providers.dart';
 
 /// Providers do Mural de Oração — streams do drift sobre o cache local.
 
@@ -26,9 +27,29 @@ class PrayerSearchNotifier extends Notifier<String> {
   void clear() => state = '';
 }
 
-/// Feed filtrado pela busca atual. Se a busca está vazia, devolve o feed cru.
-final filteredFeedProvider = Provider<List<PrayerFeedRow>>((ref) {
+/// Feed sem o que a pessoa bloqueou ou denunciou.
+///
+/// O servidor já tira os posts de quem foi bloqueado (a view `prayer_feed`
+/// filtra por `user_blocks`), mas isso só chega no próximo pull. O filtro aqui
+/// é o que faz o post sumir no toque, inclusive offline — é o que a pessoa
+/// espera de "bloquear" e "denunciar".
+///
+/// O próprio post nunca é filtrado: o app não oferece bloquear nem denunciar
+/// a si mesmo, e o RLS recusaria.
+final visibleFeedProvider = Provider<List<PrayerFeedRow>>((ref) {
   final feed = ref.watch(prayerFeedProvider).value ?? const [];
+  final blocked = ref.watch(blockedUserIdsProvider).value ?? const {};
+  final reported = ref.watch(reportedPostIdsProvider).value ?? const {};
+  if (blocked.isEmpty && reported.isEmpty) return feed;
+  return feed
+      .where((p) => !blocked.contains(p.authorId) && !reported.contains(p.id))
+      .toList();
+});
+
+/// Feed filtrado pela busca atual. Se a busca está vazia, devolve o feed
+/// visível inteiro.
+final filteredFeedProvider = Provider<List<PrayerFeedRow>>((ref) {
+  final feed = ref.watch(visibleFeedProvider);
   final query = ref.watch(prayerSearchProvider).trim().toLowerCase();
   if (query.isEmpty) return feed;
   return feed

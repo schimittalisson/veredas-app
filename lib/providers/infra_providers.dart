@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:veredas/data/daos/agenda_dao.dart';
 import 'package:veredas/data/daos/home_dao.dart';
+import 'package:veredas/data/daos/moderation_dao.dart';
 import 'package:veredas/data/daos/prayer_dao.dart';
 import 'package:veredas/data/daos/profile_dao.dart';
 import 'package:veredas/data/daos/laundry_dao.dart';
@@ -14,6 +15,7 @@ import 'package:veredas/data/remote/supabase_admin_service.dart';
 import 'package:veredas/data/repositories/agenda_repository.dart';
 import 'package:veredas/data/repositories/documents_repository.dart';
 import 'package:veredas/data/repositories/home_repository.dart';
+import 'package:veredas/data/repositories/moderation_repository.dart';
 import 'package:veredas/data/repositories/prayer_repository.dart';
 import 'package:veredas/data/remote/laundry_service.dart';
 import 'package:veredas/data/remote/supabase_laundry_service.dart';
@@ -90,6 +92,10 @@ final profileDaoProvider = Provider<ProfileDao>(
   (ref) => ProfileDao(ref.watch(appDatabaseProvider)),
 );
 
+final moderationDaoProvider = Provider<ModerationDao>(
+  (ref) => ModerationDao(ref.watch(appDatabaseProvider)),
+);
+
 // --- Repositories (escrita via outbox) --------------------------------------
 
 final homeRepositoryProvider = Provider<HomeRepository>(
@@ -98,6 +104,10 @@ final homeRepositoryProvider = Provider<HomeRepository>(
 
 final prayerRepositoryProvider = Provider<PrayerRepository>(
   (ref) => PrayerRepository(ref.watch(appDatabaseProvider)),
+);
+
+final moderationRepositoryProvider = Provider<ModerationRepository>(
+  (ref) => ModerationRepository(ref.watch(appDatabaseProvider)),
 );
 
 final agendaRepositoryProvider = Provider<AgendaRepository>(

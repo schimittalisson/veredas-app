@@ -8,6 +8,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/data/local/app_database.dart';
+import 'package:veredas/data/models/report_reason.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/data/models/profile.dart';
 import 'package:veredas/providers/auth_providers.dart';
@@ -231,6 +232,11 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
     final isAdmin = ref.watch(isAdminProvider);
     final isAuthor = post.authorId == currentUserId;
     final canEdit = isAuthor || isAdmin;
+    // Denunciar e bloquear valem para o post dos outros. Bloquear não aparece
+    // em pedido anônimo: a lista de bloqueados mostraria o nome de quem
+    // escreveu, e o anonimato acabaria ali (ver a migration 20260930000100).
+    final canReport = !isAuthor && currentUserId != null;
+    final blockName = canReport && !isAnonymous ? authorName : null;
 
     final inProgress =
         ref.watch(prayingToggleInProgressProvider).contains(post.id);
@@ -281,7 +287,10 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
                     ),
                   ),
                 ),
-                if (canEdit)
+                // Sempre há ao menos uma ação: editar no próprio post, denunciar
+                // no dos outros. A App Store exige que denunciar esteja à mão
+                // em todo conteúdo criado por usuário (Guideline 1.2).
+                if (canEdit || canReport)
                   CupertinoButton(
                     padding: EdgeInsets.zero,
                     minimumSize: Size.zero,
@@ -289,6 +298,8 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
                       canEdit: canEdit,
                       isAuthor: isAuthor,
                       isAdmin: isAdmin,
+                      canReport: canReport,
+                      blockName: blockName,
                     ),
                     child: Icon(
                       CupertinoIcons.ellipsis,
@@ -424,6 +435,8 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
     required bool canEdit,
     required bool isAuthor,
     required bool isAdmin,
+    required bool canReport,
+    required String? blockName,
   }) async {
     final l = AppLocalizations.of(context);
 
@@ -447,6 +460,17 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
               onPressed: () => Navigator.of(sheetContext).pop('mark_answered'),
               child: Text(l.prayer_mark_answered),
             ),
+          if (canReport)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(sheetContext).pop('report'),
+              child: Text(l.prayer_report),
+            ),
+          if (blockName != null)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(sheetContext).pop('block'),
+              isDestructiveAction: true,
+              child: Text(l.prayer_block(blockName)),
+            ),
         ],
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.of(sheetContext).pop(),
@@ -467,6 +491,92 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
         await _confirmDelete(context);
       case 'mark_answered':
         await _markAnswered(context);
+      case 'report':
+        await _report();
+      case 'block':
+        await _block(blockName!);
+    }
+  }
+
+  Future<void> _report() async {
+    final l = AppLocalizations.of(context);
+
+    final reason = await showCupertinoModalPopup<ReportReason>(
+      context: context,
+      builder: (sheetContext) => CupertinoActionSheet(
+        title: Text(l.prayer_report_title),
+        message: Text(l.prayer_report_message),
+        actions: [
+          for (final r in ReportReason.values)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(sheetContext).pop(r),
+              child: Text(switch (r) {
+                ReportReason.offensive => l.report_reason_offensive,
+                ReportReason.spam => l.report_reason_spam,
+                ReportReason.other => l.report_reason_other,
+              }),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.of(sheetContext).pop(),
+          isDefaultAction: true,
+          child: Text(l.action_cancel),
+        ),
+      ),
+    );
+    if (reason == null || !mounted) return;
+
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+
+    // Tudo o que é usado depois do `await` sai daqui antes dele: a escrita
+    // tira o post do feed, e se o stream do drift emitir antes de o await
+    // voltar, este cartão já foi desmontado — e aí nem `ref` nem `context`
+    // valem mais. A ordem entre os dois não é garantida.
+    final repo = ref.read(moderationRepositoryProvider);
+    final overlay = Overlay.of(context);
+    final colors = context.colors;
+
+    try {
+      final sent = await repo.reportPost(
+        postId: widget.post.id,
+        reporterId: userId,
+        reason: reason,
+      );
+      showAppToastIn(
+        overlay,
+        colors,
+        sent ? l.prayer_report_sent : l.prayer_report_already,
+      );
+    } catch (_) {
+      showAppToastIn(overlay, colors, l.error_generic, isError: true);
+    }
+  }
+
+  Future<void> _block(String name) async {
+    final l = AppLocalizations.of(context);
+
+    final confirmed = await ConfirmDialog.show(
+      context,
+      title: l.prayer_block_confirm_title(name),
+      message: l.prayer_block_confirm_message,
+      confirmLabel: l.prayer_block_action,
+    );
+    if (!confirmed || !mounted) return;
+
+    final userId = ref.read(currentUserIdProvider);
+    if (userId == null) return;
+
+    // Mesmo motivo de `_report`: o cartão some assim que o bloqueio grava.
+    final repo = ref.read(moderationRepositoryProvider);
+    final overlay = Overlay.of(context);
+    final colors = context.colors;
+
+    try {
+      await repo.blockUser(blockerId: userId, blockedId: widget.post.authorId);
+      showAppToastIn(overlay, colors, l.prayer_block_done);
+    } catch (_) {
+      showAppToastIn(overlay, colors, l.error_generic, isError: true);
     }
   }
 

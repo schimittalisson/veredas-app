@@ -24,12 +24,29 @@ void showAppToast(
 }) {
   final overlay = Overlay.maybeOf(context);
   if (overlay == null) return;
+  showAppToastIn(overlay, context.colors, message, isError: isError);
+}
+
+/// Variante para quando o widget que dispara o toast pode sumir da árvore
+/// antes de a mensagem sair — um cartão do mural que acabou de ser denunciado
+/// é filtrado do feed assim que o stream do drift emite, o que pode acontecer
+/// antes de o `await` da escrita voltar.
+///
+/// Capture o [overlay] e as [colors] **antes** do `await`, enquanto o
+/// contexto ainda é válido; o Overlay pertence à tela e continua montado.
+void showAppToastIn(
+  OverlayState overlay,
+  AppColors colors,
+  String message, {
+  bool isError = false,
+}) {
+  if (!overlay.mounted) return;
 
   final entry = OverlayEntry(
     builder: (_) => _AppToast(
       message: message,
       isError: isError,
-      colors: context.colors,
+      colors: colors,
     ),
   );
 

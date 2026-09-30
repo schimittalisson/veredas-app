@@ -17,6 +17,7 @@ import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/confirm_dialog.dart';
+import 'package:veredas/ui/widgets/terms_link.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
 import 'package:veredas/ui/widgets/pull_to_refresh.dart';
@@ -244,6 +245,16 @@ class _AccountButton extends ConsumerWidget {
               onPressed: () => Navigator.of(sheetContext).pop('admin'),
               child: Text(l.admin_title),
             ),
+          // Desfazer um bloqueio feito no mural. Mora aqui, e não no mural,
+          // porque o post de quem foi bloqueado já não aparece lá.
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(sheetContext).pop('blocked'),
+            child: Text(l.blocked_users_title),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(sheetContext).pop('terms'),
+            child: Text(l.terms_of_use),
+          ),
           CupertinoActionSheetAction(
             onPressed: () => Navigator.of(sheetContext).pop('signout'),
             child: Text(l.auth_pending_sign_out),
@@ -269,6 +280,10 @@ class _AccountButton extends ConsumerWidget {
     switch (action) {
       case 'admin':
         await context.push(Routes.admin);
+      case 'blocked':
+        await context.push(Routes.bloqueados);
+      case 'terms':
+        await openTermsOfUse(context);
       case 'signout':
         final confirmed = await ConfirmDialog.show(
           context,

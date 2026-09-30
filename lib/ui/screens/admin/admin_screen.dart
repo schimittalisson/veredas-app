@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/l10n/app_localizations.dart';
+import 'package:veredas/providers/moderation_providers.dart';
+import 'package:veredas/ui/navigation/app_router.dart';
 
 /// Tela de Administração — menu de opções.
 ///
@@ -18,8 +20,20 @@ class AdminScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l = AppLocalizations.of(context);
     final colors = context.colors;
+    final pendingReports = ref.watch(pendingReportsProvider).value?.length ?? 0;
 
     final options = [
+      // Primeira da lista: é a única com prazo (24 horas, prometido nos Termos
+      // de uso e à App Store), e o subtítulo vira o contador quando há fila.
+      _AdminOption(
+        icon: CupertinoIcons.flag,
+        title: l.admin_reports,
+        subtitle: pendingReports == 0
+            ? l.admin_reports_desc
+            : l.admin_reports_pending(pendingReports),
+        route: Routes.adminDenuncias,
+        highlight: pendingReports > 0,
+      ),
       _AdminOption(
         icon: CupertinoIcons.person_2,
         title: l.admin_members,
@@ -77,7 +91,10 @@ class AdminScreen extends ConsumerWidget {
               ),
               children: options
                   .map((opt) => CupertinoListTile(
-                        leading: Icon(opt.icon, color: colors.tint),
+                        leading: Icon(
+                          opt.icon,
+                          color: opt.highlight ? colors.destructive : colors.tint,
+                        ),
                         title: Text(
                           opt.title,
                           style: AppTypography.body.copyWith(
@@ -87,7 +104,9 @@ class AdminScreen extends ConsumerWidget {
                         subtitle: Text(
                           opt.subtitle,
                           style: AppTypography.footnote.copyWith(
-                            color: colors.secondaryLabel,
+                            color: opt.highlight
+                                ? colors.destructive
+                                : colors.secondaryLabel,
                           ),
                         ),
                         trailing: const CupertinoListTileChevron(),
@@ -117,10 +136,14 @@ class _AdminOption {
     required this.title,
     required this.subtitle,
     required this.route,
+    this.highlight = false,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final String route;
+
+  /// Pinta a linha de vermelho — hoje, só Denúncias com fila pendente.
+  final bool highlight;
 }

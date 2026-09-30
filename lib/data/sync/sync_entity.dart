@@ -759,6 +759,66 @@ Future<void> _restoreLaundryReservation(
       .insertOnConflictUpdate(LaundryReservationRow.fromJson(j));
 }
 
+// --- content_reports / user_blocks (moderação) ----------------------------
+
+Future<void> _upsertContentReport(AppDatabase db, Map<String, dynamic> j) async {
+  // Companion pelo mesmo motivo de `_upsertInvite`: `resolved_at` volta a ser
+  // null se um admin reabrir a denúncia pelo banco, e a data class omitiria a
+  // coluna nula no upsert.
+  await db.into(db.contentReportRows).insertOnConflictUpdate(
+        ContentReportRowsCompanion(
+          id: Value(j['id'] as String),
+          reporterId: Value(j['reporter_id'] as String),
+          postId: Value(j['post_id'] as String),
+          reason: Value(j['reason'] as String),
+          postTitle: Value(j['post_title'] as String?),
+          postBody: Value(j['post_body'] as String?),
+          postAuthorId: Value(j['post_author_id'] as String?),
+          postIsAnonymous: Value(_bool(j['post_is_anonymous'])),
+          resolvedAt: Value(_dt(j['resolved_at'])),
+          createdAt: Value(_dtReq(j['created_at'])),
+          updatedAt: Value(_dtReq(j['updated_at'])),
+        ),
+      );
+}
+
+Future<void> _removeContentReport(AppDatabase db, String id) async {
+  await (db.delete(db.contentReportRows)..where((t) => t.id.equals(id))).go();
+}
+
+Future<void> _clearContentReport(AppDatabase db) async {
+  await db.delete(db.contentReportRows).go();
+}
+
+Future<void> _restoreContentReport(AppDatabase db, Map<String, dynamic> j) async {
+  await db.into(db.contentReportRows)
+      .insertOnConflictUpdate(ContentReportRow.fromJson(j));
+}
+
+Future<void> _upsertUserBlock(AppDatabase db, Map<String, dynamic> j) async {
+  await db.into(db.userBlockRows).insertOnConflictUpdate(
+        UserBlockRow(
+          blockedId: j['blocked_id'] as String,
+          createdAt: _dtReq(j['created_at']),
+        ),
+      );
+}
+
+/// [id] é o `blocked_id` — a chave da linha no cache e o `rowId` da outbox.
+Future<void> _removeUserBlock(AppDatabase db, String id) async {
+  await (db.delete(db.userBlockRows)..where((t) => t.blockedId.equals(id)))
+      .go();
+}
+
+Future<void> _clearUserBlock(AppDatabase db) async {
+  await db.delete(db.userBlockRows).go();
+}
+
+Future<void> _restoreUserBlock(AppDatabase db, Map<String, dynamic> j) async {
+  await db.into(db.userBlockRows)
+      .insertOnConflictUpdate(UserBlockRow.fromJson(j));
+}
+
 final List<SyncEntity> syncEntities = [
   // fullReplace, e não incremental: o pull incremental só aprende que uma
   // linha morreu quando ela volta com `deleted_at` preenchido. Um perfil
@@ -957,6 +1017,36 @@ final List<SyncEntity> syncEntities = [
     remove: _removeLaundryReservation,
     clear: _clearLaundryReservation,
     restore: _restoreLaundryReservation,
+  ),
+  // Moderação do mural. As duas por substituição total: são pequenas, e
+  // nenhuma tem `deleted_at` — a denúncia não se apaga, e desbloquear é DELETE
+  // físico, que o incremental não enxergaria.
+  const SyncEntity(
+    name: 'content_reports',
+    softDelete: false,
+    remoteTable: 'content_reports',
+    mode: SyncMode.fullReplace,
+    order: 2,
+    upsert: _upsertContentReport,
+    remove: _removeContentReport,
+    clear: _clearContentReport,
+    restore: _restoreContentReport,
+  ),
+  // eqColumn = 'blocked_id', pelo mesmo raciocínio de `prayer_interactions`:
+  // o `rowId` é o id de quem foi bloqueado, e o RLS (`blocker_id =
+  // auth.uid()`) garante que o DELETE só alcança o bloqueio do próprio
+  // usuário.
+  const SyncEntity(
+    name: 'user_blocks',
+    softDelete: false,
+    remoteTable: 'user_blocks',
+    mode: SyncMode.fullReplace,
+    order: 1,
+    upsert: _upsertUserBlock,
+    remove: _removeUserBlock,
+    clear: _clearUserBlock,
+    restore: _restoreUserBlock,
+    eqColumn: 'blocked_id',
   ),
   // prayer_interactions não é cacheada (é DELETE físico, sem tombstones).
   // Está registrada apenas para o OutboxWorker saber enviá-la. As funções

@@ -1,6 +1,6 @@
 # Política de Privacidade — Veredas
 
-**Última atualização:** 29 de setembro de 2026
+**Última atualização:** 30 de setembro de 2026
 
 ## 1. Quem somos
 
@@ -19,6 +19,8 @@ O app coleta e processa os seguintes dados pessoais identificáveis:
 | Telefone | Contato entre obreiros | Não |
 | Foto de perfil | Identificação visual | Não |
 | Biografia | Apresentação no perfil | Não |
+| Denúncias que você faz | Moderação do mural de oração | Não |
+| Pessoas que você bloqueia | Esconder do seu mural os pedidos delas | Não |
 
 Dados de uso (logs de acesso, métricas) podem ser coletados pelo Supabase
 para fins de diagnóstico e segurança, conforme a política do provedor.
@@ -30,6 +32,10 @@ para fins de diagnóstico e segurança, conforme a política do provedor.
   em escalas, avisos e mural de oração.
 - **Convites:** admins podem gerar códigos de convite para novos obreiros.
   O código não contém dados pessoais.
+- **Moderação:** uma denúncia guarda quem denunciou, o motivo e uma cópia do
+  pedido denunciado, e só os administradores da base a veem — quem escreveu o
+  pedido não fica sabendo quem o denunciou. A lista de pessoas que você
+  bloqueou só é visível para você. Ver os [Termos de uso](TERMOS.md) §4.
 - **Sincronização:** os dados são cacheados localmente no dispositivo para
   funcionamento offline. O cache é removido ao desinstalar o app.
 
@@ -65,6 +71,8 @@ A exclusão remove:
 - Posts e comentários no mural de oração.
 - Atribuições de escala futuras em que você era a única pessoa escalada.
 - Convites que você gerou e que ninguém usou ainda.
+- Denúncias que você fez e a sua lista de bloqueios, além dos bloqueios que
+  outras pessoas tinham feito contra você.
 
 Em escalas futuras de **equipe**, a atribuição permanece para as outras
 pessoas do grupo — você apenas sai dela.

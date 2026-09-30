@@ -10,6 +10,7 @@ import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
+import 'package:veredas/ui/widgets/terms_link.dart';
 
 /// Tela de cadastro com convite.
 ///
@@ -35,6 +36,12 @@ class _CadastroScreenState extends ConsumerState<CadastroScreen> {
   final _inviteController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+
+  /// Aceite dos Termos de uso. Exigência da App Store (Guideline 1.2) para app
+  /// com conteúdo criado por usuários: a pessoa concorda com a tolerância zero
+  /// a conteúdo ofensivo **antes** de poder publicar qualquer coisa.
+  bool _termsAccepted = false;
+  bool _showTermsError = false;
   AppErrorCode? _error;
   bool _emailConfirmationRequired = false;
 
@@ -50,7 +57,9 @@ class _CadastroScreenState extends ConsumerState<CadastroScreen> {
   }
 
   Future<void> _signUp() async {
-    if (!_formKey.currentState!.validate()) return;
+    final formOk = _formKey.currentState!.validate();
+    setState(() => _showTermsError = !_termsAccepted);
+    if (!formOk || !_termsAccepted) return;
 
     setState(() {
       _isLoading = true;
@@ -307,6 +316,15 @@ class _CadastroScreenState extends ConsumerState<CadastroScreen> {
                         ),
                       ),
 
+                      _TermsCheckbox(
+                        accepted: _termsAccepted,
+                        showError: _showTermsError,
+                        onChanged: (v) => setState(() {
+                          _termsAccepted = v;
+                          if (v) _showTermsError = false;
+                        }),
+                      ),
+
                       // Erro
                       if (_error != null)
                         Padding(
@@ -345,6 +363,81 @@ class _CadastroScreenState extends ConsumerState<CadastroScreen> {
                   ),
                 ),
         ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// _TermsCheckbox
+// ---------------------------------------------------------------------------
+
+/// Caixa de aceite com o link para os Termos de uso.
+///
+/// `CupertinoCheckbox` e não um `CupertinoSwitch`: aceitar termos é uma
+/// declaração, não uma configuração que se liga e desliga depois. O texto
+/// inteiro marca a caixa; o link fica num botão à parte, para que abrir os
+/// termos não conte como aceitá-los.
+class _TermsCheckbox extends StatelessWidget {
+  const _TermsCheckbox({
+    required this.accepted,
+    required this.showError,
+    required this.onChanged,
+  });
+
+  final bool accepted;
+  final bool showError;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l = AppLocalizations.of(context);
+    final colors = context.colors;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CupertinoCheckbox(
+                value: accepted,
+                activeColor: colors.tint,
+                onChanged: (v) => onChanged(v ?? false),
+              ),
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onChanged(!accepted),
+                  child: Text(
+                    l.auth_terms_accept,
+                    style: AppTypography.footnote
+                        .copyWith(color: colors.label),
+                  ),
+                ),
+              ),
+              CupertinoButton(
+                padding: const EdgeInsets.only(left: 8),
+                minimumSize: Size.zero,
+                onPressed: () => openTermsOfUse(context),
+                child: Text(
+                  l.auth_terms_read,
+                  style: AppTypography.footnote.copyWith(color: colors.tint),
+                ),
+              ),
+            ],
+          ),
+          if (showError)
+            Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: Text(
+                l.auth_terms_required,
+                style: AppTypography.footnote
+                    .copyWith(color: colors.destructive),
+              ),
+            ),
+        ],
       ),
     );
   }

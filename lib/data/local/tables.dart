@@ -490,3 +490,56 @@ class LaundryReservationRows extends Table {
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
+
+// ---------------------------------------------------------------------------
+// Moderação do mural (App Store, Guideline 1.2)
+//
+// O desenho está na migration `20260930000100_moderation.sql`. As duas tabelas
+// são sincronizadas por substituição total: são pequenas, e o RLS já devolve
+// só o que interessa a quem pergunta.
+// ---------------------------------------------------------------------------
+
+/// Espelho de `public.content_reports`.
+///
+/// Para o obreiro comum, o RLS devolve só as denúncias que ele mesmo fez — é
+/// com elas que o feed esconde o que a pessoa denunciou. Para o admin, devolve
+/// todas, e a tela de Denúncias lista as pendentes.
+///
+/// Os campos `post*` são a cópia que o servidor tira do post na hora da
+/// denúncia (trigger `fill_report_snapshot`). A tela de Denúncias lê daqui, e
+/// não do feed, porque o autor pode ter editado o texto depois.
+@DataClassName('ContentReportRow')
+class ContentReportRows extends Table {
+  TextColumn get id => text()();
+  TextColumn get reporterId => text()();
+  TextColumn get postId => text()();
+
+  /// 'offensive', 'spam' ou 'other' — o CHECK do servidor.
+  TextColumn get reason => text()();
+  TextColumn get postTitle => text().nullable()();
+  TextColumn get postBody => text().nullable()();
+  TextColumn get postAuthorId => text().nullable()();
+  BoolColumn get postIsAnonymous =>
+      boolean().withDefault(const Constant(false))();
+  DateTimeColumn get resolvedAt => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Espelho de `public.user_blocks` — só os bloqueios feitos por quem está
+/// logado (o RLS não devolve os dos outros).
+///
+/// A chave é só [blockedId]: com um único `blocker_id` possível por aparelho,
+/// ele sozinho identifica a linha. É também o `rowId` da outbox, e o worker
+/// filtra por `blocked_id` no DELETE (ver a entidade em `sync_entity.dart`).
+@DataClassName('UserBlockRow')
+class UserBlockRows extends Table {
+  TextColumn get blockedId => text()();
+  DateTimeColumn get createdAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {blockedId};
+}

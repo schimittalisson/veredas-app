@@ -5,8 +5,10 @@ import 'package:go_router/go_router.dart';
 import 'package:veredas/data/models/profile.dart';
 import 'package:veredas/data/remote/auth_service.dart';
 import 'package:veredas/providers/auth_providers.dart';
+import 'package:veredas/ui/screens/account/blocked_users_screen.dart';
 import 'package:veredas/ui/screens/admin/admin_screen.dart';
 import 'package:veredas/ui/screens/admin/convites_screen.dart';
+import 'package:veredas/ui/screens/admin/denuncias_screen.dart';
 import 'package:veredas/ui/screens/admin/lavanderia_screen.dart';
 import 'package:veredas/ui/screens/admin/membros_screen.dart';
 import 'package:veredas/ui/screens/admin/escalas_screen.dart';
@@ -59,6 +61,10 @@ class Routes {
   static const String adminEscalaEditar = '/admin/escalas/editar';
   static const String adminBase = '/admin/base';
   static const String adminLavanderia = '/admin/lavanderia';
+  static const String adminDenuncias = '/admin/denuncias';
+
+  // Conta.
+  static const String bloqueados = '/bloqueados';
 
   // Rotas de editores (acima da NavigationBar, tela inteira).
   static const String avisoNovo = '/aviso/novo';
@@ -190,6 +196,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.adminLavanderia,
         builder: (context, state) => const LavanderiaScreen(),
+      ),
+      GoRoute(
+        path: Routes.adminDenuncias,
+        builder: (context, state) => const DenunciasScreen(),
+      ),
+      GoRoute(
+        path: Routes.bloqueados,
+        builder: (context, state) => const BlockedUsersScreen(),
       ),
       GoRoute(
         path: Routes.adminMembros,
