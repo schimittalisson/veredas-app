@@ -231,7 +231,11 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
     final currentUserId = ref.watch(currentUserIdProvider);
     final isAdmin = ref.watch(isAdminProvider);
     final isAuthor = post.authorId == currentUserId;
-    final canEdit = isAuthor || isAdmin;
+    // Editar e marcar como respondido são do autor, e de mais ninguém: é a
+    // oração dele. O admin só apaga, para moderar — o servidor garante isso
+    // no trigger `protect_prayer_post_content` (migration 20260930000300).
+    final canEdit = isAuthor;
+    final canDelete = isAuthor || isAdmin;
     // Denunciar e bloquear valem para o post dos outros. Bloquear não aparece
     // em pedido anônimo: a lista de bloqueados mostraria o nome de quem
     // escreveu, e o anonimato acabaria ali (ver a migration 20260930000100).
@@ -290,14 +294,13 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
                 // Sempre há ao menos uma ação: editar no próprio post, denunciar
                 // no dos outros. A App Store exige que denunciar esteja à mão
                 // em todo conteúdo criado por usuário (Guideline 1.2).
-                if (canEdit || canReport)
+                if (canDelete || canReport)
                   CupertinoButton(
                     padding: EdgeInsets.zero,
                     minimumSize: Size.zero,
                     onPressed: () => _showActions(
                       canEdit: canEdit,
-                      isAuthor: isAuthor,
-                      isAdmin: isAdmin,
+                      canDelete: canDelete,
                       canReport: canReport,
                       blockName: blockName,
                     ),
@@ -433,8 +436,7 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
   // use_build_context_synchronously acusa.
   Future<void> _showActions({
     required bool canEdit,
-    required bool isAuthor,
-    required bool isAdmin,
+    required bool canDelete,
     required bool canReport,
     required String? blockName,
   }) async {
@@ -449,13 +451,13 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
               onPressed: () => Navigator.of(sheetContext).pop('edit'),
               child: Text(l.prayer_edit),
             ),
-          if (canEdit)
+          if (canDelete)
             CupertinoActionSheetAction(
               onPressed: () => Navigator.of(sheetContext).pop('delete'),
               isDestructiveAction: true,
               child: Text(l.prayer_delete),
             ),
-          if (isAuthor || isAdmin)
+          if (canEdit)
             CupertinoActionSheetAction(
               onPressed: () => Navigator.of(sheetContext).pop('mark_answered'),
               child: Text(l.prayer_mark_answered),

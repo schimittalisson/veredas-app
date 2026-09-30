@@ -1444,3 +1444,24 @@ tela de nova senha não aparecia, sem mensagem nenhuma.
    `/nova-senha`; recusado não cria sessão) e por
    `test/ui/auth_link_error_listener_test.dart` (o alerta aparece, e aparece
    de novo no segundo link).
+
+#### Admin apaga o pedido de oração alheio, mas não o edita (pós-Fase 10)
+
+Decisão do solicitante: o mural registra a oração de cada pessoa, e o admin
+modera removendo, não reescrevendo. "Editar" e "Marcar como respondido" são só
+do autor; "Excluir" é do autor e do admin.
+
+1. **A policy sozinha não dava conta.** `prayer_posts_update` precisa deixar o
+   admin fazer UPDATE, porque apagar é soft delete (UPDATE de `deleted_at`). E
+   RLS não distingue coluna: o mesmo UPDATE permitia reescrever o texto. O
+   trigger `protect_prayer_post_content` (migration `20260930000300`) recusa
+   com `FORBIDDEN_POST_EDIT` qualquer mudança de conteúdo feita por quem não é
+   o autor — mesmo mecanismo de `protect_profile_privileges`, com a mesma
+   exceção para `auth.uid()` nulo (SQL Editor).
+2. **Marcar como respondido entrou na regra** porque é o autor contando que a
+   oração dele foi respondida; marcar pelo outro é editar o pedido dele.
+3. O `PrayerCard` separa `canEdit` (autor) de `canDelete` (autor ou admin).
+   Oferecer "Editar" ao admin faria a edição sair otimista e ser revertida no
+   sync.
+4. Coberto por 4 asserções no harness (§14) e por um teste de widget em
+   `test/ui/prayer_moderation_test.dart`.

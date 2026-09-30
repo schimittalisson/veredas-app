@@ -814,6 +814,30 @@ begin;
 rollback;
 
 \echo ''
+\echo '=========== 14. Admin apaga, mas nao edita, o pedido alheio ==========='
+begin;
+  update public.profiles set role = 'admin'
+   where id = '22222222-2222-2222-2222-222222222222';
+  select test.act_as(:'gerente');
+  select test.expect_denied('admin NAO edita o texto do pedido alheio',
+    $q$update public.prayer_posts set body = 'reescrito pelo admin'
+        where id = '44444444-4444-4444-4444-444444444444' returning id$q$);
+  select test.expect_denied('admin NAO marca como respondido o pedido alheio',
+    $q$update public.prayer_posts set answered_at = now()
+        where id = '44444444-4444-4444-4444-444444444444' returning id$q$);
+  select test.expect_allowed('admin apaga o pedido alheio',
+    $q$update public.prayer_posts set deleted_at = now()
+        where id = '44444444-4444-4444-4444-444444444444' returning id$q$);
+rollback;
+
+begin;
+  select test.act_as(:'comum');
+  select test.expect_allowed('autor marca o proprio pedido como respondido',
+    $q$update public.prayer_posts set answered_at = now()
+        where id = '44444444-4444-4444-4444-444444444444' returning id$q$);
+rollback;
+
+\echo ''
 \echo '=========== 10. Nenhuma tabela publica sem RLS ==========='
 select test.expect_count(
   'tabelas public sem RLS',

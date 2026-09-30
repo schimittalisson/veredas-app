@@ -54,7 +54,7 @@ void main() {
         );
   }
 
-  Future<void> pumpFeed(WidgetTester tester) async {
+  Future<void> pumpFeed(WidgetTester tester, {bool isAdmin = false}) async {
     tester.view.physicalSize = const Size(1080, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -68,7 +68,7 @@ void main() {
         db: db,
         additionalOverrides: [
           currentUserIdProvider.overrideWithValue(_me),
-          isAdminProvider.overrideWithValue(false),
+          isAdminProvider.overrideWithValue(isAdmin),
         ],
         child: CupertinoPageScaffold(
           child: Consumer(
@@ -152,6 +152,30 @@ void main() {
     expect(find.text('Editar'), findsOneWidget);
     expect(find.text('Denunciar'), findsNothing);
     expect(find.textContaining('Bloquear'), findsNothing);
+    await tester.tap(find.text('Cancelar'));
+    await settle(tester);
+
+    await unmount(tester);
+  });
+
+  testWidgets('admin só exclui o pedido alheio: não edita nem marca',
+      (tester) async {
+    // O mural registra a oração de cada pessoa; o admin modera removendo,
+    // não reescrevendo. O servidor recusa a edição (FORBIDDEN_POST_EDIT) —
+    // oferecer o botão faria a edição sumir no sync seguinte.
+    await seedPost(
+      id: 'ana',
+      authorId: 'u-ana',
+      authorName: 'Ana Souza',
+      title: 'Pedido da Ana',
+      minutesAgo: 2,
+    );
+    await pumpFeed(tester, isAdmin: true);
+
+    await openMenu(tester, 'Pedido da Ana');
+    expect(find.text('Excluir'), findsOneWidget);
+    expect(find.text('Editar'), findsNothing);
+    expect(find.text('Marcar como respondido'), findsNothing);
     await tester.tap(find.text('Cancelar'));
     await settle(tester);
 
