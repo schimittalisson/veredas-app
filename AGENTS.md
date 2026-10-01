@@ -1541,3 +1541,29 @@ quebra, enquanto o login existe o e-mail não serve para um cadastro novo.
    até lá. A confirmação de exclusão no app e as mensagens de login e
    cadastro passaram a mencionar o prazo.
 7. Coberto por 5 asserções no harness (§16).
+
+#### A tela da aba sumia com o teclado aberto (pós-Fase 10)
+
+Sintoma relatado: tocar na busca do mural fazia a tela inteira sumir (busca,
+"compartilhe sua oração" e lista) até o teclado fechar.
+
+1. **O teclado era descontado duas vezes.** O `RootScaffold` é um
+   `CupertinoPageScaffold` e encolhia pelo teclado — e ao fazer isso zera o
+   `viewInsets` para os descendentes. Só que, logo abaixo, o MediaQuery com o
+   espaço da barra flutuante era montado a partir do `MediaQuery.of(context)`
+   **original**, que ainda trazia o `viewInsets`. A tela da aba (outro
+   `CupertinoPageScaffold`) encolhia de novo. Num iPhone: 852 − 59 − 2×336 −
+   86 dá altura negativa, e nada era desenhado. Valia para qualquer campo de
+   texto dentro das abas; a busca do mural foi só onde apareceu.
+2. **A casca não encolhe mais** (`resizeToAvoidBottomInset: false`); quem
+   encolhe é a tela da aba, uma vez. Efeito visual desejado: a barra flutuante
+   fica atrás do teclado, como a tab bar do iOS, em vez de subir grudada nele.
+3. **Com o teclado aberto, o espaço da barra não é reservado**
+   (`rootContentMediaQuery`): ela está atrás do teclado, e reservar ~86 pt por
+   cima dele custaria espaço de uma tela que já perdeu metade da altura.
+4. **Ao mexer no MediaQuery de um widget que fica dentro de um Scaffold,
+   parta do MediaQuery que o Scaffold entrega aos filhos, não do de cima** —
+   ou desligue o resize de um dos dois.
+5. Coberto por `test/ui/root_scaffold_keyboard_test.dart`, com a casca real
+   num `StatefulShellRoute` e o teclado simulado por `tester.view.viewInsets`.
+   Confirmado falhando com o comportamento antigo.

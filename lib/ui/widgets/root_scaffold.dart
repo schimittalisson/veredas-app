@@ -62,17 +62,18 @@ class RootScaffold extends ConsumerWidget {
 
     return CupertinoPageScaffold(
       backgroundColor: colors.groupedBackground,
+      // A casca NÃO encolhe pelo teclado: quem encolhe é a tela de cada aba,
+      // que também é um `CupertinoPageScaffold`. Com as duas encolhendo, o
+      // teclado era descontado duas vezes — o MediaQuery abaixo é montado a
+      // partir do `media` original, que ainda traz o `viewInsets` —, a altura
+      // que sobrava ficava negativa, e a tela do mural sumia inteira ao tocar
+      // na busca. Assim a barra flutuante também fica atrás do teclado, como
+      // a tab bar do iOS, em vez de subir grudada nele.
+      resizeToAvoidBottomInset: false,
       child: Stack(
         children: [
-          // O conteúdo enxerga um padding inferior maior do que o real. As
-          // telas usam `SafeArea` e listas com padding, então todas ganham o
-          // espaço da barra sem precisar saber que ela existe.
           MediaQuery(
-            data: media.copyWith(
-              padding: media.padding.copyWith(
-                bottom: media.padding.bottom + _kBarTotalSpace,
-              ),
-            ),
+            data: rootContentMediaQuery(media),
             child: Column(
               children: [
                 SafeArea(bottom: false, child: const OfflineBanner()),
@@ -120,6 +121,25 @@ class RootScaffold extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// As medidas que as telas das abas enxergam.
+///
+/// O padding inferior ganha o espaço da barra flutuante: as telas usam
+/// `SafeArea` e listas com padding, então todas reservam esse espaço sem
+/// precisar saber que a barra existe.
+///
+/// **Com o teclado aberto, não.** A barra fica atrás do teclado, e reservar o
+/// espaço dela por cima dele tiraria ~86 pontos de uma tela que já perdeu
+/// metade da altura. O `viewInsets` passa intacto: é a tela da aba que encolhe
+/// por ele, uma vez só (ver o `resizeToAvoidBottomInset: false` acima).
+MediaQueryData rootContentMediaQuery(MediaQueryData media) {
+  final keyboardOpen = media.viewInsets.bottom > 0;
+  return media.copyWith(
+    padding: media.padding.copyWith(
+      bottom: media.padding.bottom + (keyboardOpen ? 0 : _kBarTotalSpace),
+    ),
+  );
 }
 
 typedef _TabItem = ({IconData icon, IconData activeIcon, String label});
