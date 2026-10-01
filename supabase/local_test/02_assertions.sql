@@ -890,6 +890,45 @@ begin;
 rollback;
 
 \echo ''
+\echo '=========== 16. Login de quem se autoexcluiu some apos 30 dias ==========='
+begin;
+  -- comum: excluiu a propria conta ha 31 dias -> o login vai embora.
+  select test.act_as(:'comum');
+  select public.delete_own_account();
+  reset role;
+  update public.profiles set deleted_at = now() - interval '31 days'
+   where id = '33333333-3333-3333-3333-333333333333';
+  -- nao_aprovado: excluiu a propria conta ha 10 dias -> ainda no prazo.
+  update public.profiles
+     set deleted_at = now() - interval '10 days', email = null
+   where id = '11111111-1111-1111-1111-111111111111';
+  -- gerente: REMOVIDO POR ADMIN ha 40 dias (e-mail mantido) -> fica, para
+  -- poder ser restaurado.
+  update public.profiles set deleted_at = now() - interval '40 days'
+   where id = '22222222-2222-2222-2222-222222222222';
+
+  -- O job do pg_cron roda sem usuario; o act_as acima deixou um na transacao.
+  select set_config('request.jwt.claims', '', true);
+  select test.expect_count('purge apaga exatamente um login',
+    'select public.purge_self_deleted_accounts()', 1);
+  select test.expect_count('autoexcluido ha mais de 30 dias: login some',
+    $q$select count(*) from auth.users
+        where id = '33333333-3333-3333-3333-333333333333'$q$, 0);
+  select test.expect_count('autoexcluido dentro do prazo continua',
+    $q$select count(*) from auth.users
+        where id = '11111111-1111-1111-1111-111111111111'$q$, 1);
+  select test.expect_count('removido por admin NAO e apagado (restauravel)',
+    $q$select count(*) from auth.users
+        where id = '22222222-2222-2222-2222-222222222222'$q$, 1);
+rollback;
+
+begin;
+  select test.act_as(:'comum');
+  select test.expect_error_like('obreiro NAO chama o purge pela API',
+    'select public.purge_self_deleted_accounts()', '%FORBIDDEN_NOT_INTERNAL%');
+rollback;
+
+\echo ''
 \echo '=========== 10. Nenhuma tabela publica sem RLS ==========='
 select test.expect_count(
   'tabelas public sem RLS',

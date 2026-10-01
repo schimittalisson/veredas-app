@@ -1509,3 +1509,35 @@ com o mesmo e-mail. O código de confirmação nunca chegou.
    recuperação de senha; passou a usar `auth_confirm_email_resent`.
 8. Coberto por 8 asserções no harness (§15), `test/auth/removed_account_test.dart`
    (os dois sinais) e `test/ui/membros_removidos_screen_test.dart`.
+
+#### Login de quem excluiu a própria conta apagado após 30 dias (pós-Fase 10)
+
+A PRIVACIDADE.md prometia que o login de quem exclui a conta seria "apagado
+em definitivo" depois de 30 dias. Nada fazia isso: `delete_own_account()` não
+alcança `auth.users` (o app não tem a service_role), e o passo era manual. De
+quebra, enquanto o login existe o e-mail não serve para um cadastro novo.
+
+1. **`purge_self_deleted_accounts()` + `pg_cron`** (migration
+   `20260930000500`): a função apaga o `auth.users` de quem se autoexcluiu há
+   mais de 30 dias, e o job `purge-self-deleted-accounts` a roda todo dia às
+   06:00 UTC. O delete cascateia: todas as FKs para `profiles` são `cascade`
+   ou `set null`.
+2. **Só quem se autoexcluiu** (`email is null`, o mesmo sinal do
+   `restore_member`). Quem foi removido por admin é restaurável, e apagar o
+   login levaria os pedidos de oração dela.
+3. **Esperar 30 dias, e não apagar dentro do RPC**: é o prazo já publicado, e
+   dar ao RPC chamado pelo app privilégio sobre o schema `auth` seria uma
+   superfície pior que um job interno.
+4. **A função recusa chamada com usuário logado** (`FORBIDDEN_NOT_INTERNAL`),
+   além do `revoke`. Grant se reabre por engano — o próprio harness faz
+   `grant all on all routines` nas fixtures e desfazia o revoke, que é como
+   isso foi percebido. **Revoke em função de `public` não é testável no
+   harness**: teste a recusa de dentro da função.
+5. **O agendamento só roda onde o `pg_cron` existe** (bloco `do` com
+   `pg_available_extensions`): o Postgres do harness não tem a extensão.
+6. A PRIVACIDADE.md dizia que o login ficava retido "para o caso de exclusão
+   acidental" — mas não há recuperação para quem se autoexclui. O texto
+   passou a dizer o que acontece: apagado em 30 dias, e o e-mail fica preso
+   até lá. A confirmação de exclusão no app e as mensagens de login e
+   cadastro passaram a mencionar o prazo.
+7. Coberto por 5 asserções no harness (§16).

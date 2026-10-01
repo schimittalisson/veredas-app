@@ -84,9 +84,10 @@ a partir delas.
 Convites seus que **já foram usados** por outra pessoa são mantidos, porque
 apagá-los destruiria o registro de como aquele obreiro entrou na base.
 
-A exclusão é imediata e encerra a sua sessão. O identificador de login fica
-retido por até 30 dias no sistema de autenticação, para o caso de exclusão
-acidental, e depois é apagado em definitivo.
+A exclusão é imediata, não pode ser desfeita e encerra a sua sessão. O
+identificador de login (o e-mail no sistema de autenticação) é apagado
+automaticamente **30 dias** depois. Até lá, esse e-mail não pode ser usado em
+um novo cadastro; depois disso, fica livre.
 
 Se você for o **único administrador ativo**, o app não permite a exclusão até
 que outra pessoa seja promovida a administrador — sem isso a base ficaria sem

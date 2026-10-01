@@ -129,6 +129,19 @@ sem elas o app compila mas quebra em funcionalidades específicas:
 | 16 | `20260918000100_laundry.sql` | tabelas e RPCs da lavanderia (reserva de máquina) | Aba Lavanderia falha; **o sync inteiro para**, como no caso da 13 |
 | 17 | `20260918000200_soft_delete_tombstones.sql` | exclusão vira `deleted_at`, para o pull incremental enxergar a lápide | Item excluído por um admin continua na tela dos outros para sempre |
 | 18 | `20260921000100_invite_unlimited_and_update.sql` | `max_uses` aceita null (convite sem limite) e RPC `update_invite` | Convite da base trava em 20 usos; admin não consegue trocar o código pelo app |
+| 19 | `20260930000100_moderation.sql` | denúncia (`content_reports`) e bloqueio (`user_blocks`) no mural; feed sem os bloqueados | **O sync inteiro para** (tabelas que o app espera), como no caso da 13 |
+| 20 | `20260930000200_prayer_anonymity.sql` | autor de pedido anônimo não vaza pela API; `prayer_posts` legível só pelo autor e admin | Autor de pedido anônimo descobrível pela API; **excluir pedido de oração falha** (42501 no RETURNING) |
+| 21 | `20260930000300_prayer_admin_delete_only.sql` | trigger: admin apaga o pedido alheio, mas não o edita | Admin consegue reescrever o pedido de outra pessoa |
+| 22 | `20260930000400_restore_member.sql` | RPCs `list_removed_members` e `restore_member` | Tela "Membros removidos" falha |
+| 23 | `20260930000500_purge_self_deleted_accounts.sql` | job diário (`pg_cron`) que apaga o login de quem se autoexcluiu há mais de 30 dias | Login fica para sempre, contra o que a PRIVACIDADE.md promete; o e-mail nunca fica livre |
+
+> **A 23 usa o `pg_cron`.** A migration ativa a extensão e agenda o job
+> `purge-self-deleted-accounts` (06:00 UTC, 03:00 em Joinville). Para conferir
+> que ficou agendado: `select jobname, schedule, active from cron.job;`. Para
+> rodar na hora: `select public.purge_self_deleted_accounts();` no SQL Editor
+> (devolve quantos logins apagou). Se a migration avisar "pg_cron
+> indisponível", ative a extensão em **Database → Extensions → pg_cron** e
+> rode a migration de novo.
 
 > **A 14 também vai antes do app.** Ela não derruba o pull (o app tolera a
 > linha sem as colunas de equipe), mas enquanto ela não estiver aplicada toda
