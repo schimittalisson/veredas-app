@@ -542,6 +542,10 @@ Atualize esta seção ao concluir cada fase.
       no menu do pedido de oração, Administração → Denúncias, Usuários
       bloqueados no menu da conta, `TERMOS.md` com aceite no cadastro.
       Migration `20260930000100_moderation.sql` (ver decisões no fim).
+- [x] Pós-Fase 10 — ETED: papel `aluno` (tudo menos o mural), convite de
+      aluno, cronograma da ETED na Agenda editado por líderes nomeados pelo
+      admin. Migrations `20261004000100`/`20261004000200` (ver decisões no
+      fim). **Ainda não aplicadas no Supabase.**
 
 ### Decisões tomadas durante a execução
 
@@ -1567,3 +1571,63 @@ Sintoma relatado: tocar na busca do mural fazia a tela inteira sumir (busca,
 5. Coberto por `test/ui/root_scaffold_keyboard_test.dart`, com a casca real
    num `StatefulShellRoute` e o teclado simulado por `tester.view.viewInsets`.
    Confirmado falhando com o comportamento antigo.
+
+#### ETED: alunos e cronograma da escola (pós-Fase 10)
+
+A ETED roda na base todo ano. Os alunos moram lá por cinco meses ou mais, não
+são obreiros e precisam do app: Início, Agenda, Escalas (sobretudo a
+lavanderia) e Arquivos. Ficam de fora só do mural de oração (decisão do
+solicitante). A escola tem um cronograma semanal próprio.
+
+1. **Aluno é o papel `aluno` em `app_role`, não uma flag.** O convite já
+   carrega o papel (`invites.role`) e o `redeem_invite` já o copia para o
+   perfil; o `set_role` já troca. O fluxo inteiro de convite funcionou sem RPC
+   nova. O `add value` do enum mora num arquivo só dele
+   (`20261004000100`): um valor novo não pode ser usado na transação que o
+   criou, e a migration seguinte o usa em corpo de função `language sql`.
+2. **Só o mural fecha para o aluno, por `is_member()`** (aprovado e não aluno):
+   view `prayer_feed`, `prayer_posts`, `prayer_interactions`,
+   `prayer_comments`, denúncia e bloqueio. O resto continua em
+   `is_approved()` de propósito. **A view precisa do portão próprio**: ela
+   roda como dona e refaz os filtros à mão, então trocar só a policy da
+   tabela não fecharia nada.
+3. **O aluno lê `profiles` como o obreiro**, inclusive e-mail e telefone. O
+   nome de quem está escalado vem dali. Se a base quiser esconder o contato
+   dos alunos, a saída é uma view de perfil público, e não uma policy
+   (RLS não filtra coluna).
+4. **No app, o aluno vê 4 abas.** O shell continua com 5 branches (tirar um
+   mudaria o índice dos outros conforme quem está logado); a barra mapeia a
+   posição do botão para o branch. O router também barra `/oracao*` e
+   `/bloqueados` para o aluno. "Usuários bloqueados" sai do menu da conta.
+5. **Fim da escola: o admin promove a obreiro ou remove** (decisão do
+   solicitante). Em Membros, o aluno tem "Tornar obreiro" e não "Promover a
+   admin": passar de aluno a admin exige dois passos de propósito. Não há
+   expiração automática.
+6. **O cronograma da ETED é a coluna `weekly_slots.schedule`** (`'base'` |
+   `'eted'`, CHECK e não enum), e não uma tabela nova: reaproveita tabela,
+   sync, grade e editor. A Agenda ganhou o segmento **ETED**, visível para
+   todos. O horário fica no cronograma em que nasceu: a edição não envia
+   `schedule`, e a policy recusaria mover.
+7. **Líderes da ETED em `schedule_managers`**, no molde de `scale_managers`
+   (PK composta, `fullReplace`, RPCs `add/remove_schedule_manager` só para
+   admin). Moram numa seção no topo da tela Responsáveis, não numa tela
+   própria. `manages_schedule()` exige o líder **aprovado**: revogar o acesso
+   tira a edição junto. Na UI, `canEditScheduleProvider` decide o botão de
+   criar e o editar/excluir da folha do horário.
+8. **Cache: schemaVersion 7 → 8**, com a coluna nova, a tabela de líderes e
+   **a marca d'água de `weekly_slots` apagada**. Um horário da ETED criado no
+   servidor enquanto o aparelho rodava a versão antiga entra no cache sem a
+   coluna; o pull incremental não o traria de novo, e ele ficaria na grade da
+   base para sempre. O passo da v8 checa `to >= 8` porque o teste de
+   migration da v7 roda um passo isolado num banco já na versão atual.
+9. **Ordem de implantação: as duas migrations ANTES do build novo.** Sem
+   `schedule_managers` no servidor, o pull da entidade falha e o banner de
+   erro de sync aparece. O contrário é seguro, com dois efeitos esperados até
+   todo mundo atualizar: o app antigo mostra os horários da ETED misturados
+   aos da base, e trata o aluno como obreiro (`fromWire` cai em `obreiro`),
+   mostrando a aba do mural vazia. Os alunos chegam pelo app novo.
+10. Coberto por 33 asserções no harness (§17), `test/sync/
+    eted_schedule_test.dart` (11 testes: escrita, pull, permissão por grade,
+    migration v7→v8), `test/auth/student_access_test.dart` (router) e
+    `test/ui/root_scaffold_student_test.dart` (barra com 4 abas leva cada
+    botão ao branch certo).

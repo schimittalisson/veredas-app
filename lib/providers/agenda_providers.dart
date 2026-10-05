@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:veredas/data/local/app_database.dart';
+import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
 
 /// Providers da tela Agenda — streams do drift sobre o cache local.
@@ -13,6 +14,36 @@ final allEventsProvider = StreamProvider<List<EventRow>>((ref) {
 /// Slots do cronograma semanal, ordenados por dia e horário.
 final weeklySlotsProvider = StreamProvider<List<WeeklySlotRow>>((ref) {
   return ref.watch(agendaDaoProvider).watchWeeklySlots();
+});
+
+/// Horários de um cronograma só — `'base'` ou `'eted'` (ver `kScheduleBase`).
+///
+/// Filtra o stream de [weeklySlotsProvider] em vez de abrir uma query por
+/// cronograma: as duas grades vivem na mesma tabela, e o
+/// [categoryColorsProvider] continua precisando de todas as linhas.
+final scheduleSlotsProvider =
+    Provider.family<AsyncValue<List<WeeklySlotRow>>, String>((ref, schedule) {
+  return ref.watch(weeklySlotsProvider).whenData(
+        (slots) => slots.where((s) => s.schedule == schedule).toList(),
+      );
+});
+
+/// Líderes de todos os cronogramas.
+final scheduleManagersProvider =
+    StreamProvider<List<ScheduleManagerRow>>((ref) {
+  return ref.watch(agendaDaoProvider).watchScheduleManagers();
+});
+
+/// O usuário logado pode criar, editar e apagar horários deste cronograma?
+///
+/// Espelha `manages_schedule()` do servidor. **Só UX** — quem garante é a
+/// policy `weekly_slots_write`; burlar isto faz a escrita voltar no sync.
+final canEditScheduleProvider = Provider.family<bool, String>((ref, schedule) {
+  if (ref.watch(isAdminProvider)) return true;
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null) return false;
+  final managers = ref.watch(scheduleManagersProvider).value ?? const [];
+  return managers.any((m) => m.schedule == schedule && m.userId == userId);
 });
 
 /// Slots ativos agrupados por dia da semana (1=seg ... 7=dom).

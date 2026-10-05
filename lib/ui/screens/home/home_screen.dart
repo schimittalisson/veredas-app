@@ -246,11 +246,13 @@ class _AccountButton extends ConsumerWidget {
               child: Text(l.admin_title),
             ),
           // Desfazer um bloqueio feito no mural. Mora aqui, e não no mural,
-          // porque o post de quem foi bloqueado já não aparece lá.
-          CupertinoActionSheetAction(
-            onPressed: () => Navigator.of(sheetContext).pop('blocked'),
-            child: Text(l.blocked_users_title),
-          ),
+          // porque o post de quem foi bloqueado já não aparece lá. O aluno da
+          // ETED não tem mural, então não tem o que desbloquear.
+          if (!(profile?.isStudent ?? false))
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(sheetContext).pop('blocked'),
+              child: Text(l.blocked_users_title),
+            ),
           CupertinoActionSheetAction(
             onPressed: () => Navigator.of(sheetContext).pop('terms'),
             child: Text(l.terms_of_use),

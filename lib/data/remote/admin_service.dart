@@ -80,6 +80,19 @@ abstract interface class AdminService {
     required String scaleTypeId,
     required String userId,
   });
+
+  /// Nomeia alguém líder de um cronograma (hoje, o da ETED): passa a criar e
+  /// editar os horários dele na Agenda.
+  Future<void> addScheduleManager({
+    required String schedule,
+    required String userId,
+  });
+
+  /// Tira alguém da liderança de um cronograma.
+  Future<void> removeScheduleManager({
+    required String schedule,
+    required String userId,
+  });
 }
 
 /// Um membro removido por um admin (RPC `list_removed_members`).

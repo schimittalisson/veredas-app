@@ -10,7 +10,9 @@ import 'package:go_router/go_router.dart';
 
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
+import 'package:veredas/data/local/tables.dart' show kScheduleEted;
 import 'package:veredas/l10n/app_localizations.dart';
+import 'package:veredas/providers/agenda_providers.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/screens/agenda/events_tab.dart';
@@ -18,10 +20,14 @@ import 'package:veredas/ui/screens/agenda/schedule_tab.dart';
 
 /// Tela Agenda — segunda tab.
 ///
-/// Duas seções: **Eventos** | **Cronograma** (`docs/TELAS.md` §2), alternadas por um
-/// `CupertinoSlidingSegmentedControl` logo abaixo da navigation bar — é assim
-/// que o iOS troca de conteúdo dentro de uma mesma tela, já que não existe
-/// `TabBar` no topo. Ação de criar só para admin, na aba ativa.
+/// Três seções: **Eventos** | **Cronograma** | **ETED** (`docs/TELAS.md` §2),
+/// alternadas por um `CupertinoSlidingSegmentedControl` logo abaixo da
+/// navigation bar — é assim que o iOS troca de conteúdo dentro de uma mesma
+/// tela, já que não existe `TabBar` no topo.
+///
+/// A ação de criar segue a aba ativa e quem pode escrever nela: eventos e o
+/// cronograma da base são do admin; o cronograma da ETED, também dos líderes
+/// da ETED. Todos — alunos inclusive — veem as três seções.
 class AgendaScreen extends ConsumerStatefulWidget {
   const AgendaScreen({super.key});
 
@@ -36,7 +42,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this)
+    _tabController = TabController(length: 3, vsync: this)
       // O destino da ação de criar e a posição do segmented control dependem
       // da aba ativa. Sem este listener, arrastar entre as páginas não
       // rebuilda e o controle continua marcando a aba anterior.
@@ -60,9 +66,14 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
     final l = AppLocalizations.of(context);
     final colors = context.colors;
     final isAdmin = ref.watch(isAdminProvider);
+    final canEditEted = ref.watch(canEditScheduleProvider(kScheduleEted));
 
-    final isEventsTab = _tabController.index == 0;
-    final createLabel = isEventsTab ? l.agenda_new_event : l.agenda_new_slot;
+    final tab = _tabController.index;
+    final canCreate = switch (tab) {
+      2 => canEditEted,
+      _ => isAdmin,
+    };
+    final createLabel = tab == 0 ? l.agenda_new_event : l.agenda_new_slot;
 
     return CupertinoPageScaffold(
       backgroundColor: colors.groupedBackground,
@@ -72,7 +83,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
         // O iOS não tem FAB: a ação primária da tela vive no canto direito da
         // navigation bar. `Semantics` preserva o texto que antes era o tooltip
         // do FAB, para o leitor de tela continuar anunciando o destino.
-        trailing: isAdmin
+        trailing: canCreate
             ? Semantics(
                 button: true,
                 label: createLabel,
@@ -80,10 +91,15 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
                   padding: EdgeInsets.zero,
                   minimumSize: Size.zero,
                   onPressed: () {
-                    if (_tabController.index == 0) {
-                      context.push(Routes.eventoNovo);
-                    } else {
-                      context.push(Routes.slotNovo);
+                    switch (_tabController.index) {
+                      case 0:
+                        context.push(Routes.eventoNovo);
+                      case 1:
+                        context.push(Routes.slotNovo);
+                      default:
+                        context.push(
+                          '${Routes.slotNovo}?schedule=$kScheduleEted',
+                        );
                     }
                   },
                   child: const Icon(CupertinoIcons.add),
@@ -111,6 +127,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
                   children: {
                     0: _SegmentLabel(text: l.agenda_tab_events),
                     1: _SegmentLabel(text: l.agenda_tab_schedule),
+                    2: _SegmentLabel(text: l.agenda_tab_eted),
                   },
                 ),
               ),
@@ -121,6 +138,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen>
                 children: const [
                   EventsTab(),
                   ScheduleTab(),
+                  ScheduleTab(schedule: kScheduleEted),
                 ],
               ),
             ),

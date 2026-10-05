@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:uuid/uuid.dart';
 
 import 'package:veredas/data/local/app_database.dart';
+import 'package:veredas/data/local/tables.dart' show kScheduleBase;
 import 'package:veredas/data/repositories/outbox_helper.dart';
 
 /// Repositório da tela Agenda — escrita de eventos e slots do cronograma.
@@ -153,7 +154,12 @@ class AgendaRepository {
   ///
   /// [startsAtMinutes] e [endsAtMinutes] são minutos desde meia-noite.
   /// No servidor, são colunas `time` — o payload converte para "HH:MM:SS".
+  ///
+  /// [schedule] diz em qual grade o horário entra ([kScheduleBase] ou
+  /// [kScheduleEted]). Não muda depois: a edição não o envia, e a policy
+  /// recusaria mover um horário de um cronograma para outro.
   Future<String> createWeeklySlot({
+    String schedule = kScheduleBase,
     required int weekday,
     required int startsAtMinutes,
     int? endsAtMinutes,
@@ -182,11 +188,13 @@ class AgendaRepository {
         'color_index': colorIndex,
         'notes': notes,
         'ordering': ordering,
+        'schedule': schedule,
       },
       applyChange: () async {
         await _db.into(_db.weeklySlotRows).insertOnConflictUpdate(
               WeeklySlotRow(
                 id: id,
+                schedule: schedule,
                 weekday: weekday,
                 startsAtMinutes: startsAtMinutes,
                 endsAtMinutes: endsAtMinutes,
@@ -216,6 +224,7 @@ class AgendaRepository {
   /// Consequência aceita: são N entradas na outbox. Como cada uma é uma linha
   /// diferente, não há conflito entre elas.
   Future<List<String>> createWeeklySlotsForWeekdays({
+    String schedule = kScheduleBase,
     required Set<int> weekdays,
     required int startsAtMinutes,
     int? endsAtMinutes,
@@ -231,6 +240,7 @@ class AgendaRepository {
     // agrupa por dia, e criar fora de ordem só embaralharia a outbox.
     for (final weekday in weekdays.toList()..sort()) {
       ids.add(await createWeeklySlot(
+        schedule: schedule,
         weekday: weekday,
         startsAtMinutes: startsAtMinutes,
         endsAtMinutes: endsAtMinutes,

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:drift/drift.dart';
 
 import 'package:veredas/data/local/app_database.dart';
+import 'package:veredas/data/local/tables.dart' show kScheduleBase;
 import 'package:veredas/data/models/app_role.dart';
 
 /// Modo de sincronização de uma entidade.
@@ -322,6 +323,44 @@ Future<void> _restoreScaleManager(AppDatabase db, Map<String, dynamic> j) async 
       .insertOnConflictUpdate(ScaleManagerRow.fromJson(j));
 }
 
+// --- schedule_managers (fullReplace, PK composta) --------------------------
+//
+// Mesmo desenho de scale_managers, com o rowId "schedule|userId".
+
+Future<void> _upsertScheduleManager(
+  AppDatabase db,
+  Map<String, dynamic> j,
+) async {
+  await db.into(db.scheduleManagerRows).insertOnConflictUpdate(
+        ScheduleManagerRow(
+          schedule: j['schedule'] as String,
+          userId: j['user_id'] as String,
+          updatedAt: _dt(j['updated_at']),
+        ),
+      );
+}
+
+Future<void> _removeScheduleManager(AppDatabase db, String rowId) async {
+  final parts = rowId.split('|');
+  await (db.delete(db.scheduleManagerRows)
+        ..where(
+          (t) => t.schedule.equals(parts[0]) & t.userId.equals(parts[1]),
+        ))
+      .go();
+}
+
+Future<void> _clearScheduleManager(AppDatabase db) async {
+  await db.delete(db.scheduleManagerRows).go();
+}
+
+Future<void> _restoreScheduleManager(
+  AppDatabase db,
+  Map<String, dynamic> j,
+) async {
+  await db.into(db.scheduleManagerRows)
+      .insertOnConflictUpdate(ScheduleManagerRow.fromJson(j));
+}
+
 // --- scale_assignments -----------------------------------------------------
 
 Future<void> _upsertScaleAssignment(
@@ -417,6 +456,9 @@ Future<void> _upsertWeeklySlot(AppDatabase db, Map<String, dynamic> j) async {
           isActive: _bool(j['is_active'], d: true),
           ordering: _intReq(j['ordering']),
           colorIndex: _int(j['color_index']),
+          // Ausente só se o servidor ainda não tiver a migration da ETED; aí
+          // todo horário é da base.
+          schedule: (j['schedule'] as String?) ?? kScheduleBase,
           updatedAt: _dtReq(j['updated_at']),
         ),
       );
@@ -867,6 +909,17 @@ final List<SyncEntity> syncEntities = [
     remove: _removeScaleManager,
     clear: _clearScaleManager,
     restore: _restoreScaleManager,
+  ),
+  const SyncEntity(
+    name: 'schedule_managers',
+    softDelete: false,
+    remoteTable: 'schedule_managers',
+    mode: SyncMode.fullReplace,
+    order: 2,
+    upsert: _upsertScheduleManager,
+    remove: _removeScheduleManager,
+    clear: _clearScheduleManager,
+    restore: _restoreScheduleManager,
   ),
   const SyncEntity(
     name: 'scale_assignments',

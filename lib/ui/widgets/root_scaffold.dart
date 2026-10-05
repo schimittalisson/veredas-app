@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/l10n/app_localizations.dart';
+import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/ui/widgets/offline_banner.dart';
 
 /// Altura da barra flutuante, sem contar a margem inferior.
@@ -19,6 +20,12 @@ const double _kBarBottomMargin = 12;
 const double _kBarTotalSpace = _kBarHeight + _kBarBottomMargin * 2;
 
 /// Casca das 5 tabs, com uma barra flutuante arredondada.
+///
+/// **O aluno da ETED vê 4**: a aba do mural sai da barra. Os branches do
+/// shell continuam sendo 5 — tirar um mudaria o índice dos outros conforme
+/// quem está logado —, e a barra mapeia a posição do botão para o índice do
+/// branch. O router também barra `/oracao` para o aluno, e o servidor não
+/// entrega o mural a ele.
 ///
 /// **Cinco é o teto.** O iOS não recomenda passar de cinco itens numa tab bar,
 /// e aqui há um limite físico além da diretriz: a pílula divide a largura
@@ -44,6 +51,9 @@ class RootScaffold extends ConsumerWidget {
 
   final StatefulNavigationShell navigationShell;
 
+  /// Índice do branch do mural no `StatefulShellRoute` do router.
+  static const int _prayerBranch = 3;
+
   void _onDestinationSelected(int index) {
     navigationShell.goBranch(
       index,
@@ -59,6 +69,53 @@ class RootScaffold extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     final colors = context.colors;
     final media = MediaQuery.of(context);
+    final isStudent = ref.watch(isStudentProvider);
+
+    // (branch, botão), na ordem da barra.
+    final tabs = <(int, _TabItem)>[
+      (
+        0,
+        (
+          icon: CupertinoIcons.house,
+          activeIcon: CupertinoIcons.house_fill,
+          label: l.tab_inicio,
+        ),
+      ),
+      (
+        1,
+        (
+          icon: CupertinoIcons.calendar,
+          activeIcon: CupertinoIcons.calendar_today,
+          label: l.tab_agenda,
+        ),
+      ),
+      (
+        2,
+        (
+          icon: CupertinoIcons.list_bullet,
+          activeIcon: CupertinoIcons.list_bullet_indent,
+          label: l.tab_escalas,
+        ),
+      ),
+      if (!isStudent)
+        (
+          _prayerBranch,
+          (
+            icon: CupertinoIcons.heart,
+            activeIcon: CupertinoIcons.heart_fill,
+            label: l.tab_oracao,
+          ),
+        ),
+      (
+        4,
+        (
+          icon: CupertinoIcons.folder,
+          activeIcon: CupertinoIcons.folder_fill,
+          label: l.tab_arquivos,
+        ),
+      ),
+    ];
+    final branches = [for (final t in tabs) t.$1];
 
     return CupertinoPageScaffold(
       backgroundColor: colors.groupedBackground,
@@ -86,35 +143,11 @@ class RootScaffold extends ConsumerWidget {
             right: 16,
             bottom: media.padding.bottom + _kBarBottomMargin,
             child: _FloatingTabBar(
-              currentIndex: navigationShell.currentIndex,
-              onTap: _onDestinationSelected,
-              items: [
-                (
-                  icon: CupertinoIcons.house,
-                  activeIcon: CupertinoIcons.house_fill,
-                  label: l.tab_inicio,
-                ),
-                (
-                  icon: CupertinoIcons.calendar,
-                  activeIcon: CupertinoIcons.calendar_today,
-                  label: l.tab_agenda,
-                ),
-                (
-                  icon: CupertinoIcons.list_bullet,
-                  activeIcon: CupertinoIcons.list_bullet_indent,
-                  label: l.tab_escalas,
-                ),
-                (
-                  icon: CupertinoIcons.heart,
-                  activeIcon: CupertinoIcons.heart_fill,
-                  label: l.tab_oracao,
-                ),
-                (
-                  icon: CupertinoIcons.folder,
-                  activeIcon: CupertinoIcons.folder_fill,
-                  label: l.tab_arquivos,
-                ),
-              ],
+              // -1 só se o aluno estiver no branch do mural, que o router não
+              // deixa acontecer; nenhum botão fica aceso nesse caso.
+              currentIndex: branches.indexOf(navigationShell.currentIndex),
+              onTap: (i) => _onDestinationSelected(branches[i]),
+              items: [for (final t in tabs) t.$2],
             ),
           ),
         ],

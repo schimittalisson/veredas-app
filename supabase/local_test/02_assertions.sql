@@ -144,6 +144,7 @@ grant execute on all functions in schema test to authenticated, anon;
 \set nao_aprovado '11111111-1111-1111-1111-111111111111'
 \set gerente      '22222222-2222-2222-2222-222222222222'
 \set comum        '33333333-3333-3333-3333-333333333333'
+\set aluno        '55555555-5555-5555-5555-555555555555'
 
 \echo ''
 \echo '=========== 1. Usuario NAO APROVADO nao ve nada ==========='
@@ -926,6 +927,197 @@ begin;
   select test.act_as(:'comum');
   select test.expect_error_like('obreiro NAO chama o purge pela API',
     'select public.purge_self_deleted_accounts()', '%FORBIDDEN_NOT_INTERNAL%');
+rollback;
+
+\echo ''
+\echo '=========== 17. ETED: aluno fora do mural, cronograma por lider ==========='
+begin;
+  select test.act_as(:'aluno');
+  -- O que o aluno precisa: o resto do app, igual ao obreiro.
+  select test.expect_count('aluno: scale_types',  'select count(*) from public.scale_types', 6);
+  select test.expect_count('aluno: weekly_slots', 'select count(*) from public.weekly_slots', 40);
+  select test.expect_count('aluno: base_info',    'select count(*) from public.base_info', 4);
+  select test.expect_count('aluno: ve os lideres da ETED',
+    'select count(*) from public.schedule_managers', 1);
+  -- O mural, nao: nem pela view, nem pela tabela, nem pela busca.
+  select test.expect_count('aluno NAO ve prayer_feed', 'select count(*) from public.prayer_feed', 0);
+  select test.expect_count('aluno NAO ve prayer_posts', 'select count(*) from public.prayer_posts', 0);
+  select test.expect_count('aluno NAO acha pela busca',
+    $q$select count(*) from public.search_prayers('cura')$q$, 0);
+rollback;
+
+begin;
+  select test.act_as(:'aluno');
+  select test.expect_denied('aluno NAO publica no mural',
+    $q$insert into public.prayer_posts (author_id,title,body)
+       values ('55555555-5555-5555-5555-555555555555','Teste','Corpo')$q$);
+rollback;
+
+begin;
+  select test.act_as(:'aluno');
+  select test.expect_denied('aluno NAO marca "estou orando"',
+    $q$insert into public.prayer_interactions (post_id, user_id)
+       values ('44444444-4444-4444-4444-444444444444',
+               '55555555-5555-5555-5555-555555555555')$q$);
+rollback;
+
+begin;
+  select test.act_as(:'aluno');
+  select test.expect_denied('aluno NAO denuncia',
+    $q$insert into public.content_reports (reporter_id, post_id, reason)
+       values ('55555555-5555-5555-5555-555555555555',
+               '44444444-4444-4444-4444-444444444444', 'spam')$q$);
+rollback;
+
+begin;
+  select test.act_as(:'aluno');
+  select test.expect_denied('aluno NAO bloqueia',
+    $q$insert into public.user_blocks (blocker_id, blocked_id)
+       values ('55555555-5555-5555-5555-555555555555',
+               '33333333-3333-3333-3333-333333333333')$q$);
+rollback;
+
+-- Lavanderia: e a escala que o aluno mais usa.
+begin;
+  insert into public.laundry_machines (id, name)
+  values ('66666666-6666-6666-6666-666666666666', 'Grande');
+  insert into public.laundry_time_slots (id, starts_at)
+  values ('77777777-7777-7777-7777-777777777777', '07:30');
+  select test.act_as(:'aluno');
+  select test.expect_allowed('aluno RESERVA a lavanderia',
+    $q$select public.reserve_laundry_slot(
+         '66666666-6666-6666-6666-666666666666',
+         '77777777-7777-7777-7777-777777777777',
+         current_date + 1)$q$);
+rollback;
+
+-- Cronograma da ETED: o lider edita o da ETED e so ele.
+begin;
+  select test.act_as(:'comum');
+  select test.expect_allowed('lider da ETED cria horario da ETED',
+    $q$insert into public.weekly_slots (weekday, starts_at, title, schedule)
+       values (1, '08:00', 'Aula', 'eted')$q$);
+rollback;
+
+begin;
+  select test.act_as(:'comum');
+  select test.expect_denied('lider da ETED NAO cria horario da base',
+    $q$insert into public.weekly_slots (weekday, starts_at, title)
+       values (1, '08:00', 'Aula')$q$);
+rollback;
+
+begin;
+  select test.act_as(:'comum');
+  select test.expect_rowcount('lider da ETED NAO edita horario da base',
+    $q$update public.weekly_slots set title = 'invadido'
+        where schedule = 'base'$q$, 0);
+rollback;
+
+begin;
+  insert into public.weekly_slots (id, weekday, starts_at, title, schedule)
+  values ('88888888-8888-8888-8888-888888888888', 2, '09:00', 'Aula', 'eted');
+  select test.act_as(:'comum');
+  -- Com RETURNING, que e o que o outbox manda.
+  select test.expect_rowcount('lider da ETED edita horario da ETED',
+    $q$update public.weekly_slots set title = 'Aula 2'
+        where id = '88888888-8888-8888-8888-888888888888' returning id$q$, 1);
+  select test.expect_rowcount('lider da ETED apaga horario da ETED (soft delete)',
+    $q$update public.weekly_slots set deleted_at = now()
+        where id = '88888888-8888-8888-8888-888888888888' returning id$q$, 1);
+rollback;
+
+begin;
+  insert into public.weekly_slots (id, weekday, starts_at, title, schedule)
+  values ('88888888-8888-8888-8888-888888888888', 2, '09:00', 'Aula', 'eted');
+  select test.act_as(:'comum');
+  select test.expect_denied('lider da ETED NAO move horario para a base',
+    $q$update public.weekly_slots set schedule = 'base'
+        where id = '88888888-8888-8888-8888-888888888888'$q$);
+rollback;
+
+begin;
+  select test.act_as(:'gerente');
+  select test.expect_denied('obreiro que nao e lider NAO cria horario da ETED',
+    $q$insert into public.weekly_slots (weekday, starts_at, title, schedule)
+       values (1, '08:00', 'Aula', 'eted')$q$);
+rollback;
+
+begin;
+  select test.act_as(:'aluno');
+  select test.expect_denied('aluno NAO cria horario da ETED',
+    $q$insert into public.weekly_slots (weekday, starts_at, title, schedule)
+       values (1, '08:00', 'Aula', 'eted')$q$);
+rollback;
+
+begin;
+  -- Revogar o acesso tira a edicao junto, mesmo sem tirar da lista.
+  update public.profiles set is_approved = false
+   where id = '33333333-3333-3333-3333-333333333333';
+  select test.act_as(:'comum');
+  select test.expect_denied('lider REVOGADO NAO cria horario da ETED',
+    $q$insert into public.weekly_slots (weekday, starts_at, title, schedule)
+       values (1, '08:00', 'Aula', 'eted')$q$);
+rollback;
+
+-- Sem act_as: com RLS, a policy recusaria antes do CHECK (42501), e o que
+-- se quer medir aqui e o CHECK.
+begin;
+  select test.expect_check_violation('cronograma desconhecido e recusado',
+    $q$insert into public.weekly_slots (weekday, starts_at, title, schedule)
+       values (1, '08:00', 'Aula', 'outro')$q$);
+rollback;
+
+-- Nomear lideres e coisa de admin.
+begin;
+  select test.act_as(:'comum');
+  select test.expect_denied('obreiro NAO se nomeia lider pela tabela',
+    $q$insert into public.schedule_managers (schedule, user_id)
+       values ('eted', '22222222-2222-2222-2222-222222222222')$q$);
+  select test.expect_error_like('obreiro NAO chama add_schedule_manager',
+    $q$select public.add_schedule_manager('eted', '22222222-2222-2222-2222-222222222222')$q$,
+    '%FORBIDDEN_NOT_ADMIN%');
+rollback;
+
+begin;
+  update public.profiles set role = 'admin'
+   where id = '22222222-2222-2222-2222-222222222222';
+  select test.act_as(:'gerente');
+  select test.expect_allowed('admin nomeia lider da ETED',
+    $q$select public.add_schedule_manager('eted', '55555555-5555-5555-5555-555555555555')$q$);
+  select test.expect_allowed('admin remove lider da ETED',
+    $q$select public.remove_schedule_manager('eted', '33333333-3333-3333-3333-333333333333')$q$);
+  select test.expect_count('lider removido sai da lista',
+    $q$select count(*) from public.schedule_managers
+        where user_id = '33333333-3333-3333-3333-333333333333'$q$, 0);
+  select test.expect_error_like('remover quem nao e lider da erro',
+    $q$select public.remove_schedule_manager('eted', '33333333-3333-3333-3333-333333333333')$q$,
+    '%SCALE_MANAGER_NOT_FOUND%');
+  -- No fim da escola: o aluno que fica vira obreiro, e ganha o mural.
+  select test.expect_allowed('admin promove aluno a obreiro',
+    $q$select public.set_role('55555555-5555-5555-5555-555555555555', 'obreiro')$q$);
+rollback;
+
+begin;
+  update public.profiles set role = 'obreiro'
+   where id = '55555555-5555-5555-5555-555555555555';
+  select test.act_as(:'aluno');
+  select test.expect_count('ex-aluno, agora obreiro, ve o mural',
+    'select count(*) from public.prayer_feed', 1);
+rollback;
+
+-- O convite de aluno: o papel vem do convite, como o de obreiro.
+begin;
+  insert into public.invites (code, role, max_uses)
+  values ('ETED2026', 'aluno', null);
+  select test.act_as(:'nao_aprovado');
+  select test.expect_allowed('resgata convite de aluno',
+    $q$select public.redeem_invite('eted2026')$q$);
+  select test.expect_count('quem resgatou virou aluno aprovado',
+    $q$select count(*) from public.profiles
+        where id = '11111111-1111-1111-1111-111111111111'
+          and role = 'aluno' and is_approved$q$, 1);
+  select test.expect_count('e nao ve o mural',
+    'select count(*) from public.prayer_feed', 0);
 rollback;
 
 \echo ''

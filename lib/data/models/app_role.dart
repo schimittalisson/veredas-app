@@ -5,7 +5,12 @@
 /// Lixo sem ter nenhum privilégio a mais em qualquer outro lugar do app.
 enum AppRole {
   admin('admin'),
-  obreiro('obreiro');
+  obreiro('obreiro'),
+
+  /// Aluno da ETED. Vê tudo o que o obreiro vê, menos o mural de oração
+  /// (garantido por `is_member()` no servidor). No fim da escola, o admin o
+  /// promove a obreiro ou o remove.
+  aluno('aluno');
 
   const AppRole(this.wire);
 
@@ -17,6 +22,7 @@ enum AppRole {
   static AppRole fromWire(String? value) {
     return switch (value) {
       'admin' => AppRole.admin,
+      'aluno' => AppRole.aluno,
       // Default seguro: qualquer valor desconhecido cai no papel de menor
       // privilégio. Se o servidor introduzir um papel novo, um app antigo
       // trata a pessoa como obreiro em vez de conceder acesso indevido.

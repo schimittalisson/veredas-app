@@ -4,14 +4,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/data/local/app_database.dart';
+import 'package:veredas/data/local/tables.dart' show kScheduleEted;
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/admin_providers.dart';
+import 'package:veredas/providers/agenda_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
 
-/// Tela de Responsáveis por escala — uma seção agrupada por scale_type.
+/// Tela de Responsáveis por escala — uma seção agrupada por scale_type, e no
+/// topo a dos líderes do cronograma da ETED.
+///
+/// Os líderes da ETED moram aqui, e não numa tela própria, porque são o mesmo
+/// gesto: "quem pode editar isto". Uma entrada a mais no menu de
+/// Administração para uma seção só seria mais um lugar para procurar.
 ///
 /// Lista os responsáveis atuais com botão de remover, e "Adicionar
 /// responsável" abrindo um seletor de obreiros aprovados.
@@ -29,6 +36,24 @@ class ResponsaveisScreen extends ConsumerWidget {
     final scaleTypes = ref.watch(allScaleTypesProvider);
     final managersByType = ref.watch(scaleManagersByTypeProvider);
     final profiles = ref.watch(approvedProfilesProvider);
+    final etedLeaderIds = [
+      for (final m
+          in ref.watch(scheduleManagersProvider).value ??
+              const <ScheduleManagerRow>[])
+        if (m.schedule == kScheduleEted) m.userId,
+    ];
+    final admin = ref.read(adminServiceProvider);
+
+    final etedSection = _ManagersSection(
+      header: l.admin_eted_leaders,
+      footer: l.admin_eted_leaders_footer,
+      managerIds: etedLeaderIds,
+      profiles: profiles,
+      onAdd: (userId) =>
+          admin.addScheduleManager(schedule: kScheduleEted, userId: userId),
+      onRemove: (userId) =>
+          admin.removeScheduleManager(schedule: kScheduleEted, userId: userId),
+    );
 
     return CupertinoPageScaffold(
       backgroundColor: colors.groupedBackground,
@@ -40,26 +65,39 @@ class ResponsaveisScreen extends ConsumerWidget {
         bottom: false,
         child: scaleTypes.when(
           loading: () => const LoadingState(),
-          error: (_, _) => EmptyState(
-            title: l.admin_managers_no_types,
-            icon: CupertinoIcons.person_badge_plus,
-          ),
+          // Sem tipos de escala, a seção da ETED continua: ela não depende
+          // deles, e o estado vazio a esconderia.
+          error: (_, _) => ListView(children: [etedSection]),
           data: (types) {
-            if (types.isEmpty) {
-              return EmptyState(
-                title: l.admin_managers_no_types,
-                icon: CupertinoIcons.person_badge_plus,
-              );
-            }
-
             return ListView(
-              children: types
-                  .map((type) => _ScaleTypeSection(
-                        scaleType: type,
-                        managers: managersByType[type.id] ?? const [],
-                        profiles: profiles,
-                      ))
-                  .toList(),
+              children: [
+                etedSection,
+                if (types.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: EmptyState(
+                      title: l.admin_managers_no_types,
+                      icon: CupertinoIcons.person_badge_plus,
+                    ),
+                  ),
+                for (final type in types)
+                  _ManagersSection(
+                    header: type.name,
+                    managerIds: [
+                      for (final m in managersByType[type.id] ?? const [])
+                        m.userId,
+                    ],
+                    profiles: profiles,
+                    onAdd: (userId) => admin.addScaleManager(
+                      scaleTypeId: type.id,
+                      userId: userId,
+                    ),
+                    onRemove: (userId) => admin.removeScaleManager(
+                      scaleTypeId: type.id,
+                      userId: userId,
+                    ),
+                  ),
+              ],
             );
           },
         ),
@@ -69,29 +107,37 @@ class ResponsaveisScreen extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
-// _ScaleTypeSection
+// _ManagersSection
 // ---------------------------------------------------------------------------
 
-class _ScaleTypeSection extends ConsumerWidget {
-  const _ScaleTypeSection({
-    required this.scaleType,
-    required this.managers,
+/// Uma lista de "quem pode editar": os responsáveis de um tipo de escala ou
+/// os líderes de um cronograma. Só muda o que [onAdd] e [onRemove] chamam.
+class _ManagersSection extends StatelessWidget {
+  const _ManagersSection({
+    required this.header,
+    required this.managerIds,
     required this.profiles,
+    required this.onAdd,
+    required this.onRemove,
+    this.footer,
   });
 
-  final ScaleTypeRow scaleType;
-  final List<ScaleManagerRow> managers;
+  final String header;
+  final String? footer;
+  final List<String> managerIds;
   final List<ProfileRow> profiles;
+  final Future<void> Function(String userId) onAdd;
+  final Future<void> Function(String userId) onRemove;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final colors = context.colors;
 
     // Nomes dos responsáveis atuais.
     final managerProfiles = <ProfileRow>[];
-    for (final m in managers) {
-      final p = profiles.where((p) => p.id == m.userId).firstOrNull;
+    for (final id in managerIds) {
+      final p = profiles.where((p) => p.id == id).firstOrNull;
       if (p != null) managerProfiles.add(p);
     }
 
@@ -103,58 +149,66 @@ class _ScaleTypeSection extends ConsumerWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       header: Text(
-        scaleType.name,
+        header,
         style: AppTypography.sectionHeader.copyWith(color: colors.tint),
       ),
+      footer: footer == null
+          ? null
+          : Text(
+              footer!,
+              style: AppTypography.footnote.copyWith(
+                color: colors.secondaryLabel,
+              ),
+            ),
       children: [
         if (managerProfiles.isEmpty)
           CupertinoListTile(
             title: Text(
               l.admin_managers_none,
-              style: AppTypography.footnote
-                  .copyWith(color: colors.secondaryLabel),
+              style: AppTypography.footnote.copyWith(
+                color: colors.secondaryLabel,
+              ),
             ),
           ),
-        ...managerProfiles.map((p) => CupertinoListTile(
-              leading: _Avatar(name: p.fullName),
-              title: Text(
-                p.fullName,
-                style: AppTypography.body.copyWith(color: colors.label),
-              ),
-              trailing: CupertinoButton(
-                padding: EdgeInsets.zero,
-                minimumSize: Size.zero,
-                // `tooltip` é do Material; o rótulo vira semântica.
-                onPressed: () async {
-                  try {
-                    await ref.read(adminServiceProvider).removeScaleManager(
-                          scaleTypeId: scaleType.id,
-                          userId: p.id,
-                        );
-                  } catch (e) {
-                    if (context.mounted) {
-                      showAppToast(context, e.toString(), isError: true);
-                    }
+        ...managerProfiles.map(
+          (p) => CupertinoListTile(
+            leading: _Avatar(name: p.fullName),
+            title: Text(
+              p.fullName,
+              style: AppTypography.body.copyWith(color: colors.label),
+            ),
+            trailing: CupertinoButton(
+              padding: EdgeInsets.zero,
+              minimumSize: Size.zero,
+              // `tooltip` é do Material; o rótulo vira semântica.
+              onPressed: () async {
+                try {
+                  await onRemove(p.id);
+                } catch (e) {
+                  if (context.mounted) {
+                    showAppToast(context, e.toString(), isError: true);
                   }
-                },
-                child: Semantics(
-                  label: l.admin_managers_remove,
-                  button: true,
-                  child: Icon(
-                    CupertinoIcons.minus_circle,
-                    size: 22,
-                    color: colors.destructive,
-                  ),
+                }
+              },
+              child: Semantics(
+                label: l.admin_managers_remove,
+                button: true,
+                child: Icon(
+                  CupertinoIcons.minus_circle,
+                  size: 22,
+                  color: colors.destructive,
                 ),
               ),
-            )),
+            ),
+          ),
+        ),
         CupertinoListTile(
           leading: Icon(CupertinoIcons.add_circled, color: colors.tint),
           title: Text(
             l.admin_managers_add,
             style: AppTypography.body.copyWith(color: colors.tint),
           ),
-          onTap: () => _showAddPicker(context, ref),
+          onTap: () => _showAddPicker(context),
         ),
       ],
     );
@@ -166,11 +220,11 @@ class _ScaleTypeSection extends ConsumerWidget {
   /// escolha entre N itens sobe da base da tela, e a folha já rola sozinha
   /// quando a lista passa da altura disponível — o que o `AlertDialog` com
   /// `ListView(shrinkWrap: true)` resolvia na unha.
-  Future<void> _showAddPicker(BuildContext context, WidgetRef ref) async {
+  Future<void> _showAddPicker(BuildContext context) async {
     final l = AppLocalizations.of(context);
 
     // Obreiros aprovados que ainda não são responsáveis.
-    final currentManagerIds = managers.map((m) => m.userId).toSet();
+    final currentManagerIds = managerIds.toSet();
     final candidates = profiles
         .where((p) => !currentManagerIds.contains(p.id))
         .toList();
@@ -185,10 +239,12 @@ class _ScaleTypeSection extends ConsumerWidget {
       builder: (sheetContext) => CupertinoActionSheet(
         title: Text(l.admin_managers_add),
         actions: candidates
-            .map((p) => CupertinoActionSheetAction(
-                  onPressed: () => Navigator.of(sheetContext).pop(p.id),
-                  child: Text(p.fullName),
-                ))
+            .map(
+              (p) => CupertinoActionSheetAction(
+                onPressed: () => Navigator.of(sheetContext).pop(p.id),
+                child: Text(p.fullName),
+              ),
+            )
             .toList(),
         cancelButton: CupertinoActionSheetAction(
           onPressed: () => Navigator.of(sheetContext).pop(),
@@ -201,10 +257,7 @@ class _ScaleTypeSection extends ConsumerWidget {
     if (userId == null) return;
 
     try {
-      await ref.read(adminServiceProvider).addScaleManager(
-            scaleTypeId: scaleType.id,
-            userId: userId,
-          );
+      await onAdd(userId);
     } catch (e) {
       if (context.mounted) {
         showAppToast(context, e.toString(), isError: true);

@@ -14,6 +14,7 @@ import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
+import 'package:veredas/ui/widgets/role_label.dart';
 
 /// Tela de Convites — lista + diálogo de criação.
 ///
@@ -134,14 +135,19 @@ Future<void> _showInviteDialog(
                   style: AppTypography.body.copyWith(color: colors.label),
                 ),
                 const SizedBox(height: 12),
-                // Dois papéis apenas: o controle segmentado é mais direto
-                // que um menu suspenso e é o padrão do iOS para escolha
-                // binária.
+                // Três papéis: o controle segmentado é mais direto que um
+                // menu suspenso e cabe no diálogo. O aluno usa o rótulo
+                // curto; "Aluno ETED" não cabe num terço da largura.
                 CupertinoSlidingSegmentedControl<AppRole>(
                   groupValue: role,
                   children: {
                     AppRole.obreiro: Text(
                       l.admin_role_obreiro,
+                      style: AppTypography.footnote
+                          .copyWith(color: colors.label),
+                    ),
+                    AppRole.aluno: Text(
+                      l.admin_role_aluno_short,
                       style: AppTypography.footnote
                           .copyWith(color: colors.label),
                     ),
@@ -394,7 +400,7 @@ class _InviteTile extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${invite.role == AppRole.admin ? l.admin_role_admin : l.admin_role_obreiro} · '
+            '${roleLabel(l, invite.role)} · '
             '${invite.maxUses == null ? l.admin_invite_uses_unlimited(invite.uses) : l.admin_invite_uses_format(invite.uses, invite.maxUses!)}',
             style: AppTypography.footnote
                 .copyWith(color: colors.secondaryLabel),

@@ -126,6 +126,11 @@ cronograma "bem estilo planilha".
 
 `TabBar` de 2 abas no `AppBar` (`bottom`): **Eventos** | **Cronograma**.
 
+> Atualização (pós-Fase 10): são 3 seções, **Eventos** | **Cronograma** |
+> **ETED**. A terceira é o cronograma da escola, na mesma grade, editável pelo
+> admin e pelos líderes da ETED. Ver AGENTS.md, "ETED: alunos e cronograma da
+> escola".
+
 ### 2.1 Aba Eventos
 
 1. **`TableCalendar`** (`table_calendar`) no formato `month`, recolhível para

@@ -21,6 +21,7 @@ part 'app_database.g.dart';
     ScaleAssignmentRows,
     EventRows,
     WeeklySlotRows,
+    ScheduleManagerRows,
     PrayerFeedRows,
     PrayerCommentRows,
     AnnouncementRows,
@@ -44,7 +45,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -126,6 +127,26 @@ class AppDatabase extends _$AppDatabase {
           if (from < 7) {
             await m.createTable(contentReportRows);
             await m.createTable(userBlockRows);
+          }
+
+          // v8 — cronograma da ETED. As linhas que já estão no cache nascem
+          // como 'base', e é o que elas eram, salvo um caso: um horário da
+          // ETED criado no servidor enquanto este aparelho ainda rodava a
+          // versão antiga. Ele entrou no cache sem a coluna, e o pull
+          // incremental não o traria de novo (a marca d'água já passou dele)
+          // — ficaria na grade da base para sempre. Apagar a marca d'água de
+          // `weekly_slots` força o próximo pull a trazer a tabela inteira, e o
+          // upsert grava o `schedule` certo.
+          //
+          // O `to >= 8` só pesa em teste, que roda um passo isolado
+          // (`onUpgrade(6, 7)`) num banco já criado na versão atual: sem ele,
+          // este passo tentaria criar de novo uma coluna que já existe.
+          if (from < 8 && to >= 8) {
+            await m.addColumn(weeklySlotRows, weeklySlotRows.schedule);
+            await m.createTable(scheduleManagerRows);
+            await (delete(syncStates)
+                  ..where((t) => t.entity.equals('weekly_slots')))
+                .go();
           }
         },
         beforeOpen: (details) async {

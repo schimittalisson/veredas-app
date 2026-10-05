@@ -70,4 +70,10 @@ class AgendaDao {
   Future<void> removeWeeklySlot(String id) {
     return (db.delete(db.weeklySlotRows)..where((t) => t.id.equals(id))).go();
   }
+
+  // --- Líderes de cronograma -----------------------------------------------
+
+  Stream<List<ScheduleManagerRow>> watchScheduleManagers() {
+    return db.select(db.scheduleManagerRows).watch();
+  }
 }

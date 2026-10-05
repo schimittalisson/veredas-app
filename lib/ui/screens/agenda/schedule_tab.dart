@@ -5,9 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/data/local/app_database.dart';
+import 'package:veredas/data/local/tables.dart' show kScheduleBase;
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/agenda_providers.dart';
-import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
@@ -33,8 +33,14 @@ String _formatMinutes(int minutes) {
 /// `CupertinoSlidingSegmentedControl` alterna entre **Grade** (7 colunas com
 /// scroll horizontal) e **Lista por dia** (seções recolhíveis — mais
 /// confortável no celular).
+///
+/// A mesma aba serve às duas grades — a da base e a da ETED. [schedule]
+/// escolhe qual, e quem pode editar sai de `canEditScheduleProvider`.
 class ScheduleTab extends ConsumerStatefulWidget {
-  const ScheduleTab({super.key});
+  const ScheduleTab({this.schedule = kScheduleBase, super.key});
+
+  /// `kScheduleBase` ou `kScheduleEted`.
+  final String schedule;
 
   @override
   ConsumerState<ScheduleTab> createState() => _ScheduleTabState();
@@ -53,7 +59,7 @@ class _ScheduleTabState extends ConsumerState<ScheduleTab> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context);
     final colors = context.colors;
-    final slots = ref.watch(weeklySlotsProvider);
+    final slots = ref.watch(scheduleSlotsProvider(widget.schedule));
 
     return Column(
       children: [
@@ -513,7 +519,8 @@ class _SlotBlock extends ConsumerWidget {
 /// folha sobe do rodapé com cantos arredondados e fundo de superfície, sem a
 /// sombra/elevação do Material.
 ///
-/// Para admin, a folha também é o caminho para **editar e excluir**. Antes ela
+/// Para quem edita aquele cronograma (admin, ou líder da ETED na grade da
+/// ETED), a folha também é o caminho para **editar e excluir**. Antes ela
 /// só exibia informação: o `WeeklySlotEditorScreen` e o
 /// `AgendaRepository.deleteWeeklySlot` existiam, mas nada no app chegava até
 /// eles — dava para criar um item do cronograma e nunca mais mexer nele.
@@ -524,7 +531,7 @@ void _showSlotDetails(
 ) {
   final l = AppLocalizations.of(context);
   final colors = context.colors;
-  final isAdmin = ref.read(isAdminProvider);
+  final canEdit = ref.read(canEditScheduleProvider(slot.schedule));
   final start = _formatMinutes(slot.startsAtMinutes);
   final end = slot.endsAtMinutes != null
       ? _formatMinutes(slot.endsAtMinutes!)
@@ -599,7 +606,7 @@ void _showSlotDetails(
                       AppTypography.subheadline.copyWith(color: colors.label),
                 ),
               ],
-              if (isAdmin) ...[
+              if (canEdit) ...[
                 const SizedBox(height: 16),
                 Container(height: 0.5, color: colors.separator),
                 const SizedBox(height: 4),

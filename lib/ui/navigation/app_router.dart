@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'package:veredas/data/local/tables.dart' show kScheduleBase;
 import 'package:veredas/data/models/profile.dart';
 import 'package:veredas/data/remote/auth_service.dart';
 import 'package:veredas/providers/auth_providers.dart';
@@ -276,7 +277,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.slotNovo,
-        builder: (context, state) => const WeeklySlotEditorScreen(),
+        builder: (context, state) => WeeklySlotEditorScreen(
+          schedule:
+              state.uri.queryParameters['schedule'] ?? kScheduleBase,
+        ),
       ),
       GoRoute(
         path: Routes.slotEditar,
@@ -454,6 +458,16 @@ String? _redirect(Ref ref, String location) {
 
   // 4. Rota de admin sem ser admin → manda para /inicio.
   if (location.startsWith('/admin') && !(profile?.isAdmin ?? false)) {
+    return Routes.inicio;
+  }
+
+  // 4.5 Aluno da ETED não entra no mural — nem na lista de bloqueados, que
+  //     só existe para o mural. A aba já não aparece para ele; isto cobre
+  //     deep link e rota empilhada. O servidor também não lhe entrega o mural.
+  if ((profile?.isStudent ?? false) &&
+      (location == Routes.oracao ||
+          location.startsWith('${Routes.oracao}/') ||
+          location == Routes.bloqueados)) {
     return Routes.inicio;
   }
 

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
+import 'package:veredas/data/local/tables.dart' show kScheduleBase;
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/agenda_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
@@ -12,9 +13,17 @@ import 'package:veredas/ui/widgets/color_picker_row.dart';
 
 /// Editor de slot do cronograma semanal — cria ou edita.
 class WeeklySlotEditorScreen extends ConsumerStatefulWidget {
-  const WeeklySlotEditorScreen({super.key, this.slotId});
+  const WeeklySlotEditorScreen({
+    super.key,
+    this.slotId,
+    this.schedule = kScheduleBase,
+  });
 
   final String? slotId;
+
+  /// Em qual cronograma o horário novo entra. Ignorado na edição: o horário
+  /// fica no cronograma em que nasceu.
+  final String schedule;
 
   @override
   ConsumerState<WeeklySlotEditorScreen> createState() =>
@@ -458,6 +467,7 @@ class _WeeklySlotEditorScreenState
         );
       } else {
         await repo.createWeeklySlotsForWeekdays(
+          schedule: widget.schedule,
           weekdays: _weekdays,
           startsAtMinutes: startsAtMinutes,
           endsAtMinutes: endsAtMinutes,

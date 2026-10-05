@@ -16,6 +16,7 @@ import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/confirm_dialog.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
+import 'package:veredas/ui/widgets/role_label.dart';
 
 /// Tela de Membros — lista de perfis com busca e ações administrativas.
 ///
@@ -280,7 +281,7 @@ class _MemberTile extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _Badge(
-            label: isAdmin ? l.admin_role_admin : l.admin_role_obreiro,
+            label: roleLabel(l, profile.role),
             background: colors.fill,
             foreground: colors.secondaryLabel,
           ),
@@ -329,7 +330,15 @@ class _MemberTile extends ConsumerWidget {
               isDestructiveAction: true,
               child: Text(l.admin_action_revoke),
             ),
-          if (!isAdmin)
+          // Fim da ETED: o aluno que fica na base vira obreiro. Não há
+          // atalho de aluno para admin — passar por obreiro é uma decisão a
+          // mais, e não um passo a mais por acidente.
+          if (profile.role == AppRole.aluno)
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(sheetContext).pop('make_obreiro'),
+              child: Text(l.admin_action_make_obreiro),
+            ),
+          if (profile.role == AppRole.obreiro)
             CupertinoActionSheetAction(
               onPressed: () => Navigator.of(sheetContext).pop('promote'),
               child: Text(l.admin_action_promote),
@@ -376,6 +385,7 @@ class _MemberTile extends ConsumerWidget {
       'revoke' => l.admin_action_revoke,
       'promote' => l.admin_action_promote,
       'demote' => l.admin_action_demote,
+      'make_obreiro' => l.admin_action_make_obreiro,
       'remove' => l.admin_action_remove,
       _ => action,
     };
@@ -414,7 +424,7 @@ class _MemberTile extends ConsumerWidget {
         case 'promote':
           await adminService.setRole(
               userId: profile.id, role: AppRole.admin);
-        case 'demote':
+        case 'demote' || 'make_obreiro':
           await adminService.setRole(
               userId: profile.id, role: AppRole.obreiro);
         case 'remove':

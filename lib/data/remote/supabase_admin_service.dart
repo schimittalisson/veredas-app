@@ -184,6 +184,36 @@ class SupabaseAdminService implements AdminService {
     }
   }
 
+  @override
+  Future<void> addScheduleManager({
+    required String schedule,
+    required String userId,
+  }) async {
+    try {
+      await _client.rpc('add_schedule_manager', params: {
+        'p_schedule': schedule,
+        'p_user_id': userId,
+      });
+    } catch (e) {
+      throw _mapError(e);
+    }
+  }
+
+  @override
+  Future<void> removeScheduleManager({
+    required String schedule,
+    required String userId,
+  }) async {
+    try {
+      await _client.rpc('remove_schedule_manager', params: {
+        'p_schedule': schedule,
+        'p_user_id': userId,
+      });
+    } catch (e) {
+      throw _mapError(e);
+    }
+  }
+
   /// Converte erros do Postgrest/Supabase em `AppException`.
   ///
   /// As RPCs de admin levantam exceções com códigos específicos

@@ -34,7 +34,7 @@ class ProfileRows extends Table {
   TextColumn get bio => text().nullable()();
 
   /// `textEnum` grava `AppRole.name`, que é idêntico ao valor do enum
-  /// `app_role` no Postgres ('admin' / 'obreiro').
+  /// `app_role` no Postgres ('admin' / 'obreiro' / 'aluno').
   TextColumn get role => textEnum<AppRole>()();
 
   BoolColumn get isApproved =>
@@ -206,10 +206,33 @@ class WeeklySlotRows extends Table {
   /// Ver `EventRows.colorIndex`.
   IntColumn get colorIndex => integer().nullable()();
 
+  /// A qual cronograma o horário pertence: [kScheduleBase] ou
+  /// [kScheduleEted]. As duas grades da Agenda saem desta mesma tabela.
+  TextColumn get schedule =>
+      text().withDefault(const Constant(kScheduleBase))();
+
   DateTimeColumn get updatedAt => dateTime()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
+}
+
+/// Valores de `weekly_slots.schedule` e `schedule_managers.schedule`. Iguais
+/// ao CHECK do servidor; um valor fora deles é recusado lá.
+const String kScheduleBase = 'base';
+const String kScheduleEted = 'eted';
+
+/// Espelho de `public.schedule_managers` — os líderes de um cronograma (hoje,
+/// os da ETED). Mesmo desenho e mesmo motivo de [ScaleManagerRows]: PK
+/// composta e `fullReplace`, porque remover um líder é DELETE físico.
+@DataClassName('ScheduleManagerRow')
+class ScheduleManagerRows extends Table {
+  TextColumn get schedule => text()();
+  TextColumn get userId => text()();
+  DateTimeColumn get updatedAt => dateTime().nullable()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {schedule, userId};
 }
 
 /// Espelho da **view** `public.prayer_feed`, não da tabela `prayer_posts`.

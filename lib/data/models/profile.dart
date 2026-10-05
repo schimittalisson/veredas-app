@@ -37,6 +37,10 @@ abstract class Profile with _$Profile {
 extension ProfileX on Profile {
   bool get isAdmin => role == AppRole.admin && isApproved;
 
+  /// Aluno da ETED: sem acesso ao mural de oração. Espelha o `not
+  /// is_member()` do servidor — esconder a aba é só UX, quem barra é o RLS.
+  bool get isStudent => role == AppRole.aluno;
+
   /// Pode editar as atribuições de um tipo de escala?
   ///
   /// Espelha a função `manages_scale()` do Postgres. **Isto é só UX** — a

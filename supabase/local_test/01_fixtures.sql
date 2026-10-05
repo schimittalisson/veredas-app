@@ -31,3 +31,13 @@ insert into public.prayer_posts (id, author_id, title, body) values
   ('44444444-4444-4444-4444-444444444444',
    '33333333-3333-3333-3333-333333333333',
    'Cura da minha mãe', 'Ela está internada desde terça.');
+
+-- Aluno da ETED (papel 'aluno'), aprovado. E o obreiro comum como líder do
+-- cronograma da ETED — o gerente, não, para os dois papéis não se misturarem.
+insert into auth.users (id, email, raw_user_meta_data) values
+  ('55555555-5555-5555-5555-555555555555', 'aluno@teste.com', '{"full_name":"Aluno ETED"}');
+update public.profiles set is_approved = true, role = 'aluno'
+ where id = '55555555-5555-5555-5555-555555555555';
+
+insert into public.schedule_managers (schedule, user_id)
+values ('eted', '33333333-3333-3333-3333-333333333333');

@@ -295,3 +295,9 @@ final isAdminProvider = Provider<bool>((ref) {
   final profile = ref.watch(currentProfileProvider).value;
   return profile?.isAdmin ?? false;
 });
+
+/// `true` se o usuário logado é aluno da ETED — sem a aba do mural.
+final isStudentProvider = Provider<bool>((ref) {
+  final profile = ref.watch(currentProfileProvider).value;
+  return profile?.isStudent ?? false;
+});
