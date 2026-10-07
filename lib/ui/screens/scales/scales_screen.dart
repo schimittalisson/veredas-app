@@ -125,7 +125,14 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
   void didUpdateWidget(_ScalesBody oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    final target = _indexOfSelected();
+    // Com a Lavanderia aberta, ela fica aberta. `_selectedTypeId` guarda a
+    // última ESCALA vista e continua preenchido enquanto a Lavanderia está na
+    // tela; realinhar por ele fazia todo pull (que reemite `scale_types` com
+    // o mesmo conteúdo) arrancar a pessoa da Lavanderia de volta para a
+    // escala anterior.
+    final onLaundry = _tabController.index >= oldWidget.scaleTypes.length;
+    final target =
+        onLaundry ? widget.scaleTypes.length : _indexOfSelected();
 
     // As escalas vêm do sync: uma nova pode aparecer (ou ser desativada) a
     // qualquer momento. O TabController tem length fixo, então precisa ser
@@ -135,9 +142,11 @@ class _ScalesBodyState extends ConsumerState<_ScalesBody>
         ..removeListener(_onTabChanged)
         ..dispose();
       _tabController = _createController(initialIndex: target);
-      _selectedTypeId = target < widget.scaleTypes.length
-          ? widget.scaleTypes[target].id
-          : null;
+      if (!onLaundry) {
+        _selectedTypeId = target < widget.scaleTypes.length
+            ? widget.scaleTypes[target].id
+            : null;
+      }
     } else if (target != _tabController.index) {
       // Mesma quantidade, ordem diferente: segue a escala, não a posição.
       _tabController.index = target;
