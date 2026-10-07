@@ -12,6 +12,7 @@ import 'package:veredas/data/daos/scales_dao.dart';
 import 'package:veredas/data/local/app_database.dart';
 import 'package:veredas/data/remote/admin_service.dart';
 import 'package:veredas/data/remote/supabase_admin_service.dart';
+import 'package:veredas/data/remote/syncing_admin_service.dart';
 import 'package:veredas/data/repositories/agenda_repository.dart';
 import 'package:veredas/data/repositories/documents_repository.dart';
 import 'package:veredas/data/repositories/home_repository.dart';
@@ -25,6 +26,10 @@ import 'package:veredas/data/sync/connectivity_monitor.dart';
 import 'package:veredas/data/sync/outbox_worker.dart';
 import 'package:veredas/data/sync/remote_source.dart';
 import 'package:veredas/data/sync/sync_service.dart';
+// Importação circular de propósito (sync_providers importa este arquivo): o
+// Dart a aceita, e o `adminServiceProvider` só lê o `syncStatusProvider`
+// dentro do callback, nunca na construção.
+import 'package:veredas/providers/sync_providers.dart';
 
 /// Providers de infraestrutura — só DI (dependency injection).
 ///
@@ -43,8 +48,16 @@ final supabaseClientProvider = Provider<SupabaseClient>((ref) {
 });
 
 /// Provider do [AdminService]. Em testes, override com um fake.
+///
+/// Embrulhado em [SyncingAdminService]: as ações de admin são RPC e não
+/// passam pela outbox, então sem o sync de depois a tela não mudava. O sync
+/// vai pelo `syncStatusProvider`, e não direto pelo `SyncService`, para
+/// respeitar a guarda de ciclo concorrente e o banner de erro.
 final adminServiceProvider = Provider<AdminService>((ref) {
-  return SupabaseAdminService(ref.watch(supabaseClientProvider));
+  return SyncingAdminService(
+    SupabaseAdminService(ref.watch(supabaseClientProvider)),
+    () => ref.read(syncStatusProvider.notifier).pullAll(),
+  );
 });
 
 // --- Database -------------------------------------------------------------

@@ -26,15 +26,57 @@ import 'package:veredas/providers/sync_providers.dart';
 /// vezes seguidas não dispara dois syncs.
 
 /// Sliver de pull-to-refresh. Primeiro item de um `CustomScrollView`.
+///
+/// [onRefresh] substitui o sync, para a tela que não lê do cache — a de
+/// membros removidos consulta o servidor na hora.
 class SyncRefreshControl extends ConsumerWidget {
-  const SyncRefreshControl({super.key});
+  const SyncRefreshControl({this.onRefresh, super.key});
+
+  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return CupertinoSliverRefreshControl(
       // O Future só completa quando o sync termina, e é isso que mantém o
       // indicador girando pelo tempo certo em vez de sumir na hora.
-      onRefresh: () => ref.read(syncStatusProvider.notifier).pullAll(),
+      onRefresh:
+          onRefresh ?? () => ref.read(syncStatusProvider.notifier).pullAll(),
+    );
+  }
+}
+
+/// `ListView` arrastável para atualizar — o que as telas de Administração
+/// usavam, trocado por um `CustomScrollView`, que é o que o
+/// `CupertinoSliverRefreshControl` exige.
+///
+/// Sem [padding], reserva embaixo a área segura, como o `ListView` faz
+/// sozinho e o `CustomScrollView` não: as telas de admin usam
+/// `SafeArea(bottom: false)` e contam com isso para o último item não ficar
+/// sob o indicador de início do iPhone.
+class RefreshableListView extends StatelessWidget {
+  const RefreshableListView({
+    required this.children,
+    this.padding,
+    this.onRefresh,
+    super.key,
+  });
+
+  final List<Widget> children;
+  final EdgeInsetsGeometry? padding;
+  final Future<void> Function()? onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SyncRefreshControl(onRefresh: onRefresh),
+        SliverPadding(
+          padding: padding ??
+              EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
+          sliver: SliverList.list(children: children),
+        ),
+      ],
     );
   }
 }
@@ -45,9 +87,12 @@ class SyncRefreshControl extends ConsumerWidget {
 /// widgets que se centralizam sozinhos — é o caso do `EmptyState` e do
 /// `LoadingState`.
 class RefreshableBox extends StatelessWidget {
-  const RefreshableBox({required this.child, super.key});
+  const RefreshableBox({required this.child, this.onRefresh, super.key});
 
   final Widget child;
+
+  /// Ver [SyncRefreshControl.onRefresh].
+  final Future<void> Function()? onRefresh;
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +101,7 @@ class RefreshableBox extends StatelessWidget {
       // tela, e sem overscroll o gesto simplesmente não acontece.
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
-        const SyncRefreshControl(),
+        SyncRefreshControl(onRefresh: onRefresh),
         SliverFillRemaining(
           hasScrollBody: false,
           child: child,

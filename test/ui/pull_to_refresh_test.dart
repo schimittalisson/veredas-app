@@ -92,6 +92,42 @@ void main() {
     expect(remote.calls.where((c) => c.method == 'fetch'), isNotEmpty);
   });
 
+  // As telas de Administração: a lista trocou de `ListView` para isto.
+  testWidgets('RefreshableListView dispara o sync no arrasto', (tester) async {
+    await tester.pumpWidget(buildTestWidget(
+      db: db,
+      additionalOverrides: overrides(),
+      child: const RefreshableListView(
+        children: [SizedBox(height: 80, child: Text('membro'))],
+      ),
+    ));
+    await tester.pump();
+
+    await pullDown(tester, find.text('membro'));
+
+    expect(remote.calls.where((c) => c.method == 'fetch'), isNotEmpty);
+  });
+
+  // Membros removidos não estão no cache: o arrasto ali reconsulta o
+  // servidor, e o sync seria trabalho sem efeito na tela.
+  testWidgets('com onRefresh, chama ele no lugar do sync', (tester) async {
+    var refreshed = 0;
+    await tester.pumpWidget(buildTestWidget(
+      db: db,
+      additionalOverrides: overrides(),
+      child: RefreshableListView(
+        onRefresh: () async => refreshed++,
+        children: const [SizedBox(height: 80, child: Text('removido'))],
+      ),
+    ));
+    await tester.pump();
+
+    await pullDown(tester, find.text('removido'));
+
+    expect(refreshed, 1);
+    expect(remote.calls, isEmpty);
+  });
+
   testWidgets('sem arrasto, nenhum sync acontece', (tester) async {
     await tester.pumpWidget(buildTestWidget(
       db: db,

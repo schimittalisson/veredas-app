@@ -16,6 +16,7 @@ import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/confirm_dialog.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
+import 'package:veredas/ui/widgets/pull_to_refresh.dart';
 import 'package:veredas/ui/widgets/role_label.dart';
 
 /// Tela de Membros — lista de perfis com busca e ações administrativas.
@@ -103,11 +104,13 @@ class _MembrosScreenState extends ConsumerState<MembrosScreen> {
             ),
             Expanded(
               child: profiles.isEmpty
-                  ? EmptyState(
-                      title: l.admin_no_members,
-                      icon: CupertinoIcons.person_2,
+                  ? RefreshableBox(
+                      child: EmptyState(
+                        title: l.admin_no_members,
+                        icon: CupertinoIcons.person_2,
+                      ),
                     )
-                  : ListView(
+                  : RefreshableListView(
                       children: [
                         // Seção de pendentes no topo.
                         if (pending.isNotEmpty && _search.isEmpty)

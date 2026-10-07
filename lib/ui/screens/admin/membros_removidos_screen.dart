@@ -12,6 +12,7 @@ import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/confirm_dialog.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
+import 'package:veredas/ui/widgets/pull_to_refresh.dart';
 
 /// Membros removidos por um admin, com a opção de restaurar.
 ///
@@ -49,6 +50,16 @@ class _MembrosRemovidosScreenState
   void _reload() => setState(() {
         _members = _load();
       });
+
+  /// O arrasto daqui recarrega a lista do servidor, e não o cache: os
+  /// removidos não estão no cache (o sync descarta lápides). O erro fica
+  /// com o `FutureBuilder`, que mostra "tentar de novo".
+  Future<void> _refresh() async {
+    _reload();
+    try {
+      await _members;
+    } catch (_) {}
+  }
 
   Future<void> _restore(RemovedMember member) async {
     final l = AppLocalizations.of(context);
@@ -97,27 +108,37 @@ class _MembrosRemovidosScreenState
         child: FutureBuilder<List<RemovedMember>>(
           future: _members,
           builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
+            // Ao recarregar, o FutureBuilder mantém o dado anterior: a lista
+            // fica na tela sob o indicador do arrasto, em vez de piscar.
+            if (snapshot.connectionState != ConnectionState.done &&
+                !snapshot.hasData) {
               return const LoadingState();
             }
             if (snapshot.hasError) {
-              return EmptyState(
-                title: l.admin_removed_members_load_error,
-                icon: CupertinoIcons.wifi_slash,
-                action: CupertinoButton(
-                  onPressed: _reload,
-                  child: Text(l.action_retry),
+              return RefreshableBox(
+                onRefresh: _refresh,
+                child: EmptyState(
+                  title: l.admin_removed_members_load_error,
+                  icon: CupertinoIcons.wifi_slash,
+                  action: CupertinoButton(
+                    onPressed: _reload,
+                    child: Text(l.action_retry),
+                  ),
                 ),
               );
             }
             final members = snapshot.data ?? const [];
             if (members.isEmpty) {
-              return EmptyState(
-                title: l.admin_removed_members_empty,
-                icon: CupertinoIcons.person_2,
+              return RefreshableBox(
+                onRefresh: _refresh,
+                child: EmptyState(
+                  title: l.admin_removed_members_empty,
+                  icon: CupertinoIcons.person_2,
+                ),
               );
             }
-            return ListView(
+            return RefreshableListView(
+              onRefresh: _refresh,
               children: [
                 CupertinoListSection.insetGrouped(
                   backgroundColor: colors.groupedBackground,

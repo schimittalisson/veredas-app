@@ -15,6 +15,7 @@ import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/confirm_dialog.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
+import 'package:veredas/ui/widgets/pull_to_refresh.dart';
 
 /// Denúncias pendentes do mural — a metade "alguém age sobre a denúncia" da
 /// Guideline 1.2 da App Store.
@@ -43,19 +44,23 @@ class DenunciasScreen extends ConsumerWidget {
       child: SafeArea(
         bottom: false,
         child: reports.when(
-          loading: () => const LoadingState(),
-          error: (_, _) => EmptyState(
-            title: l.error_generic,
-            icon: CupertinoIcons.exclamationmark_triangle,
+          loading: () => const RefreshableBox(child: LoadingState()),
+          error: (_, _) => RefreshableBox(
+            child: EmptyState(
+              title: l.error_generic,
+              icon: CupertinoIcons.exclamationmark_triangle,
+            ),
           ),
           data: (list) {
             if (list.isEmpty) {
-              return EmptyState(
-                title: l.admin_reports_empty,
-                icon: CupertinoIcons.checkmark_shield,
+              return RefreshableBox(
+                child: EmptyState(
+                  title: l.admin_reports_empty,
+                  icon: CupertinoIcons.checkmark_shield,
+                ),
               );
             }
-            return ListView(
+            return RefreshableListView(
               padding: const EdgeInsets.only(bottom: 24),
               children: [
                 Padding(

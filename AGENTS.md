@@ -1631,3 +1631,34 @@ solicitante). A escola tem um cronograma semanal próprio.
     migration v7→v8), `test/auth/student_access_test.dart` (router) e
     `test/ui/root_scaffold_student_test.dart` (barra com 4 abas leva cada
     botão ao branch certo).
+
+#### Telas de Administração não atualizavam depois de uma ação (pós-Fase 10)
+
+Sintoma relatado: remover um membro (ou aprovar, convidar…) não mudava a tela;
+era preciso voltar ao Início e arrastar para atualizar.
+
+1. **A causa era a ação, não a falta do gesto.** As ações de admin são RPC,
+   não outbox: o servidor muda e o cache do aparelho não fica sabendo até o
+   próximo sync. `SyncingAdminService` embrulha o `AdminService` e dispara
+   `pullAll()` depois de cada ação que deu certo. Num decorador, e não em
+   cada tela, para uma ação nova não esquecer. O sync vai **sem `await`**
+   (a ação devolve quando o servidor confirma) e com o erro engolido: um
+   Future que ninguém espera transformaria uma queda de rede em exceção não
+   tratada — o teste pegou isso. A falha aparece pelo banner de sync.
+2. **`infra_providers.dart` importa `sync_providers.dart`, que o importa de
+   volta.** Circular de propósito: o Dart aceita, e o `adminServiceProvider`
+   só lê o `syncStatusProvider` dentro do callback. Ir pelo `SyncService`
+   direto evitaria o ciclo, mas pularia a guarda de ciclo concorrente e o
+   banner.
+3. **Arrastar para atualizar** em Membros, Convites, Responsáveis,
+   Denúncias, Membros removidos, Lavanderia (admin) e Escalas, pelo
+   `RefreshableListView` (`pull_to_refresh.dart`), que reserva a área segura
+   de baixo como o `ListView` fazia sozinho. Membros removidos passa
+   `onRefresh` para reconsultar o servidor (os removidos não estão no cache)
+   e mantém a lista na tela enquanto recarrega. Escalas trocou
+   `ReorderableList` por `SliverReorderableList`; reordenar começa no
+   puxador, então os dois gestos não brigam.
+4. Coberto por `test/core/syncing_admin_service_test.dart` e por dois testes
+   novos em `test/ui/pull_to_refresh_test.dart`. O teste de reordenação de
+   `escalas_admin_screen_test.dart` continua passando com a lista nova.
+

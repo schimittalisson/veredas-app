@@ -12,6 +12,7 @@ import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
+import 'package:veredas/ui/widgets/pull_to_refresh.dart';
 
 /// Administração das escalas — as abas da tela Escalas.
 ///
@@ -44,16 +45,20 @@ class EscalasScreen extends ConsumerWidget {
       child: SafeArea(
         bottom: false,
         child: scaleTypes.when(
-          loading: () => const LoadingState(),
-          error: (_, _) => EmptyState(
-            title: l.admin_scales_empty,
-            icon: CupertinoIcons.list_bullet,
+          loading: () => const RefreshableBox(child: LoadingState()),
+          error: (_, _) => RefreshableBox(
+            child: EmptyState(
+              title: l.admin_scales_empty,
+              icon: CupertinoIcons.list_bullet,
+            ),
           ),
           data: (types) {
             if (types.isEmpty) {
-              return EmptyState(
-                title: l.admin_scales_empty,
-                icon: CupertinoIcons.list_bullet,
+              return RefreshableBox(
+                child: EmptyState(
+                  title: l.admin_scales_empty,
+                  icon: CupertinoIcons.list_bullet,
+                ),
               );
             }
             return _ReorderableList(types: types);
@@ -116,9 +121,9 @@ class _ReorderableListState extends ConsumerState<_ReorderableList> {
     setState(() => _types = reordered);
 
     try {
-      await ref
-          .read(scalesRepositoryProvider)
-          .reorderScaleTypes([for (final t in reordered) t.id]);
+      await ref.read(scalesRepositoryProvider).reorderScaleTypes([
+        for (final t in reordered) t.id,
+      ]);
     } catch (e) {
       if (mounted) {
         showAppToast(context, e.toString(), isError: true);
@@ -132,18 +137,30 @@ class _ReorderableListState extends ConsumerState<_ReorderableList> {
     final l = AppLocalizations.of(context);
     final colors = context.colors;
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-          child: Text(
-            l.admin_scales_reorder_hint,
-            style:
-                AppTypography.footnote.copyWith(color: colors.secondaryLabel),
+    // `SliverReorderableList` num `CustomScrollView`, e não o
+    // `ReorderableList`, para caber o arrasto de atualizar no topo. Os dois
+    // gestos não brigam: reordenar começa no puxador da linha, e atualizar,
+    // no arrasto da lista para baixo além do topo.
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        const SyncRefreshControl(),
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+            child: Text(
+              l.admin_scales_reorder_hint,
+              style: AppTypography.footnote.copyWith(
+                color: colors.secondaryLabel,
+              ),
+            ),
           ),
         ),
-        Expanded(
-          child: ReorderableList(
+        SliverPadding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.paddingOf(context).bottom,
+          ),
+          sliver: SliverReorderableList(
             itemCount: _types.length,
             onReorderItem: _onReorder,
             itemBuilder: (context, index) {
@@ -168,11 +185,7 @@ class _ReorderableListState extends ConsumerState<_ReorderableList> {
 // ---------------------------------------------------------------------------
 
 class _ScaleTypeTile extends StatelessWidget {
-  const _ScaleTypeTile({
-    required this.index,
-    required this.type,
-    super.key,
-  });
+  const _ScaleTypeTile({required this.index, required this.type, super.key});
 
   final int index;
   final ScaleTypeRow type;
@@ -225,7 +238,7 @@ class _ScaleTypeTile extends StatelessWidget {
 
 /// Rótulo da cadência guardada em `scale_types.cadence`.
 String _cadenceLabel(AppLocalizations l, String cadence) => switch (cadence) {
-      'monthly' => l.admin_scales_cadence_monthly,
-      'adhoc' => l.admin_scales_cadence_adhoc,
-      _ => l.admin_scales_cadence_weekly,
-    };
+  'monthly' => l.admin_scales_cadence_monthly,
+  'adhoc' => l.admin_scales_cadence_adhoc,
+  _ => l.admin_scales_cadence_weekly,
+};

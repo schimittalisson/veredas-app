@@ -8,7 +8,8 @@ import 'package:veredas/providers/infra_providers.dart';
 /// As ações (aprovar, revogar, criar convite, etc.) são escritas diretas
 /// ao Supabase via RPC, não pela outbox — são operações administrativas
 /// que só admin faz, e o conflito é impossível (só admin escreve). O
-/// cache é atualizado pelo próximo pull.
+/// cache é atualizado pelo sync que o `SyncingAdminService` dispara logo
+/// depois de cada ação.
 
 /// Todos os perfis, ordenados por nome.
 final allProfilesProvider = StreamProvider<List<ProfileRow>>((ref) {

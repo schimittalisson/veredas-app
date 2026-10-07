@@ -14,6 +14,7 @@ import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
+import 'package:veredas/ui/widgets/pull_to_refresh.dart';
 import 'package:veredas/ui/widgets/role_label.dart';
 
 /// Tela de Convites — lista + diálogo de criação.
@@ -46,19 +47,23 @@ class ConvitesScreen extends ConsumerWidget {
       child: SafeArea(
         bottom: false,
         child: invites.when(
-          loading: () => const LoadingState(),
-          error: (_, _) => EmptyState(
-            title: l.admin_no_invites,
-            icon: CupertinoIcons.mail,
+          loading: () => const RefreshableBox(child: LoadingState()),
+          error: (_, _) => RefreshableBox(
+            child: EmptyState(
+              title: l.admin_no_invites,
+              icon: CupertinoIcons.mail,
+            ),
           ),
           data: (data) {
             if (data.isEmpty) {
-              return EmptyState(
-                title: l.admin_no_invites,
-                icon: CupertinoIcons.mail,
+              return RefreshableBox(
+                child: EmptyState(
+                  title: l.admin_no_invites,
+                  icon: CupertinoIcons.mail,
+                ),
               );
             }
-            return ListView(
+            return RefreshableListView(
               children: [
                 CupertinoListSection.insetGrouped(
                   backgroundColor: colors.groupedBackground,

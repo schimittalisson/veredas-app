@@ -8,6 +8,7 @@ import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/providers/laundry_providers.dart';
 import 'package:veredas/ui/widgets/confirm_dialog.dart';
+import 'package:veredas/ui/widgets/pull_to_refresh.dart';
 
 /// Administração da lavanderia — o cadastro que define a grade.
 ///
@@ -32,7 +33,10 @@ class LavanderiaScreen extends ConsumerWidget {
         backgroundColor: colors.elevatedSurface,
       ),
       child: SafeArea(
-        child: ListView(
+        child: RefreshableListView(
+          // A SafeArea daqui já desconta o fundo; sem `padding` explícito a
+          // lista somaria a área segura de novo.
+          padding: EdgeInsets.zero,
           children: [
             _SectionHeader(title: l.laundry_admin_machines),
             for (final m in machines)

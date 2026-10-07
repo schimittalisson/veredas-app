@@ -12,6 +12,7 @@ import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/loading_state.dart';
+import 'package:veredas/ui/widgets/pull_to_refresh.dart';
 
 /// Tela de Responsáveis por escala — uma seção agrupada por scale_type, e no
 /// topo a dos líderes do cronograma da ETED.
@@ -64,12 +65,12 @@ class ResponsaveisScreen extends ConsumerWidget {
       child: SafeArea(
         bottom: false,
         child: scaleTypes.when(
-          loading: () => const LoadingState(),
+          loading: () => const RefreshableBox(child: LoadingState()),
           // Sem tipos de escala, a seção da ETED continua: ela não depende
           // deles, e o estado vazio a esconderia.
-          error: (_, _) => ListView(children: [etedSection]),
+          error: (_, _) => RefreshableListView(children: [etedSection]),
           data: (types) {
-            return ListView(
+            return RefreshableListView(
               children: [
                 etedSection,
                 if (types.isEmpty)
