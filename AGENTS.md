@@ -1331,7 +1331,11 @@ aja sobre as denúncias em 24 horas.
    toque, inclusive offline). O cliente também esconde o que a própria pessoa
    denunciou — filtrando por `reporterId`, senão o feed do **admin**, cujo
    cache tem as denúncias de todo mundo, esconderia justamente o que ele
-   precisa moderar.
+   precisa moderar. Para o admin, nem as denúncias que ele mesmo fez
+   escondem nada (decisão do solicitante): ele julga a denúncia, e uma
+   oração que denunciou e depois decidiu manter sumiria só do mural dele.
+   O bloqueio continua valendo para o admin — é escolha pessoal, não
+   moderação.
 5. **`user_blocks` sem `id` e sem `deleted_at`.** A identidade é o par;
    desbloquear é DELETE físico, sincronizado por `fullReplace`. No cache a
    chave é só `blockedId` (o `blocker` é sempre quem está logado), que é

@@ -296,10 +296,11 @@ void main() {
   group('feed visível', () {
     late ProviderContainer container;
 
-    ProviderContainer build() {
+    ProviderContainer build({bool isAdmin = false}) {
       final c = ProviderContainer(overrides: [
         appDatabaseProvider.overrideWithValue(db),
         currentUserIdProvider.overrideWithValue(_me),
+        isAdminProvider.overrideWithValue(isAdmin),
       ]);
       addTearDown(c.dispose);
       return c;
@@ -352,6 +353,35 @@ void main() {
         await visibleIds(),
         unorderedEquals(['mine', 'other', 'third']),
       );
+    });
+
+    test('admin vê o post que ele mesmo denunciou, pendente ou resolvido',
+        () async {
+      container = build(isAdmin: true);
+      await repo.reportPost(
+        postId: 'third',
+        reporterId: _me,
+        reason: ReportReason.other,
+      );
+      expect(
+        await visibleIds(),
+        unorderedEquals(['mine', 'other', 'third']),
+      );
+
+      // "Manter" resolve a denúncia sem apagar o post.
+      final report = await db.select(db.contentReportRows).getSingle();
+      await repo.resolveReport(reportId: report.id, resolvedBy: _me);
+      expect(
+        await visibleIds(),
+        unorderedEquals(['mine', 'other', 'third']),
+      );
+    });
+
+    test('admin continua sem ver quem ele bloqueou', () async {
+      container = build(isAdmin: true);
+      await repo.blockUser(blockerId: _me, blockedId: _other);
+
+      expect(await visibleIds(), unorderedEquals(['mine', 'third']));
     });
   });
 }

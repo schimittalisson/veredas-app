@@ -23,9 +23,15 @@ final blockedUsersProvider = StreamProvider<List<BlockedUser>>((ref) {
 /// a um obreiro: para o admin o cache tem as denúncias de todo mundo, e sem o
 /// filtro o feed dele esconderia tudo o que qualquer pessoa denunciou —
 /// justamente o que ele precisa ver para moderar.
+///
+/// Para o admin, nem as próprias denúncias escondem nada: é ele quem decide
+/// sobre elas, e um post que ele denunciou e depois resolveu manter sumiria
+/// só do mural dele, sem como voltar.
 final reportedPostIdsProvider = StreamProvider<Set<String>>((ref) {
   final userId = ref.watch(currentUserIdProvider);
-  if (userId == null) return Stream.value(const {});
+  if (userId == null || ref.watch(isAdminProvider)) {
+    return Stream.value(const {});
+  }
   return ref.watch(moderationDaoProvider).watchReportedPostIds(userId);
 });
 

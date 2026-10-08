@@ -32,7 +32,9 @@ class PrayerSearchNotifier extends Notifier<String> {
 /// O servidor já tira os posts de quem foi bloqueado (a view `prayer_feed`
 /// filtra por `user_blocks`), mas isso só chega no próximo pull. O filtro aqui
 /// é o que faz o post sumir no toque, inclusive offline — é o que a pessoa
-/// espera de "bloquear" e "denunciar".
+/// espera de "bloquear" e "denunciar". Para o admin, a denúncia não esconde
+/// nada (ver `reportedPostIdsProvider`); o bloqueio, que é escolha pessoal,
+/// continua valendo.
 ///
 /// O próprio post nunca é filtrado: o app não oferece bloquear nem denunciar
 /// a si mesmo, e o RLS recusaria.
