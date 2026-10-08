@@ -515,7 +515,7 @@ Atualize esta seção ao concluir cada fase.
 - [x] Fase 8 — Mural de Oração — feed com busca por título (debounce 400ms),
       composer inline, PrayerCard (avatar, timeago, "estou orando" toggle
       otimista, badge "Respondido", popup Editar/Excluir/Marcar respondido),
-      texto expansível (3 linhas + ver mais). FAB novo pedido. Editor
+      texto expansível (3 linhas + ver mais). FAB nova oração. Editor
       implementado (`prayer_editor_screen.dart`). TODO: tela de detalhe,
       paginação.
 - [x] Fase 9 — Administração — AdminScreen (menu), MembrosScreen (lista com
@@ -539,7 +539,7 @@ Atualize esta seção ao concluir cada fase.
       (RPC `delete_own_account` + proteção último admin). iOS não compila
       no Linux — arquivos configurados, build requer macOS + Xcode.
 - [x] Pós-Fase 10 — Moderação do mural (App Store 1.2): denunciar e bloquear
-      no menu do pedido de oração, Administração → Denúncias, Usuários
+      no menu da oração, Administração → Denúncias, Usuários
       bloqueados no menu da conta, `TERMOS.md` com aceite no cadastro.
       Migration `20260930000100_moderation.sql` (ver decisões no fim).
 - [x] Pós-Fase 10 — ETED: papel `aluno` (tudo menos o mural), convite de
@@ -1321,10 +1321,10 @@ aja sobre as denúncias em 24 horas.
    texto depois de denunciado e o admin veria a versão limpa; e o admin que
    bloqueou o autor nem veria mais o post no feed. O payload da outbox manda
    só `id`, `reporter_id`, `post_id` e `reason` (há teste para isso).
-3. **Pedido anônimo se denuncia, mas não se bloqueia.** A lista de bloqueados
+3. **Oração anônima se denuncia, mas não se bloqueia.** A lista de bloqueados
    mostra o nome de quem foi bloqueado, e o anonimato acabaria ali. Pelo mesmo
-   motivo a tela de Denúncias não mostra o autor de pedido anônimo nem oferece
-   "remover da base" nele — excluir o pedido resolve.
+   motivo a tela de Denúncias não mostra o autor de oração anônima nem oferece
+   "remover da base" nela — excluir a oração resolve.
 4. **O filtro do feed existe duas vezes, de propósito.** A view `prayer_feed`
    passou a excluir os autores bloqueados (o bloqueio acompanha a pessoa em
    outro aparelho), e `visibleFeedProvider` filtra no cliente (o post some no
@@ -1342,13 +1342,13 @@ aja sobre as denúncias em 24 horas.
    bloqueios e as denúncias que fez** (trigger em `profiles.deleted_at`). Os
    dois são trigger, e não linhas a mais em `delete_own_account()`, para valer
    também no `soft_delete_user` do admin sem reescrever aqueles RPCs.
-7. **`soft_delete_user` não apaga os pedidos da pessoa, e é de propósito.**
+7. **`soft_delete_user` não apaga as orações da pessoa, e é de propósito.**
    O mural registra orações feitas ("hoje orei por Portugal"), não pedidos em
    aberto: outras pessoas continuam orando pelo mesmo motivo, e a remoção de
    quem registrou não desfaz isso (decisão do solicitante). "Remover da base"
-   na tela de Denúncias apaga só o pedido denunciado. **Não "conserte" isso
-   apagando os pedidos no `soft_delete_user`.** (Até a migration
-   `20260930000200` esses pedidos sumiam do feed por acidente — ver a seção
+   na tela de Denúncias apaga só a oração denunciada. **Não "conserte" isso
+   apagando as orações no `soft_delete_user`.** (Até a migration
+   `20260930000200` essas orações sumiam do feed por acidente — ver a seção
    seguinte.)
 8. **Termos de uso em `TERMOS.md`, no GitHub**, pelo mesmo motivo da política
    de privacidade (a URL é `AppLinks.termsOfUse`). O aceite é uma caixa no
@@ -1365,18 +1365,18 @@ aja sobre as denúncias em 24 horas.
     novas falha sem as tabelas, e o banner de erro de sincronização aparece.
     O contrário é seguro: a view mantém as mesmas colunas, e o app antigo
     ignora as tabelas novas.
-12. O vazamento do autor de pedido anônimo pela API, encontrado aqui, foi
+12. O vazamento do autor de oração anônima pela API, encontrado aqui, foi
     corrigido na migration seguinte — ver a próxima seção.
 13. Coberto por 22 asserções novas no harness (§12), `test/sync/
     moderation_test.dart` (13 testes) e `test/ui/prayer_moderation_test.dart`
     (3 testes de widget: menu por tipo de post, denunciar, bloquear).
 
-#### Anonimato do mural pela API, e a exclusão de pedido que nunca funcionou (pós-Fase 10)
+#### Anonimato do mural pela API, e a exclusão de oração que nunca funcionou (pós-Fase 10)
 
 Migration `20260930000200_prayer_anonymity.sql`.
 
-1. **O vazamento.** A view `prayer_feed` escondia o nome do autor de pedido
-   anônimo, mas devolvia `author_id` a todo obreiro aprovado — e a tabela
+1. **O vazamento.** A view `prayer_feed` escondia o nome do autor de oração
+   anônima, mas devolvia `author_id` a todo obreiro aprovado — e a tabela
    `prayer_posts` também era legível por todos, com a coluna. Pela API (a anon
    key está no app) bastava cruzar com `profiles`. Fechar só a view não
    bastaria.
@@ -1391,23 +1391,23 @@ Migration `20260930000200_prayer_anonymity.sql`.
    pull do mural nos aparelhos antigos. O próprio autor recebe o id real (o
    app precisa dele para oferecer "Editar"). Constante `hiddenAuthorId` em
    `tables.dart`; o `blockUser` ignora esse id.
-4. **A exclusão de pedido de oração nunca funcionou no servidor.** O outbox
+4. **A exclusão de oração do mural nunca funcionou no servidor.** O outbox
    apaga com `update ... returning` (o `.select()`), e o RETURNING exige que a
    linha nova passe na policy de SELECT — que filtrava `deleted_at is null`.
-   Resultado: 42501, rollback do cache, o pedido voltava com o banner de erro.
-   Valia para autor e admin, e teria quebrado o "Excluir o pedido" da tela de
+   Resultado: 42501, rollback do cache, a oração voltava com o banner de erro.
+   Valia para autor e admin, e teria quebrado o "Excluir a oração" da tela de
    Denúncias. O harness não pegava porque testava o UPDATE **sem**
    RETURNING. A policy nova não filtra `deleted_at` (quem a lê é só o autor ou
    o admin), e o harness passou a testar com RETURNING (§13). **Ao escrever
    asserção de UPDATE que o app faz pelo outbox, use `returning`** — é o que o
    app manda.
-5. **Efeito colateral, desejado: os pedidos de membro removido voltaram ao
+5. **Efeito colateral, desejado: as orações de membro removido voltaram ao
    feed.** A view antiga, com `security_invoker`, fazia o `join profiles`
-   passar pelo RLS de `profiles`, que esconde perfis com `deleted_at`. Os
-   pedidos de quem era removido sumiam por acidente. Rodando como dona, o join
-   enxerga o perfil e o pedido fica — que é a decisão do item 7 da seção
+   passar pelo RLS de `profiles`, que esconde perfis com `deleted_at`. As
+   orações de quem era removido sumiam por acidente. Rodando como dona, o join
+   enxerga o perfil e a oração fica — que é a decisão do item 7 da seção
    anterior. Coberto por asserção.
-6. O admin ainda lê o autor de pedido anônimo pela API (precisa da linha
+6. O admin ainda lê o autor de oração anônima pela API (precisa da linha
    inteira para moderar, e a denúncia já guarda o autor para ele). O
    anonimato é em relação aos outros obreiros; a tela nunca mostra o autor.
 
@@ -1449,7 +1449,7 @@ tela de nova senha não aparecia, sem mensagem nenhuma.
    `test/ui/auth_link_error_listener_test.dart` (o alerta aparece, e aparece
    de novo no segundo link).
 
-#### Admin apaga o pedido de oração alheio, mas não o edita (pós-Fase 10)
+#### Admin apaga a oração alheia, mas não o edita (pós-Fase 10)
 
 Decisão do solicitante: o mural registra a oração de cada pessoa, e o admin
 modera removendo, não reescrevendo. "Editar" e "Marcar como respondido" são só
@@ -1463,7 +1463,7 @@ do autor; "Excluir" é do autor e do admin.
    o autor — mesmo mecanismo de `protect_profile_privileges`, com a mesma
    exceção para `auth.uid()` nulo (SQL Editor).
 2. **Marcar como respondido entrou na regra** porque é o autor contando que a
-   oração dele foi respondida; marcar pelo outro é editar o pedido dele.
+   oração dele foi respondida; marcar pelo outro é editar a oração dele.
 3. O `PrayerCard` separa `canEdit` (autor) de `canDelete` (autor ou admin).
    Oferecer "Editar" ao admin faria a edição sair otimista e ser revertida no
    sync.
@@ -1503,8 +1503,8 @@ com o mesmo e-mail. O código de confirmação nunca chegou.
    `delete_own_account` o apaga. Se um dia o e-mail virar opcional no perfil,
    esse sinal precisa virar coluna própria.
 5. **Não apagar o usuário em Authentication → Users para "recomeçar"**: o
-   `profiles.id` tem `on delete cascade`, e a cascata leva os pedidos de
-   oração da pessoa — o contrário da decisão sobre o mural.
+   `profiles.id` tem `on delete cascade`, e a cascata leva as orações
+   da pessoa — o contrário da decisão sobre o mural.
 6. **Bug pego pelo teste de widget:** `setState(() => _members = _load())`
    devolve o Future da atribuição, o Flutter recusa o callback, e a lista não
    recarregava depois de restaurar. Use chaves em `setState` com atribuição de
@@ -1528,7 +1528,7 @@ quebra, enquanto o login existe o e-mail não serve para um cadastro novo.
    ou `set null`.
 2. **Só quem se autoexcluiu** (`email is null`, o mesmo sinal do
    `restore_member`). Quem foi removido por admin é restaurável, e apagar o
-   login levaria os pedidos de oração dela.
+   login levaria as orações dela.
 3. **Esperar 30 dias, e não apagar dentro do RPC**: é o prazo já publicado, e
    dar ao RPC chamado pelo app privilégio sobre o schema `auth` seria uma
    superfície pior que um job interno.

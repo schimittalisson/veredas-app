@@ -579,7 +579,7 @@
     }
   },
   "admin_reports_text_unavailable": "Texto indisponível.",
-  "admin_reports_delete_post": "Excluir o pedido",
+  "admin_reports_delete_post": "Excluir a oração",
   "admin_reports_remove_member": "Remover {name} da base",
   "@admin_reports_remove_member": {
     "placeholders": {
