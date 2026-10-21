@@ -1666,3 +1666,34 @@ era preciso voltar ao Início e arrastar para atualizar.
    novos em `test/ui/pull_to_refresh_test.dart`. O teste de reordenação de
    `escalas_admin_screen_test.dart` continua passando com a lista nova.
 
+
+#### Grants explícitos em tabela: o Supabase parou de dar acesso automático (pós-Fase 10)
+
+Aviso do Supabase: a partir de 30/10/2026, tabela **nova** no schema `public`
+não recebe mais acesso automático pela Data API (PostgREST, supabase-js). As
+existentes mantêm o que tinham.
+
+1. **Nenhuma migration do projeto tinha `grant` em tabela.** Todas dependiam
+   do padrão antigo. O risco concreto era a `20261004000200_eted.sql`: se
+   aplicada depois do dia 30, `schedule_managers` responderia "permission
+   denied", o pull da entidade falharia e o banner de erro de sync apareceria
+   para todos. Vale também para recriar o schema do zero (projeto novo,
+   preview, `db reset`).
+2. **`20261021000100_explicit_table_grants.sql`** concede `select, insert,
+   update, delete` a `authenticated` e `service_role` em todas as tabelas e
+   views de `public` existentes. É idempotente e vai logo depois da 25. O RLS
+   continua decidindo o que cada um vê; o grant só abre a porta.
+3. **`anon` não recebe grant novo.** O app não toca tabela sem login
+   (cadastro e convite são RPC). Nas tabelas antigas ele mantém o grant de
+   fábrica, barrado pelo RLS.
+4. **Regra daqui em diante: migration que cria tabela ou view concede o
+   acesso no mesmo arquivo** (`grant ... on public.x to authenticated,
+   service_role`).
+5. **O harness parou de conceder tabelas sozinho.** O `01_fixtures.sql`
+   fazia `grant all on all tables`, o que escondia exatamente a migration que
+   esquecesse o grant. Ficou só `usage` no schema e `execute` nas funções
+   (que o Supabase segue concedendo). A asserção §18 reprova tabela ou view
+   sem grant para `authenticated` — conferido criando uma tabela sem grant.
+   Efeito colateral: "anon NAO le o feed" passou a ser recusa por privilégio
+   (`expect_denied`), não contagem zero, já que o grant do anon na view é
+   revogado.

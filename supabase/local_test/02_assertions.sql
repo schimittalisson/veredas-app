@@ -781,8 +781,10 @@ begin;
     'select count(*) from public.prayer_feed', 0);
   reset role;
   set local role anon;
-  select test.expect_count('anon NAO le o feed',
-    'select count(*) from public.prayer_feed', 0);
+  -- Sem grant (a migration 20260930000200 revoga o do anon), a leitura nem
+  -- chega ao filtro da view: é recusada antes.
+  select test.expect_denied('anon NAO le o feed',
+    'select count(*) from public.prayer_feed');
 rollback;
 
 -- O app apaga com `update ... returning` (o .select() do outbox). O RETURNING
@@ -1119,6 +1121,24 @@ begin;
   select test.expect_count('e nao ve o mural',
     'select count(*) from public.prayer_feed', 0);
 rollback;
+
+\echo ''
+\echo '=========== 18. Toda tabela e view publica tem grant explicito ==========='
+-- Desde 30/10/2026 o Supabase nao concede acesso automatico a tabela nova.
+-- O harness tambem nao concede (01_fixtures.sql): uma migration que crie
+-- tabela sem `grant` reprova aqui, em vez de quebrar o sync em producao.
+select test.expect_count(
+  'tabelas/views public sem grant de select para authenticated',
+  $q$select count(*) from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relkind in ('r', 'v')
+       and not has_table_privilege('authenticated', c.oid, 'select')$q$, 0);
+select test.expect_count(
+  'tabelas public sem grant de escrita para authenticated',
+  $q$select count(*) from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public' and c.relkind = 'r'
+       and not has_table_privilege('authenticated', c.oid, 'insert, update, delete')$q$, 0);
 
 \echo ''
 \echo '=========== 10. Nenhuma tabela publica sem RLS ==========='

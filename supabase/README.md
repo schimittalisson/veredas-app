@@ -134,6 +134,16 @@ sem elas o app compila mas quebra em funcionalidades específicas:
 | 21 | `20260930000300_prayer_admin_delete_only.sql` | trigger: admin apaga o pedido alheio, mas não o edita | Admin consegue reescrever o pedido de outra pessoa |
 | 22 | `20260930000400_restore_member.sql` | RPCs `list_removed_members` e `restore_member` | Tela "Membros removidos" falha |
 | 23 | `20260930000500_purge_self_deleted_accounts.sql` | job diário (`pg_cron`) que apaga o login de quem se autoexcluiu há mais de 30 dias | Login fica para sempre, contra o que a PRIVACIDADE.md promete; o e-mail nunca fica livre |
+| 24 | `20261004000100_aluno_role.sql` | valor `aluno` no enum `app_role` (arquivo próprio: valor novo de enum não pode ser usado na mesma transação) | A 25 falha ao aplicar |
+| 25 | `20261004000200_eted.sql` | papel de aluno (sem mural), coluna `weekly_slots.schedule`, tabela `schedule_managers` e RPCs dos líderes da ETED | **O sync inteiro para** no app novo (tabela que ele espera) |
+| 26 | `20261021000100_explicit_table_grants.sql` | `grant` explícito para `authenticated`/`service_role` em todas as tabelas e views de `public` | Tabela criada depois de 30/10/2026 (ou num projeto recriado do zero) responde "permission denied" ao app |
+
+> **A 26 vai logo depois da 25, sempre.** Desde 30/10/2026 o Supabase não dá
+> mais acesso automático pela Data API a tabela nova do `public`. Se a 25 for
+> aplicada depois dessa data sem a 26, `schedule_managers` fica inacessível e o
+> sync quebra. Daqui para a frente, **toda migration que cria tabela ou view
+> traz o próprio `grant`** no mesmo arquivo — o harness reprova a que não
+> trouxer (§18 das asserções).
 
 > **A 23 usa o `pg_cron`.** A migration ativa a extensão e agenda o job
 > `purge-self-deleted-accounts` (06:00 UTC, 03:00 em Joinville). Para conferir

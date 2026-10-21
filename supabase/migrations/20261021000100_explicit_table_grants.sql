@@ -1,0 +1,52 @@
+-- =========================================================================
+-- Grants explícitos nas tabelas do app
+--
+-- -------------------------------------------------------------------------
+-- Por quê
+-- -------------------------------------------------------------------------
+--
+-- A partir de 30/10/2026 o Supabase deixa de conceder sozinho acesso pela
+-- Data API (PostgREST, supabase-js) às tabelas NOVAS do schema `public`. Até
+-- aqui nenhuma migration do projeto tinha `grant` em tabela: todas dependiam
+-- desse padrão. Uma tabela criada depois da data — `schedule_managers`, da
+-- migration 20261004000200, se for aplicada depois do dia 30 — responderia
+-- "permission denied" ao app, o pull daquela entidade falharia, e o banner de
+-- erro de sync apareceria para todo mundo.
+--
+-- O mesmo vale para recriar o schema do zero (projeto novo, branch de preview,
+-- `supabase db reset`): sem os grants, nenhuma tabela seria alcançável.
+--
+-- -------------------------------------------------------------------------
+-- O que concede
+-- -------------------------------------------------------------------------
+--
+-- `authenticated` e `service_role`, em todas as tabelas e views de `public`
+-- que existem neste ponto. Quem limita o que cada um vê e escreve continua
+-- sendo o RLS (habilitado em toda tabela — o harness confere); o grant só
+-- abre a porta para o RLS decidir.
+--
+-- `anon` fica de fora de propósito: o app não lê nem escreve tabela sem
+-- login (cadastro e resgate de convite são RPC). Nas tabelas que já existiam
+-- no Supabase o `anon` continua com o grant antigo, e o RLS o barra; nas
+-- criadas daqui em diante, nem o grant ele recebe.
+--
+-- Nenhuma migration revogava acesso de `authenticated` a tabela — a única
+-- revogação é a do `anon` na view `prayer_feed` (20260930000200), que este
+-- arquivo não toca. Reaplicar é inofensivo.
+--
+-- -------------------------------------------------------------------------
+-- Daqui para a frente
+-- -------------------------------------------------------------------------
+--
+-- Toda migration que cria tabela ou view em `public` concede o acesso no
+-- mesmo arquivo:
+--
+--   grant select, insert, update, delete on public.nova_tabela
+--     to authenticated, service_role;
+--
+-- O harness (`supabase/local_test`) não concede mais nada sozinho e tem uma
+-- asserção que reprova tabela sem grant para `authenticated`.
+-- =========================================================================
+
+grant select, insert, update, delete on all tables in schema public
+  to authenticated, service_role;

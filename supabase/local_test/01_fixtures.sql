@@ -1,11 +1,15 @@
 -- Fixtures do harness de RLS. Ver local_test/README.md.
 --
--- Reproduz os grants que o Supabase aplica de fábrica ao role `authenticated`.
--- Sem eles os testes falhariam por falta de GRANT, e não por RLS — o que
--- mascararia exatamente o que queremos medir.
+-- Reproduz só o que o Supabase ainda concede de fábrica: uso do schema e
+-- execução de funções.
+--
+-- **Tabelas, não.** Desde 30/10/2026 o Supabase não dá mais acesso automático
+-- a tabela nova do `public` pela Data API, e as migrations passaram a conceder
+-- o próprio acesso (20261021000100 e seguintes). Antes este arquivo fazia
+-- `grant all on all tables`, o que escondia justamente a migration que
+-- esquecesse o grant: no harness tudo passava, e em produção a tabela
+-- respondia "permission denied". A asserção §18 reprova tabela sem grant.
 grant usage on schema public to anon, authenticated;
-grant all on all tables    in schema public to anon, authenticated;
-grant all on all sequences in schema public to anon, authenticated;
 grant all on all routines  in schema public to anon, authenticated;
 
 -- 3 usuários cobrindo os estados de permissão que importam.
