@@ -32,6 +32,14 @@
 # via --build-number. Sem isso o TestFlight recusa o segundo envio com
 # "The provided entity includes an attribute with a value that has already
 # been used" (ENTITY_ERROR.ATTRIBUTE.INVALID.DUPLICATE).
+#
+# VERSÃO (o "1.0.0"): essa vem do pubspec e precisa SUBIR À MÃO depois que uma
+# versão é aprovada na App Store. A Apple fecha o "train" da versão aprovada, e
+# o envio seguinte com o mesmo número é recusado com "Invalid Pre-Release
+# Train. The train version '1.0.0' is closed" (90186) e "must contain a higher
+# version than that of the previously approved version" (90062). Correção
+# e ajuste pequeno → 1.0.1; função nova → 1.1.0. O "+1" pode ficar: o
+# --build-number o substitui.
 
 definitions:
   env_versions: &env_versions
