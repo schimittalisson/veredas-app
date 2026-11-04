@@ -76,7 +76,9 @@ definitions:
       mkdir -p env
       # Firebase (push de aviso novo) é opcional: sem as variáveis o build
       # sai igual, com o push desligado e o lembrete da lavanderia
-      # funcionando. Ficam no mesmo grupo `supabase_credentials`; ver
+      # funcionando. Ficam no grupo `firebase_credentials`, que precisa
+      # EXISTIR no Codemagic (um grupo listado que não existe derruba o
+      # build: "references to unknown variable group(s)"); ver
       # supabase/README.md, Passo 10.3.
       cat > env/prod.json << EOF
       {
@@ -121,6 +123,7 @@ workflows:
       <<: *env_versions
       groups:
         - supabase_credentials
+        - firebase_credentials
     scripts:
       - *write_env_prod
       - *flutter_codegen
@@ -153,6 +156,7 @@ workflows:
       <<: *env_versions
       groups:
         - supabase_credentials
+        - firebase_credentials
       ios_signing:
         distribution_type: app_store
         bundle_identifier: br.com.veredas.app
@@ -216,6 +220,7 @@ workflows:
       <<: *env_versions
       groups:
         - supabase_credentials
+        - firebase_credentials
       android_signing:
         - veredas_upload
     scripts:

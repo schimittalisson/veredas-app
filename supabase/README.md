@@ -568,9 +568,10 @@ Use as chaves de cada plataforma, e não a "Chave de API da Web" da página do
 projeto: o Firebase cria uma chave restrita para cada app.
 
 Nenhum desses valores é segredo (vão dentro de qualquer app Firebase). **No
-Codemagic**, adicione as seis variáveis ao mesmo grupo onde estão
-`SUPABASE_URL`/`SUPABASE_ANON_KEY` — o script de build as copia para o
-`env/prod.json`.
+Codemagic**, adicione as seis variáveis ao grupo `firebase_credentials` — os
+três workflows do `codemagic.yaml` carregam esse grupo, e o script de build as
+copia para o `env/prod.json`. O grupo precisa existir: um grupo listado no
+yaml e ausente no Codemagic derruba o build.
 
 ### 10.4 Edge Function
 
