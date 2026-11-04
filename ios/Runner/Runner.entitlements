@@ -10,6 +10,13 @@
 	     $(AppIdentifierPrefix)$(CFBundleIdentifier) é o grupo padrão do
 	     próprio app (nada é compartilhado com outros apps), então todo
 	     provisioning profile já o permite. -->
+	<!-- Push (APNs). "development" aqui é o certo também para o TestFlight:
+	     ao exportar para a App Store, o Xcode troca sozinho para
+	     "production". O App ID precisa ter a capability Push Notifications
+	     ligada no portal da Apple, senão a assinatura falha — ver
+	     supabase/README.md, Passo 10. -->
+	<key>aps-environment</key>
+	<string>development</string>
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)$(CFBundleIdentifier)</string>

@@ -30,6 +30,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Exigido pelo flutter_local_notifications (agendamento do lembrete
+        // da lavanderia usa java.time, que o Android antigo não tem).
+        isCoreLibraryDesugaringEnabled = true
     }
 
     defaultConfig {
@@ -106,4 +109,9 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+dependencies {
+    // Versão indicada no README do flutter_local_notifications 22.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
 }

@@ -49,129 +49,172 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) => m.createAll(),
-        onUpgrade: (m, from, to) async {
-          // ATENÇÃO: NÃO use `m.createAll()` aqui.
-          //
-          // O projeto de referência (CalorieMate) faz `onUpgrade: (m, from, to)
-          // => m.createAll()`, e isso está errado: `createAll` só cria tabelas
-          // que não existem. Uma coluna adicionada ou renomeada é ignorada em
-          // SILÊNCIO, e o app quebra em produção com um erro de coluna
-          // inexistente — no dispositivo de quem já tinha a versão antiga, que é
-          // exatamente quem você não consegue depurar.
-          //
-          // Escreva um step explícito por versão:
-          //
-          //   if (from < 2) {
-          //     await m.addColumn(eventRows, eventRows.someNewColumn);
-          //   }
-          //
-          // Lembre de subir o `schemaVersion` junto.
-          //
-          // Como este cache é 100% derivado do servidor, existe uma saída de
-          // emergência legítima: apagar tudo e ressincronizar (limpar
-          // `syncStates` força um pull completo). Mas isso descarta a outbox
-          // pendente, então só vale se a migration for realmente inviável.
+    onCreate: (m) => m.createAll(),
+    onUpgrade: (m, from, to) async {
+      // ATENÇÃO: NÃO use `m.createAll()` aqui.
+      //
+      // O projeto de referência (CalorieMate) faz `onUpgrade: (m, from, to)
+      // => m.createAll()`, e isso está errado: `createAll` só cria tabelas
+      // que não existem. Uma coluna adicionada ou renomeada é ignorada em
+      // SILÊNCIO, e o app quebra em produção com um erro de coluna
+      // inexistente — no dispositivo de quem já tinha a versão antiga, que é
+      // exatamente quem você não consegue depurar.
+      //
+      // Escreva um step explícito por versão:
+      //
+      //   if (from < 2) {
+      //     await m.addColumn(eventRows, eventRows.someNewColumn);
+      //   }
+      //
+      // Lembre de subir o `schemaVersion` junto.
+      //
+      // Como este cache é 100% derivado do servidor, existe uma saída de
+      // emergência legítima: apagar tudo e ressincronizar (limpar
+      // `syncStates` força um pull completo). Mas isso descarta a outbox
+      // pendente, então só vale se a migration for realmente inviável.
+      //
+      // **Atomicidade e idempotência — lição da v9.** O drift não roda o
+      // `onUpgrade` numa transação: um passo que falha deixa os anteriores
+      // gravados e a versão do banco ainda antiga, e na abertura seguinte
+      // os mesmos passos rodam de novo sobre um cache meio migrado. Foi o
+      // que aconteceu com o 1.1.0 num cache v6: a v9 falhou ("duplicate
+      // column name"), e mesmo depois da correção a v4 passou a falhar,
+      // porque `member_ids` já tinha sido criada — o app não abria mais.
+      // Por isso:
+      //
+      // 1. tudo roda dentro de `transaction`, e uma falha desfaz tudo;
+      // 2. coluna nova SEMPRE por `_addColumnIfMissing`, nunca
+      //    `m.addColumn` direto — é o que tira do buraco os aparelhos que
+      //    já ficaram no meio do caminho com o 1.1.0;
+      // 3. `createTable` já é `IF NOT EXISTS`, e o `alterTable` recria a
+      //    tabela: os dois podem rodar de novo sem erro.
+      await transaction(() async {
+        // v2 — cor escolhida pelo usuário em eventos e no cronograma.
+        // Nula nas linhas existentes, o que mantém o comportamento antigo
+        // (cor derivada da categoria) até alguém escolher uma.
+        if (from < 2) {
+          await _addColumnIfMissing(m, eventRows, eventRows.colorIndex);
+          await _addColumnIfMissing(
+            m,
+            weeklySlotRows,
+            weeklySlotRows.colorIndex,
+          );
+        }
 
-          // v2 — cor escolhida pelo usuário em eventos e no cronograma.
-          // Nula nas linhas existentes, o que mantém o comportamento antigo
-          // (cor derivada da categoria) até alguém escolher uma.
-          if (from < 2) {
-            await m.addColumn(eventRows, eventRows.colorIndex);
-            await m.addColumn(weeklySlotRows, weeklySlotRows.colorIndex);
-          }
+        // v3 — aba Arquivos. Tabela nova, então `createTable` basta; ela
+        // nasce vazia e o primeiro pull a popula (não há `sync_state` para
+        // 'documents' ainda, e sem marca d'água o pull traz tudo).
+        if (from < 3) {
+          await m.createTable(documentRows);
+        }
 
-          // v3 — aba Arquivos. Tabela nova, então `createTable` basta; ela
-          // nasce vazia e o primeiro pull a popula (não há `sync_state` para
-          // 'documents' ainda, e sem marca d'água o pull traz tudo).
-          if (from < 3) {
-            await m.createTable(documentRows);
-          }
+        // v4 — equipe na atribuição de escala. As duas colunas são NOT NULL
+        // com default `'[]'`, então as linhas que já existem nascem com
+        // equipe vazia e continuam mostrando só o responsável — que é
+        // exatamente o que elas significavam antes.
+        if (from < 4) {
+          await _addColumnIfMissing(
+            m,
+            scaleAssignmentRows,
+            scaleAssignmentRows.memberIds,
+          );
+          await _addColumnIfMissing(
+            m,
+            scaleAssignmentRows,
+            scaleAssignmentRows.memberNames,
+          );
+        }
 
-          // v4 — equipe na atribuição de escala. As duas colunas são NOT NULL
-          // com default `'[]'`, então as linhas que já existem nascem com
-          // equipe vazia e continuam mostrando só o responsável — que é
-          // exatamente o que elas significavam antes.
-          if (from < 4) {
-            await m.addColumn(
-              scaleAssignmentRows,
-              scaleAssignmentRows.memberIds,
-            );
-            await m.addColumn(
-              scaleAssignmentRows,
-              scaleAssignmentRows.memberNames,
-            );
-          }
+        // v5 — lavanderia. Quatro tabelas novas; `createTable` basta, e elas
+        // nascem vazias. Sem `sync_state` para essas entidades, o primeiro
+        // pull traz tudo.
+        if (from < 5) {
+          await m.createTable(laundryMachineRows);
+          await m.createTable(laundryTimeSlotRows);
+          await m.createTable(laundryBlockRows);
+          await m.createTable(laundryReservationRows);
+        }
 
-          // v5 — lavanderia. Quatro tabelas novas; `createTable` basta, e elas
-          // nascem vazias. Sem `sync_state` para essas entidades, o primeiro
-          // pull traz tudo.
-          if (from < 5) {
-            await m.createTable(laundryMachineRows);
-            await m.createTable(laundryTimeSlotRows);
-            await m.createTable(laundryBlockRows);
-            await m.createTable(laundryReservationRows);
-          }
+        // v6 — convite sem limite de usos: `maxUses` passou a aceitar null.
+        // O SQLite não sabe afrouxar um NOT NULL com ALTER TABLE, então o
+        // `alterTable` do drift recria a tabela e copia as linhas. Nenhuma
+        // linha existente muda de valor: quem tinha teto continua com ele, e
+        // "sem limite" só aparece quando o servidor mandar null.
+        if (from < 6) {
+          await m.alterTable(TableMigration(inviteRows));
+        }
 
-          // v6 — convite sem limite de usos: `maxUses` passou a aceitar null.
-          // O SQLite não sabe afrouxar um NOT NULL com ALTER TABLE, então o
-          // `alterTable` do drift recria a tabela e copia as linhas. Nenhuma
-          // linha existente muda de valor: quem tinha teto continua com ele, e
-          // "sem limite" só aparece quando o servidor mandar null.
-          if (from < 6) {
-            await m.alterTable(TableMigration(inviteRows));
-          }
+        // v7 — moderação do mural (denúncia e bloqueio). Tabelas novas;
+        // nascem vazias e o primeiro pull as popula.
+        if (from < 7) {
+          await m.createTable(contentReportRows);
+          await m.createTable(userBlockRows);
+        }
 
-          // v7 — moderação do mural (denúncia e bloqueio). Tabelas novas;
-          // nascem vazias e o primeiro pull as popula.
-          if (from < 7) {
-            await m.createTable(contentReportRows);
-            await m.createTable(userBlockRows);
-          }
+        // v8 — cronograma da ETED. As linhas que já estão no cache nascem
+        // como 'base', e é o que elas eram, salvo um caso: um horário da
+        // ETED criado no servidor enquanto este aparelho ainda rodava a
+        // versão antiga. Ele entrou no cache sem a coluna, e o pull
+        // incremental não o traria de novo (a marca d'água já passou dele)
+        // — ficaria na grade da base para sempre. Apagar a marca d'água de
+        // `weekly_slots` força o próximo pull a trazer a tabela inteira, e o
+        // upsert grava o `schedule` certo.
+        //
+        // O `to >= 8` só pesa em teste, que roda um passo isolado
+        // (`onUpgrade(6, 7)`) num banco já criado na versão atual: sem ele,
+        // este passo tentaria criar de novo uma coluna que já existe.
+        if (from < 8 && to >= 8) {
+          await _addColumnIfMissing(m, weeklySlotRows, weeklySlotRows.schedule);
+          await m.createTable(scheduleManagerRows);
+          await (delete(
+            syncStates,
+          )..where((t) => t.entity.equals('weekly_slots'))).go();
+        }
 
-          // v8 — cronograma da ETED. As linhas que já estão no cache nascem
-          // como 'base', e é o que elas eram, salvo um caso: um horário da
-          // ETED criado no servidor enquanto este aparelho ainda rodava a
-          // versão antiga. Ele entrou no cache sem a coluna, e o pull
-          // incremental não o traria de novo (a marca d'água já passou dele)
-          // — ficaria na grade da base para sempre. Apagar a marca d'água de
-          // `weekly_slots` força o próximo pull a trazer a tabela inteira, e o
-          // upsert grava o `schedule` certo.
-          //
-          // O `to >= 8` só pesa em teste, que roda um passo isolado
-          // (`onUpgrade(6, 7)`) num banco já criado na versão atual: sem ele,
-          // este passo tentaria criar de novo uma coluna que já existe.
-          if (from < 8 && to >= 8) {
-            await m.addColumn(weeklySlotRows, weeklySlotRows.schedule);
-            await m.createTable(scheduleManagerRows);
-            await (delete(syncStates)
-                  ..where((t) => t.entity.equals('weekly_slots')))
-                .go();
+        // v9 — denúncia de comentário. Colunas novas e nulas; as denúncias
+        // que já estão no cache são todas de post, que é o que o nulo diz.
+        // `content_reports` é `fullReplace`, então não há marca d'água a
+        // apagar: o próximo pull reescreve a tabela inteira.
+        //
+        // **Só adiciona a coluna que falta.** Quem vem de antes da v7 acabou
+        // de passar pelo `createTable(contentReportRows)` acima, e o
+        // `createTable` usa a definição ATUAL da tabela — as três colunas já
+        // estão lá. Um `addColumn` incondicional falhava com "duplicate
+        // column name" e o app não abria (pego no emulador, com um cache
+        // v6; o teste de migration partia da v8 e não via). Vale para
+        // qualquer passo futuro que mexa numa tabela criada por `createTable`
+        // em passo anterior.
+        if (from < 9 && to >= 9) {
+          for (final column in [
+            contentReportRows.commentId,
+            contentReportRows.commentBody,
+            contentReportRows.commentAuthorId,
+          ]) {
+            await _addColumnIfMissing(m, contentReportRows, column);
           }
+        }
+      });
+    },
+    beforeOpen: (details) async {
+      // Sem isto o SQLite ignora as foreign keys — elas são declaradas mas
+      // não valem nada, e o cache acumula linhas órfãs (comentário apontando
+      // para post que já saiu do cache, por exemplo).
+      await customStatement('PRAGMA foreign_keys = ON');
+    },
+  );
 
-          // v9 — denúncia de comentário. Colunas novas e nulas; as denúncias
-          // que já estão no cache são todas de post, que é o que o nulo diz.
-          // `content_reports` é `fullReplace`, então não há marca d'água a
-          // apagar: o próximo pull reescreve a tabela inteira.
-          if (from < 9 && to >= 9) {
-            await m.addColumn(contentReportRows, contentReportRows.commentId);
-            await m.addColumn(
-              contentReportRows,
-              contentReportRows.commentBody,
-            );
-            await m.addColumn(
-              contentReportRows,
-              contentReportRows.commentAuthorId,
-            );
-          }
-        },
-        beforeOpen: (details) async {
-          // Sem isto o SQLite ignora as foreign keys — elas são declaradas mas
-          // não valem nada, e o cache acumula linhas órfãs (comentário apontando
-          // para post que já saiu do cache, por exemplo).
-          await customStatement('PRAGMA foreign_keys = ON');
-        },
-      );
+  /// `addColumn` que não falha se a coluna já existe — ver o passo v9.
+  Future<void> _addColumnIfMissing(
+    Migrator m,
+    TableInfo<Table, dynamic> table,
+    GeneratedColumn<Object> column,
+  ) async {
+    final info = await customSelect(
+      'PRAGMA table_info("${table.actualTableName}")',
+    ).get();
+    final exists = info.any((r) => r.read<String>('name') == column.name);
+    if (!exists) await m.addColumn(table, column);
+  }
 
   static QueryExecutor _open() => driftDatabase(name: 'veredas');
 }

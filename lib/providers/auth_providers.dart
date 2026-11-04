@@ -9,6 +9,7 @@ import 'package:veredas/data/remote/auth_service.dart';
 import 'package:veredas/data/remote/supabase_auth_service.dart';
 import 'package:veredas/data/sync/sync_entity.dart';
 import 'package:veredas/providers/infra_providers.dart';
+import 'package:veredas/providers/notification_providers.dart';
 
 /// Provider do [AuthService]. Em testes, override com `FakeAuthService`.
 final authServiceProvider = Provider<AuthService>((ref) {
@@ -242,11 +243,38 @@ class AuthActions extends Notifier<void> {
     return _auth.redeemPendingInvite(code);
   }
 
-  Future<void> signOut() => _auth.signOut();
+  Future<void> signOut() async {
+    await _forgetPushToken();
+    await _auth.signOut();
+  }
 
   /// Apaga a conta do usuário logado. O redirect do router leva para /login
   /// assim que a sessão cai.
-  Future<void> deleteOwnAccount() => _auth.deleteOwnAccount();
+  ///
+  /// Os registros no servidor saem pelo trigger da exclusão; aqui só se
+  /// desativa o do aparelho.
+  Future<void> deleteOwnAccount() async {
+    await _auth.deleteOwnAccount();
+    await ref.read(pushMessagingProvider).deleteRegistration();
+  }
+
+  /// Tira o aparelho da lista de push **antes** de a sessão cair: a RPC
+  /// precisa do usuário logado. Sem isto, o celular de quem saiu continuaria
+  /// recebendo os avisos da base.
+  ///
+  /// Nunca impede o logout: sem rede, a remoção no servidor falha, mas o
+  /// `deleteRegistration` desativa o FID no FCM, e a Edge Function apaga o
+  /// registro inválido no próximo envio.
+  Future<void> _forgetPushToken() async {
+    final push = ref.read(pushMessagingProvider);
+    final id = push.currentId;
+    if (id != null) {
+      try {
+        await push.unregister(id).timeout(const Duration(seconds: 5));
+      } catch (_) {}
+    }
+    await push.deleteRegistration();
+  }
 
   Future<void> resetPassword(String email) => _auth.resetPassword(email);
 

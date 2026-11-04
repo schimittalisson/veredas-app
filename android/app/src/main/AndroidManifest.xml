@@ -9,6 +9,15 @@
       a permissão pelo outro manifesto.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!--
+      Lembrete da lavanderia: sem isto, desligar o celular apaga os lembretes
+      agendados, e o plugin não tem como reagendá-los ao ligar.
+
+      POST_NOTIFICATIONS (Android 13+) já vem do manifesto do plugin. Não há
+      SCHEDULE_EXACT_ALARM de propósito: o lembrete é inexato (ver
+      `PluginLocalNotifications.schedule`).
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
     <application
         android:label="JOCUM Veredas"
@@ -46,6 +55,33 @@
                 <data android:host="login-callback"/>
             </intent-filter>
         </activity>
+        <!-- Lembretes agendados (flutter_local_notifications). -->
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- Push (FCM). O app registra o aparelho por FID (Firebase
+             Installation ID), não pelo token depreciado; sem esta flag o FCM
+             não emite o FID. -->
+        <meta-data
+            android:name="firebase_messaging_installation_id_enabled"
+            android:value="true" />
+        <!-- Push que chega com o app fechado é mostrado pelo próprio FCM:
+             estes dois dizem em que canal e com que ícone. O canal é criado
+             pelo app (`PluginLocalNotifications.init`). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="announcements" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

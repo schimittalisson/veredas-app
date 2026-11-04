@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- O ícone da notificação é procurado pelo NOME em tempo de execução
+     (`AndroidInitializationSettings('ic_notification')`), e o shrink de
+     recursos do release não enxerga esse uso: sem isto ele apaga o arquivo e
+     a notificação falha em silêncio — só no release, nunca no emulador. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_notification" />

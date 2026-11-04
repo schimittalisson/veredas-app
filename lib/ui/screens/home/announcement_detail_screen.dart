@@ -11,6 +11,7 @@ import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/home_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
+import 'package:veredas/providers/sync_providers.dart';
 import 'package:veredas/ui/navigation/app_router.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/confirm_dialog.dart';
@@ -41,7 +42,11 @@ class AnnouncementDetailScreen extends ConsumerWidget {
     final colors = context.colors;
     final announcement = ref.watch(announcementByIdProvider(announcementId));
     final isAdmin = ref.watch(isAdminProvider);
-    final loading = ref.watch(announcementsProvider).isLoading;
+    // Aberto pelo toque num push, o aviso pode ainda estar a caminho do
+    // cache: o coordenador de notificações dispara o sync antes de abrir
+    // esta tela. Enquanto ele roda, "carregando", e não "removido".
+    final loading = ref.watch(announcementsProvider).isLoading ||
+        ref.watch(syncStatusProvider) == SyncStatus.syncing;
 
     return CupertinoPageScaffold(
       backgroundColor: colors.groupedBackground,

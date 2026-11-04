@@ -88,5 +88,18 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<!-- Push de aviso novo. `remote-notification` deixa o iOS acordar o app
+	     quando um push chega; o FCM o exige para entregar com o app em
+	     segundo plano. -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<!-- O app registra o aparelho por FID (Firebase Installation ID), não pelo
+	     token depreciado. Sem esta chave o FCM não emite o FID. Vai aqui, e
+	     não no GoogleService-Info.plist, que este app não usa (a configuração
+	     do Firebase vem por dart-define). -->
+	<key>FirebaseMessagingInstallationIdEnabled</key>
+	<true/>
 </dict>
 </plist>

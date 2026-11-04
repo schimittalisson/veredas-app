@@ -137,6 +137,8 @@ sem elas o app compila mas quebra em funcionalidades específicas:
 | 24 | `20261004000100_aluno_role.sql` | valor `aluno` no enum `app_role` (arquivo próprio: valor novo de enum não pode ser usado na mesma transação) | A 25 falha ao aplicar |
 | 25 | `20261004000200_eted.sql` | papel de aluno (sem mural), coluna `weekly_slots.schedule`, tabela `schedule_managers` e RPCs dos líderes da ETED | **O sync inteiro para** no app novo (tabela que ele espera) |
 | 26 | `20261021000100_explicit_table_grants.sql` | `grant` explícito para `authenticated`/`service_role` em todas as tabelas e views de `public` | Tabela criada depois de 30/10/2026 (ou num projeto recriado do zero) responde "permission denied" ao app |
+| 27 | `20261104000100_prayer_comments.sql` | comentários no mural: excluir com RETURNING, admin não reescreve, denúncia de comentário (`comment_id` em `content_reports`) | Excluir comentário falha (42501); denunciar comentário falha (coluna inexistente) |
+| 28 | `20261104000200_push_notifications.sql` | tabela `push_devices`, RPCs `register/unregister_push_device`, trigger que chama a Edge Function de push a cada aviso novo | Push de aviso novo não funciona; **o resto do app segue** (o registro do aparelho falha em silêncio). Configuração completa no Passo 10 |
 
 > **A 26 vai logo depois da 25, sempre.** Desde 30/10/2026 o Supabase não dá
 > mais acesso automático pela Data API a tabela nova do `public`. Se a 25 for
@@ -493,3 +495,134 @@ supabase db reset                # aplica migrations + seed.sql do zero
 
 `supabase start` imprime uma `API URL` e uma `anon key` locais — use-as num
 `env/local.json` para rodar o app contra o banco local.
+
+---
+
+## Passo 10 — Notificações push (aviso novo)
+
+O lembrete da lavanderia é **local** (agendado no próprio aparelho) e não
+precisa de nada deste passo. Só o push de **aviso novo** precisa.
+
+Caminho do aviso até o celular:
+
+```
+admin publica aviso → insert em announcements
+  → trigger announcements_notify (migration 28) → pg_net
+  → Edge Function notify-announcement (supabase/functions/)
+  → FCM HTTP v1 (campo `fid`) → APNs/Android → celular
+```
+
+São cinco partes. Todas são feitas uma vez só. Sem elas, o app abre e funciona
+normalmente; só o push de aviso fica desligado.
+
+### 10.1 Projeto no Firebase
+
+**Um projeto só, com dois apps dentro** (Android e iOS). O projeto é o que
+envia; os apps são as plataformas que recebem.
+
+1. Em <https://console.firebase.google.com>, **Criar projeto** (ex.:
+   `veredas`). O Google Analytics não é necessário — pode desligar.
+2. Na página do projeto, **Adicionar app → Android**: pacote
+   `br.com.veredas.app`, apelido `Veredas Android`. O SHA-1 é opcional (push
+   não usa). **Baixe o `google-services.json`**, mas só para ler os valores
+   no 10.3 — não o coloque no projeto. Pule os passos de SDK.
+3. **Adicionar app → iOS**: bundle ID `br.com.veredas.app`, apelido
+   `Veredas iOS`. Mesma coisa com o `GoogleService-Info.plist`: baixe para
+   ler e pule o resto.
+
+### 10.2 Chave do APNs (só iOS)
+
+O iPhone só recebe push pela Apple; o Firebase entrega à Apple com uma chave.
+
+1. Em <https://developer.apple.com/account> → **Certificates, Identifiers &
+   Profiles → Identifiers → br.com.veredas.app**: marque **Push
+   Notifications** e salve.
+2. **Keys → +**: nome `Veredas APNs`, marque **Apple Push Notifications
+   service (APNs)**, crie e **baixe o `.p8`** (só dá para baixar uma vez).
+   Anote o **Key ID** e o **Team ID** (canto superior direito).
+3. No Firebase: **Configurações do projeto → Cloud Messaging → app iOS →
+   Chave de autenticação de APNs → Enviar**: o `.p8`, o Key ID e o Team ID.
+
+> **O perfil de provisionamento antigo não tem push.** Depois de ligar a
+> capability no App ID, o próximo build do Codemagic precisa de um perfil
+> novo. Se ele falhar com *"Provisioning profile doesn't include the
+> aps-environment entitlement"*, apague o perfil App Store antigo em
+> **Profiles** no portal da Apple e rode o build de novo — o Codemagic cria
+> outro, já com push.
+
+### 10.3 Configuração do app (dart-define)
+
+Os valores saem dos dois arquivos baixados no 10.1. Acrescente ao
+`env/dev.json` e ao `env/prod.json` (modelo em `env/dev.example.json`):
+
+| Chave | `google-services.json` (Android) | `GoogleService-Info.plist` (iOS) |
+|---|---|---|
+| `FIREBASE_PROJECT_ID` | `project_info.project_id` | `PROJECT_ID` |
+| `FIREBASE_MESSAGING_SENDER_ID` | `project_info.project_number` | `GCM_SENDER_ID` |
+| `FIREBASE_API_KEY_ANDROID` | `client[0].api_key[0].current_key` | — |
+| `FIREBASE_APP_ID_ANDROID` | `client[0].client_info.mobilesdk_app_id` | — |
+| `FIREBASE_API_KEY_IOS` | — | `API_KEY` |
+| `FIREBASE_APP_ID_IOS` | — | `GOOGLE_APP_ID` |
+
+Use as chaves de cada plataforma, e não a "Chave de API da Web" da página do
+projeto: o Firebase cria uma chave restrita para cada app.
+
+Nenhum desses valores é segredo (vão dentro de qualquer app Firebase). **No
+Codemagic**, adicione as seis variáveis ao mesmo grupo onde estão
+`SUPABASE_URL`/`SUPABASE_ANON_KEY` — o script de build as copia para o
+`env/prod.json`.
+
+### 10.4 Edge Function
+
+No terminal, com o [Supabase CLI](https://supabase.com/docs/guides/cli)
+(`npx supabase` funciona sem instalar):
+
+```bash
+npx supabase login
+npx supabase link --project-ref vwstkxemtkdlsagricsh
+
+# Segredo compartilhado entre o banco e a função. Gere um aleatório:
+SECRET=$(openssl rand -hex 32); echo "$SECRET"   # guarde para o 10.5
+
+npx supabase secrets set PUSH_WEBHOOK_SECRET="$SECRET"
+# A conta de serviço: Firebase → Configurações do projeto → Contas de
+# serviço → Gerar nova chave privada. É o ÚNICO segredo de verdade aqui.
+npx supabase secrets set FIREBASE_SERVICE_ACCOUNT="$(cat ~/Downloads/veredas-firebase-adminsdk-xxxx.json)"
+
+npx supabase functions deploy notify-announcement --no-verify-jwt
+```
+
+`--no-verify-jwt` é obrigatório: quem chama a função é o banco, não um usuário
+logado. A proteção é o `PUSH_WEBHOOK_SECRET`.
+
+**Não commite o JSON da conta de serviço** nem o deixe na pasta do projeto:
+com ele, qualquer um envia push em nome da base. Depois do `secrets set`,
+apague o arquivo baixado.
+
+### 10.5 Ligar o banco à função
+
+No SQL Editor (troque o segredo pelo gerado no 10.4):
+
+```sql
+select vault.create_secret(
+  'https://vwstkxemtkdlsagricsh.supabase.co/functions/v1/notify-announcement',
+  'push_function_url');
+select vault.create_secret('COLE_AQUI_O_SECRET', 'push_webhook_secret');
+```
+
+Confira que o `pg_net` está ativo (**Database → Extensions → pg_net**). A
+migration 28 o ativa quando está disponível.
+
+### 10.6 Testar
+
+1. Instale o build novo num celular, entre com uma conta aprovada e **aceite**
+   a permissão de notificação. A linha do aparelho aparece em
+   `select user_id, platform, updated_at from push_devices;`.
+2. Com **outra** conta de admin (quem escreve não recebe), publique um aviso.
+3. Se não chegar, veja em ordem:
+   - `select status_code, content from net._http_response order by created desc limit 5;`
+     — a resposta da função (401: segredo diferente entre Vault e função).
+   - **Edge Functions → notify-announcement → Logs**: `{ sent, invalid, failed }`.
+     `failed > 0` no iOS quase sempre é a chave APNs (10.2).
+
+Para testar a função sem banco: `npx tsx supabase/functions/notify-announcement/fcm_test.ts`.

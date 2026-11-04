@@ -623,5 +623,22 @@
   "prayer_comment_delete_confirm": "Excluir este comentário?",
   "prayer_comment_report_title": "Por que você está denunciando este comentário?",
   "prayer_comment_report_sent": "Denúncia enviada. Este comentário não aparece mais para você.",
-  "prayer_comment_report_already": "Você já denunciou este comentário."
+  "prayer_comment_report_already": "Você já denunciou este comentário.",
+
+  "notification_channel_announcements": "Avisos da base",
+  "notification_channel_laundry": "Lembretes da lavanderia",
+  "notification_announcement_fallback_title": "Novo aviso",
+  "laundry_reminder_title": "Lavanderia em {minutes} minutos",
+  "@laundry_reminder_title": {
+    "placeholders": {
+      "minutes": { "type": "int" }
+    }
+  },
+  "laundry_reminder_body": "Sua reserva na {machine} começa às {time}.",
+  "@laundry_reminder_body": {
+    "placeholders": {
+      "machine": { "type": "String" },
+      "time": { "type": "String" }
+    }
+  }
 }

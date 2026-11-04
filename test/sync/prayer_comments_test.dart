@@ -321,6 +321,52 @@ void main() {
     });
   });
 
+  group('migration até a v9', () {
+    test('quem vem de antes da v7 também abre (v6 -> v9)', () async {
+      // O passo v7 cria `content_report_rows` com a definição atual, que já
+      // tem as colunas de comentário. O passo v9 não pode adicioná-las de
+      // novo: era "duplicate column name" e o app não abria.
+      await db.customStatement('DROP TABLE content_report_rows');
+      await db.customStatement('DROP TABLE user_block_rows');
+      await db.customStatement('DROP TABLE schedule_manager_rows');
+      await db.customStatement(
+        'ALTER TABLE weekly_slot_rows DROP COLUMN schedule',
+      );
+
+      await db.migration.onUpgrade(Migrator(db), 6, 9);
+
+      await db.into(db.contentReportRows).insert(
+            ContentReportRowsCompanion.insert(
+              id: 'r1',
+              reporterId: _me,
+              postId: 'p1',
+              reason: 'spam',
+              commentId: const Value('c1'),
+              createdAt: DateTime.utc(2026, 11, 1),
+              updatedAt: DateTime.utc(2026, 11, 1),
+            ),
+          );
+      expect(
+        (await db.select(db.contentReportRows).getSingle()).commentId,
+        'c1',
+      );
+    });
+  });
+
+  group('migration interrompida', () {
+    test('todos os passos rodam de novo sobre um cache já migrado', () async {
+      // O pior caso de um aparelho que travou no 1.1.0: passos já aplicados,
+      // versão do banco ainda antiga. O drift roda tudo de novo, e nenhum
+      // passo pode falhar por encontrar o que ele mesmo já fez.
+      await syncEntityByName('prayer_comments')!.upsert(db, _commentJson('c1'));
+
+      await db.migration.onUpgrade(Migrator(db), 1, 9);
+
+      // E nada do que estava no cache se perdeu.
+      expect(await db.prayerCommentRows.count().getSingle(), 1);
+    });
+  });
+
   group('migration v8 -> v9', () {
     test('denúncias antigas continuam, como denúncias de post', () async {
       await db.customStatement(

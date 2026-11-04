@@ -74,13 +74,28 @@ definitions:
           ;;
       esac
       mkdir -p env
+      # Firebase (push de aviso novo) é opcional: sem as variáveis o build
+      # sai igual, com o push desligado e o lembrete da lavanderia
+      # funcionando. Ficam no mesmo grupo `supabase_credentials`; ver
+      # supabase/README.md, Passo 10.3.
       cat > env/prod.json << EOF
       {
         "SUPABASE_URL": "$SUPABASE_URL",
-        "SUPABASE_ANON_KEY": "$SUPABASE_ANON_KEY"
+        "SUPABASE_ANON_KEY": "$SUPABASE_ANON_KEY",
+        "FIREBASE_PROJECT_ID": "${FIREBASE_PROJECT_ID:-}",
+        "FIREBASE_MESSAGING_SENDER_ID": "${FIREBASE_MESSAGING_SENDER_ID:-}",
+        "FIREBASE_API_KEY_ANDROID": "${FIREBASE_API_KEY_ANDROID:-}",
+        "FIREBASE_APP_ID_ANDROID": "${FIREBASE_APP_ID_ANDROID:-}",
+        "FIREBASE_API_KEY_IOS": "${FIREBASE_API_KEY_IOS:-}",
+        "FIREBASE_APP_ID_IOS": "${FIREBASE_APP_ID_IOS:-}"
       }
       EOF
       echo "env/prod.json gerado apontando para $SUPABASE_URL"
+      if [ -n "${FIREBASE_PROJECT_ID:-}" ]; then
+        echo "Push ligado (Firebase: $FIREBASE_PROJECT_ID)."
+      else
+        echo "AVISO: FIREBASE_* ausentes — build sem push de aviso novo."
+      fi
 
   # lib/l10n/app_localizations*.dart e todos os *.g.dart são gitignored (ver
   # .gitignore) — precisam ser gerados aqui, senão o compilador não encontra

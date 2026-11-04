@@ -295,6 +295,12 @@ class AppDatabase extends _$AppDatabase {
 }
 ```
 
+**Toda coluna nova entra por `_addColumnIfMissing`, nunca `m.addColumn`
+direto, e o `onUpgrade` roda dentro de `transaction`.** O drift não torna a
+migration atômica: um passo que falha deixa os anteriores gravados com a versão
+antiga, e na abertura seguinte tudo roda de novo sobre um cache meio migrado.
+Isso derrubou o 1.1.0 (ver "A migration v9 que não deixava o app abrir").
+
 O CalorieMate usa `onUpgrade: (m, from, to) => m.createAll()`. **Isso está
 errado** — `createAll` só cria tabelas inexistentes, então uma mudança de coluna
 falha em silêncio e o app quebra em produção. Escreva steps de migration de
@@ -550,6 +556,11 @@ Atualize esta seção ao concluir cada fase.
 - [x] Pós-Fase 10 — Comentários no mural (com denúncia e bloqueio) e
       detalhe do aviso. Migration `20261104000100_prayer_comments.sql`
       (ver decisões no fim). Aplicada no Supabase.
+- [x] Pós-Fase 10 — Notificações: lembrete local da reserva da lavanderia
+      (30 min antes) e push de aviso novo (FCM por FID + Edge Function
+      `notify-announcement`). Migration `20261104000200_push_notifications.sql`
+      aplicada no Supabase; configuração do Firebase/APNs pendente
+      (`supabase/README.md`, Passo 10).
 
 ### Decisões tomadas durante a execução
 
@@ -1761,3 +1772,78 @@ mostrava "0 comentários" sem nenhum jeito de comentar.
     prayer_comments_test.dart` (13 testes), `test/ui/
     prayer_comments_screen_test.dart` (5) e `test/ui/
     announcement_detail_test.dart` (3).
+
+#### A migration v9 que não deixava o app abrir (pós-Fase 10)
+
+Achado ao rodar o app no emulador para testar as notificações: com um cache
+anterior à v7, o build **1.1.0** (o dos comentários, já no TestFlight) não
+abria.
+
+1. **Causa.** O passo v7 cria `content_report_rows` com `createTable`, que usa
+   a definição **atual** da tabela — já com as colunas de comentário da v9. O
+   passo v9 fazia `addColumn` delas de novo: "duplicate column name". O teste
+   de migration partia da v8 e não passava por esse caminho.
+2. **Pior: a falha não se desfazia.** O drift não roda o `onUpgrade` numa
+   transação. O cache ficou meio migrado com a versão antiga, e na abertura
+   seguinte (já com a v9 corrigida) quem falhou foi a v4: `member_ids` já
+   existia. Sem a segunda correção, um aparelho que travou continuaria
+   travado para sempre.
+3. **Correção:** o `onUpgrade` inteiro roda em `transaction`, e todo
+   `addColumn` virou `_addColumnIfMissing` (confere `PRAGMA table_info`).
+   `createTable` já é `IF NOT EXISTS`, e o `alterTable` da v6 recria a tabela;
+   os dois podem rodar de novo.
+4. **Verificado no emulador**, com o cache meio migrado que o 1.1.0 deixou: o
+   build corrigido abre, com a sessão e os dados.
+5. Testes em `test/sync/prayer_comments_test.dart`: v6→v9 (confirmado falhando
+   com o código do 1.1.0) e "todos os passos rodam de novo sobre um cache já
+   migrado" (v1→v9 sobre o schema atual).
+
+#### Notificações: lembrete da lavanderia e push de aviso novo (pós-Fase 10)
+
+1. **O lembrete é local, não push.** Agendado no próprio aparelho
+   (`flutter_local_notifications`), funciona sem sinal e sem Firebase. Chega
+   30 minutos antes (`laundryReminderLead`), até 14 dias à frente.
+2. **Reconciliação, não eventos.** O plano (`plannedLaundryRemindersProvider`)
+   sai do cache a cada mudança, e o `LaundryReminderScheduler` cancela o que
+   saiu e agenda o resto. Reserva feita em outro aparelho, desmarcada pelo
+   admin, horário mudado e logout chegam todos pelo mesmo stream. O plano é
+   **nulo enquanto carrega**: vazio cancelaria tudo na abertura.
+3. **Alarme inexato** (`inexactAllowWhileIdle`). O exato exige
+   `SCHEDULE_EXACT_ALARM`, que no Android 14 começa negado e manda a pessoa
+   para uma tela de configuração. Com 30 min de antecedência, minutos de
+   variação não importam.
+4. **Push por FID, não por token.** O `firebase_messaging` 17 depreciou
+   `getToken`/`onTokenRefresh`, o FCM HTTP v1 depreciou `message.token`, e o
+   Firebase pede para não misturar as duas APIs. O app registra o FID
+   (`onRegistered` assinado **antes** de `register()`), a Edge Function envia
+   para `message.fid`. Exige `firebase_messaging_installation_id_enabled`
+   (Android) e `FirebaseMessagingInstallationIdEnabled` (iOS).
+5. **Firebase por dart-define**, sem `google-services.json` nem
+   `GoogleService-Info.plist`: mesmos valores, sem arquivo novo e sem plugin de
+   Gradle, e o Codemagic recebe tudo pelo `env/prod.json`. Sem os `FIREBASE_*`
+   o push fica desligado e o resto do app segue.
+6. **`push_devices` + RPCs, não escrita direta.** O FID é do aparelho: quando
+   outra pessoa entra no mesmo celular, ele muda de dono, e o RLS recusaria o
+   upsert. Exceção consciente ao outbox (comentada em `push_messaging.dart`).
+7. **Logout tira o aparelho antes de a sessão cair** (`AuthActions.signOut`):
+   a RPC precisa do usuário logado. Falha de rede não impede o logout — o
+   `unregister()` no FCM invalida o FID e a função apaga o registro no envio
+   seguinte. Coberto por teste de ordem.
+8. **O trigger nunca derruba o aviso.** URL e segredo no Vault, `pg_net`
+   assíncrono, tudo em `exception when others`. O harness (sem `pg_net` nem
+   Vault) prova que o aviso grava mesmo assim.
+9. **Um 400 do FCM não apaga o aparelho**, só 404/`UNREGISTERED`: um 400 pode
+   ser erro na própria mensagem, e apagar por isso tiraria a base inteira da
+   lista de uma vez.
+10. **iOS mínimo subiu de 13 para 15** — exigência do Firebase iOS SDK 13.
+    Ficam de fora só iPhones anteriores ao 6s.
+11. **Permissão pedida depois do login**, não na abertura: um pedido do
+    sistema só, que vale para o lembrete e para o push.
+12. **Ícone `ic_notification` monocromático + `res/raw/keep.xml`.** O ícone é
+    procurado pelo nome em tempo de execução, e o shrink de recursos do release
+    o apagaria — a notificação falharia em silêncio, só no release. Conferido
+    no APK de release com `aapt2 dump resources`.
+13. Testes: `test/core/laundry_reminders_test.dart` (10),
+    `test/core/notification_wiring_test.dart` (5), 6 asserções no harness
+    (§20), `supabase/functions/notify-announcement/fcm_test.ts` (JWT RS256
+    verificado com chave gerada na hora; roda com `npx tsx`).

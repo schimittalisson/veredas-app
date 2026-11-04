@@ -1255,6 +1255,70 @@ begin;
 rollback;
 
 \echo ''
+\echo '=========== 20. Aparelhos para push ==========='
+begin;
+  select test.act_as(:'comum');
+  select test.expect_allowed('obreiro registra o token do aparelho',
+    $q$select public.register_push_device('token-aparelho-0001', 'android')$q$);
+  select test.expect_count('e ve o proprio token',
+    'select count(*) from public.push_devices', 1);
+  select test.expect_denied('obreiro NAO grava token direto na tabela',
+    $q$insert into public.push_devices (fid, user_id, platform)
+       values ('token-forjado-0001', '33333333-3333-3333-3333-333333333333', 'ios')$q$);
+  reset role;
+
+  -- O mesmo aparelho, agora com outra pessoa logada: o token muda de dono.
+  select test.act_as(:'gerente');
+  select test.expect_allowed('outra pessoa no mesmo aparelho assume o token',
+    $q$select public.register_push_device('token-aparelho-0001', 'android')$q$);
+  select test.expect_count('o token passou a ser do gerente',
+    $q$select count(*) from public.push_devices
+        where user_id = '22222222-2222-2222-2222-222222222222'$q$, 1);
+  reset role;
+
+  select test.act_as(:'comum');
+  select test.expect_count('o dono anterior nao ve mais o token',
+    'select count(*) from public.push_devices', 0);
+  -- Remover o token de outra pessoa nao faz nada.
+  select public.unregister_push_device('token-aparelho-0001');
+  reset role;
+  select test.expect_count('unregister de token alheio nao apaga',
+    'select count(*) from public.push_devices', 1);
+
+  select test.act_as(:'gerente');
+  select public.unregister_push_device('token-aparelho-0001');
+  reset role;
+  select test.expect_count('unregister do proprio token apaga',
+    'select count(*) from public.push_devices', 0);
+rollback;
+
+begin;
+  set local role anon;
+  select test.expect_error_like('anon NAO registra token',
+    $q$select public.register_push_device('token-anon-000001', 'ios')$q$,
+    '%FORBIDDEN_NOT_AUTHENTICATED%');
+rollback;
+
+begin;
+  insert into public.push_devices (fid, user_id, platform)
+  values ('token-removido-0001', '33333333-3333-3333-3333-333333333333', 'ios');
+  update public.profiles set deleted_at = now(), is_approved = false
+   where id = '33333333-3333-3333-3333-333333333333';
+  select test.expect_count('membro removido perde os tokens',
+    'select count(*) from public.push_devices', 0);
+rollback;
+
+begin;
+  -- Sem pg_net e sem Vault (o caso do harness), o aviso entra do mesmo jeito.
+  update public.profiles set role = 'admin'
+   where id = '22222222-2222-2222-2222-222222222222';
+  select test.act_as(:'gerente');
+  select test.expect_allowed('aviso novo grava mesmo sem o push configurado',
+    $q$insert into public.announcements (author_id, title, body)
+       values ('22222222-2222-2222-2222-222222222222', 'Teste', 'Corpo')$q$);
+rollback;
+
+\echo ''
 \echo '=========== 18. Toda tabela e view publica tem grant explicito ==========='
 -- Desde 30/10/2026 o Supabase nao concede acesso automatico a tabela nova.
 -- O harness tambem nao concede (01_fixtures.sql): uma migration que crie

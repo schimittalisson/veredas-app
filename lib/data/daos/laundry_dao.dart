@@ -71,4 +71,20 @@ class LaundryDao {
           ..where((t) => t.onDate.isBetweenValues(from, to)))
         .watch();
   }
+
+  /// Reservas de [userId] a partir de [from] (inclusive) — as que podem
+  /// ganhar lembrete. Vale também para reserva feita em outro aparelho: ela
+  /// chega pelo sync e o lembrete é agendado aqui.
+  Stream<List<LaundryReservationRow>> watchUpcomingReservationsOf(
+    String userId,
+    DateTime from,
+  ) {
+    return (_db.select(_db.laundryReservationRows)
+          ..where(
+            (t) =>
+                t.userId.equals(userId) &
+                t.onDate.isBiggerOrEqualValue(from),
+          ))
+        .watch();
+  }
 }
