@@ -46,11 +46,27 @@ class ModerationDao {
 
   /// Posts que [reporterId] denunciou. Resolvidos ou não: quem denunciou não
   /// quer voltar a ver o post só porque o admin decidiu mantê-lo.
+  ///
+  /// Só denúncias **de post**: a denúncia de comentário também carrega o
+  /// `postId` (do post em que o comentário está), e sem o filtro denunciar um
+  /// comentário esconderia a oração inteira.
   Stream<Set<String>> watchReportedPostIds(String reporterId) {
     return (db.select(db.contentReportRows)
-          ..where((t) => t.reporterId.equals(reporterId)))
+          ..where(
+            (t) => t.reporterId.equals(reporterId) & t.commentId.isNull(),
+          ))
         .watch()
         .map((rows) => {for (final r in rows) r.postId});
+  }
+
+  /// Comentários que [reporterId] denunciou.
+  Stream<Set<String>> watchReportedCommentIds(String reporterId) {
+    return (db.select(db.contentReportRows)
+          ..where(
+            (t) => t.reporterId.equals(reporterId) & t.commentId.isNotNull(),
+          ))
+        .watch()
+        .map((rows) => {for (final r in rows) r.commentId!});
   }
 
   /// Denúncias ainda sem decisão, as mais antigas primeiro — é a ordem em que

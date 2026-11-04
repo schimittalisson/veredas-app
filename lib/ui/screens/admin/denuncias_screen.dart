@@ -25,7 +25,12 @@ import 'package:veredas/ui/widgets/pull_to_refresh.dart';
 /// autor nem vê mais o post no feed.
 ///
 /// Toda ação resolve a denúncia. "Excluir" e "Remover da base" também apagam o
-/// post; "Manter" só tira a denúncia da fila.
+/// conteúdo denunciado — o post, ou o comentário; "Manter" só tira a denúncia
+/// da fila.
+///
+/// Numa denúncia de comentário, o título do post aparece como contexto, mas o
+/// que se julga (e o que se apaga) é o comentário, e o autor mostrado é o do
+/// comentário. O autor de um pedido anônimo continua sem aparecer.
 class DenunciasScreen extends ConsumerWidget {
   const DenunciasScreen({super.key});
 
@@ -95,6 +100,7 @@ class _ReportCard extends ConsumerWidget {
     final l = AppLocalizations.of(context);
     final colors = context.colors;
     final authorName = _authorName(ref);
+    final isComment = report.commentId != null;
 
     final reasonLabel = switch (ReportReason.fromWire(report.reason)) {
       ReportReason.offensive => l.report_reason_offensive,
@@ -124,7 +130,13 @@ class _ReportCard extends ConsumerWidget {
                         .copyWith(color: colors.destructive),
                   ),
                   const SizedBox(height: 6),
-                  if (report.postTitle != null)
+                  if (isComment)
+                    Text(
+                      l.admin_reports_comment_on(report.postTitle ?? ''),
+                      style: AppTypography.footnote
+                          .copyWith(color: colors.secondaryLabel),
+                    )
+                  else if (report.postTitle != null)
                     Text(
                       report.postTitle!,
                       style:
@@ -132,7 +144,8 @@ class _ReportCard extends ConsumerWidget {
                     ),
                   const SizedBox(height: 2),
                   Text(
-                    report.postBody ?? l.admin_reports_text_unavailable,
+                    (isComment ? report.commentBody : report.postBody) ??
+                        l.admin_reports_text_unavailable,
                     maxLines: 6,
                     overflow: TextOverflow.ellipsis,
                     style:
@@ -157,18 +170,23 @@ class _ReportCard extends ConsumerWidget {
     );
   }
 
+  /// Quem escreveu o conteúdo denunciado: o comentário, se a denúncia é de
+  /// comentário; senão, o post.
+  String? get _authorId =>
+      report.commentId != null ? report.commentAuthorId : report.postAuthorId;
+
   /// Nome do autor, ou `null` quando o pedido é anônimo.
   ///
   /// O anonimato vale também para o admin: a tela não revela quem escreveu um
   /// pedido anônimo, e por isso não oferece "remover da base" nele — excluir
-  /// o pedido resolve a denúncia sem expor ninguém.
+  /// o pedido resolve a denúncia sem expor ninguém. Comentário nunca é
+  /// anônimo, mesmo num pedido anônimo.
   String? _authorName(WidgetRef ref) {
-    if (report.postIsAnonymous || report.postAuthorId == null) return null;
+    final authorId = _authorId;
+    if (authorId == null) return null;
+    if (report.commentId == null && report.postIsAnonymous) return null;
     final profiles = ref.watch(allProfilesProvider).value ?? const [];
-    return profiles
-        .where((p) => p.id == report.postAuthorId)
-        .firstOrNull
-        ?.fullName;
+    return profiles.where((p) => p.id == authorId).firstOrNull?.fullName;
   }
 
   Future<void> _showActions(
@@ -180,8 +198,9 @@ class _ReportCard extends ConsumerWidget {
     final currentUserId = ref.read(currentUserIdProvider);
     // Sem nome não há como confirmar quem sai, e o próprio admin não se
     // remove por aqui (a tela de Membros tem a proteção do último admin).
-    final canRemoveAuthor =
-        authorName != null && report.postAuthorId != currentUserId;
+    final isComment = report.commentId != null;
+    final authorId = _authorId;
+    final canRemoveAuthor = authorName != null && authorId != currentUserId;
 
     final action = await showCupertinoModalPopup<String>(
       context: context,
@@ -190,7 +209,11 @@ class _ReportCard extends ConsumerWidget {
           CupertinoActionSheetAction(
             onPressed: () => Navigator.of(sheetContext).pop('delete'),
             isDestructiveAction: true,
-            child: Text(l.admin_reports_delete_post),
+            child: Text(
+              isComment
+                  ? l.admin_reports_delete_comment
+                  : l.admin_reports_delete_post,
+            ),
           ),
           if (canRemoveAuthor)
             CupertinoActionSheetAction(
@@ -200,7 +223,9 @@ class _ReportCard extends ConsumerWidget {
             ),
           CupertinoActionSheetAction(
             onPressed: () => Navigator.of(sheetContext).pop('keep'),
-            child: Text(l.admin_reports_keep),
+            child: Text(
+              isComment ? l.admin_reports_keep_comment : l.admin_reports_keep,
+            ),
           ),
         ],
         cancelButton: CupertinoActionSheetAction(
@@ -216,14 +241,18 @@ class _ReportCard extends ConsumerWidget {
     if (action == 'delete') {
       confirmed = await ConfirmDialog.show(
         context,
-        title: l.prayer_delete_confirm,
+        title: isComment
+            ? l.admin_reports_delete_comment_confirm
+            : l.prayer_delete_confirm,
         confirmLabel: l.action_delete,
       );
     } else if (action == 'remove') {
       confirmed = await ConfirmDialog.show(
         context,
         title: l.admin_reports_remove_member(authorName!),
-        message: l.admin_reports_remove_confirm(authorName),
+        message: isComment
+            ? l.admin_reports_remove_confirm_comment(authorName)
+            : l.admin_reports_remove_confirm(authorName),
         confirmLabel: l.admin_action_remove,
       );
     }
@@ -241,7 +270,7 @@ class _ReportCard extends ConsumerWidget {
       // — por exemplo, sem conexão. Vem primeiro para que, se falhar, a
       // denúncia continue na fila em vez de sumir sem a ação ter acontecido.
       if (action == 'remove') {
-        await admin.softDeleteUser(userId: report.postAuthorId!);
+        await admin.softDeleteUser(userId: authorId!);
       }
       // Resolver antes de apagar: as duas vão pela outbox, na ordem, e o
       // trigger do servidor também resolve ao apagar — a ordem só importa
@@ -251,7 +280,11 @@ class _ReportCard extends ConsumerWidget {
         resolvedBy: currentUserId,
       );
       if (action != 'keep') {
-        await prayers.deletePost(report.postId);
+        if (isComment) {
+          await prayers.deleteComment(report.commentId!);
+        } else {
+          await prayers.deletePost(report.postId);
+        }
       }
       showAppToastIn(overlay, colors, l.admin_reports_resolved);
     } catch (_) {

@@ -257,7 +257,7 @@ void main() {
     expect(find.text('Pedido do Beto'), findsOneWidget);
     expect(
       find.text(
-        'Bloqueio feito. Os pedidos dessa pessoa não aparecem mais para você.',
+        'Bloqueio feito. Os pedidos e comentários dessa pessoa não aparecem mais para você.',
       ),
       findsOneWidget,
     );

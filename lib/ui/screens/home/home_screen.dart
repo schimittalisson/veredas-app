@@ -15,6 +15,7 @@ import 'package:veredas/providers/auth_providers.dart';
 import 'package:veredas/providers/home_providers.dart';
 import 'package:veredas/providers/infra_providers.dart';
 import 'package:veredas/ui/navigation/app_router.dart';
+import 'package:veredas/ui/screens/home/announcement_detail_screen.dart';
 import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/confirm_dialog.dart';
 import 'package:veredas/ui/widgets/terms_link.dart';
@@ -590,7 +591,7 @@ class _PinnedAnnouncement extends ConsumerWidget {
       await ref.read(homeRepositoryProvider).deleteAnnouncement(id);
     } catch (e) {
       if (context.mounted) {
-        showAppToast(context, _deleteErrorMessage(l, e), isError: true);
+        showAppToast(context, announcementDeleteErrorMessage(l, e), isError: true);
       }
     }
   }
@@ -1035,7 +1036,7 @@ class _AnnouncementTile extends ConsumerWidget {
       await ref.read(homeRepositoryProvider).deleteAnnouncement(announcement.id);
     } catch (e) {
       if (context.mounted) {
-        showAppToast(context, _deleteErrorMessage(l, e), isError: true);
+        showAppToast(context, announcementDeleteErrorMessage(l, e), isError: true);
       }
     }
     return false;
@@ -1065,11 +1066,11 @@ class _AnnouncementTile extends ConsumerWidget {
         size: 16,
         color: colors.tertiaryLabel,
       ),
-      onTap: () {
-        // Detalhe do aviso: por ora, abre o editor em modo visualização.
-        // TODO: tela de detalhe dedicada (/aviso/:id) quando houver
-        // comentários ou anexos.
-      },
+      // O título corta em duas linhas; o texto inteiro, e o editar do admin,
+      // moram no detalhe. Antes o toque não fazia nada e um aviso não fixado
+      // não tinha como ser lido por inteiro nem editado.
+      onTap: () =>
+          context.push('${Routes.avisoDetalhe}?id=${announcement.id}'),
     );
   }
 }
@@ -1112,22 +1113,4 @@ class _DeleteSwipeBackground extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Mensagem do l10n para uma falha ao excluir — a tela nunca mostra o
-/// `toString()` de uma exceção do Postgrest (AGENTS.md §6, regra 6).
-String _deleteErrorMessage(AppLocalizations l, Object error) {
-  final code = error is AppException ? error.code : null;
-  return switch (code) {
-    AppErrorCode.permissionDenied ||
-    AppErrorCode.forbidden =>
-      l.auth_error_permission_denied,
-    AppErrorCode.permissionDeniedOrStale ||
-    AppErrorCode.notFound =>
-      l.auth_error_permission_denied_or_stale,
-    AppErrorCode.noConnection => l.error_no_connection,
-    AppErrorCode.timeout => l.auth_error_timeout,
-    AppErrorCode.serverUnavailable => l.auth_error_server_unavailable,
-    _ => l.auth_error_unknown,
-  };
 }

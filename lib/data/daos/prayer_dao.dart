@@ -2,6 +2,9 @@ import 'package:drift/drift.dart';
 
 import 'package:veredas/data/local/app_database.dart';
 
+/// Um comentário com o nome do autor vindo do cache de perfis.
+typedef PrayerComment = ({PrayerCommentRow row, String? authorName});
+
 /// DAO do mural de oração: feed (view) e comentários.
 class PrayerDao {
   PrayerDao(this.db);
@@ -53,6 +56,38 @@ class PrayerDao {
           ..where((t) => t.postId.equals(postId))
           ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
         .watch();
+  }
+
+  /// Comentários de um post com o nome do autor, do mais antigo ao mais
+  /// novo — a ordem de uma conversa.
+  ///
+  /// O servidor não manda o nome com o comentário; ele vem do cache de
+  /// perfis. [PrayerComment.authorName] é nulo quando o perfil não está lá
+  /// (membro removido, ou perfil ainda não sincronizado).
+  Stream<List<PrayerComment>> watchCommentsWithAuthor(String postId) {
+    final query = (db.select(db.prayerCommentRows)
+          ..where((t) => t.postId.equals(postId))
+          ..orderBy([(t) => OrderingTerm.asc(t.createdAt)]))
+        .join([
+      leftOuterJoin(
+        db.profileRows,
+        db.profileRows.id.equalsExp(db.prayerCommentRows.authorId),
+      ),
+    ]);
+    return query.watch().map(
+          (rows) => [
+            for (final r in rows)
+              (
+                row: r.readTable(db.prayerCommentRows),
+                authorName: r.readTableOrNull(db.profileRows)?.fullName,
+              ),
+          ],
+        );
+  }
+
+  /// Todos os comentários do cache, para a contagem por post no feed.
+  Stream<List<PrayerCommentRow>> watchAllComments() {
+    return db.select(db.prayerCommentRows).watch();
   }
 
   Future<PrayerCommentRow?> getComment(String id) {

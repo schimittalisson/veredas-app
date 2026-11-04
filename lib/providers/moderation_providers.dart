@@ -35,6 +35,16 @@ final reportedPostIdsProvider = StreamProvider<Set<String>>((ref) {
   return ref.watch(moderationDaoProvider).watchReportedPostIds(userId);
 });
 
+/// Comentários que o usuário logado denunciou. Mesma regra de
+/// [reportedPostIdsProvider]: para o admin, a denúncia não esconde nada.
+final reportedCommentIdsProvider = StreamProvider<Set<String>>((ref) {
+  final userId = ref.watch(currentUserIdProvider);
+  if (userId == null || ref.watch(isAdminProvider)) {
+    return Stream.value(const {});
+  }
+  return ref.watch(moderationDaoProvider).watchReportedCommentIds(userId);
+});
+
 /// Denúncias pendentes (tela Administração → Denúncias).
 final pendingReportsProvider = StreamProvider<List<ContentReportRow>>((ref) {
   return ref.watch(moderationDaoProvider).watchPendingReports();

@@ -228,6 +228,9 @@
   "home_announcement_body_label": "Corpo do aviso",
   "home_announcement_pinned": "Fixar no topo",
   "home_announcement_saved": "Aviso salvo.",
+  "home_announcement_detail_title": "Aviso",
+  "home_announcement_not_found": "Este aviso foi removido.",
+  "home_announcement_pinned_badge": "Fixado no topo",
   "home_base_info_edit": "Editar",
   "home_base_info_edit_title": "Editar dado da base",
   "home_base_info_value_label": "Valor",
@@ -538,15 +541,15 @@
       "name": { "type": "String" }
     }
   },
-  "prayer_block_confirm_message": "Você deixa de ver os pedidos de oração dessa pessoa, e ela não é avisada. Para desfazer, toque no seu avatar na tela Início e escolha \"Usuários bloqueados\".",
+  "prayer_block_confirm_message": "Você deixa de ver os pedidos de oração e os comentários dessa pessoa, e ela não é avisada. Para desfazer, toque no seu avatar na tela Início e escolha \"Usuários bloqueados\".",
   "prayer_block_action": "Bloquear",
-  "prayer_block_done": "Bloqueio feito. Os pedidos dessa pessoa não aparecem mais para você.",
+  "prayer_block_done": "Bloqueio feito. Os pedidos e comentários dessa pessoa não aparecem mais para você.",
 
   "blocked_users_title": "Usuários bloqueados",
   "blocked_users_empty": "Você não bloqueou ninguém.",
   "blocked_users_unblock": "Desbloquear",
   "blocked_users_unknown": "Perfil indisponível",
-  "blocked_users_footer": "Quem você bloqueia não é avisado. Os pedidos da pessoa voltam a aparecer para você depois de desbloquear.",
+  "blocked_users_footer": "Quem você bloqueia não é avisado. Os pedidos e comentários da pessoa voltam a aparecer para você depois de desbloquear.",
   "blocked_users_unblock_done": "Desbloqueado.",
 
   "terms_of_use": "Termos de uso",
@@ -556,7 +559,7 @@
   "auth_terms_required": "Para criar a conta, aceite os Termos de uso.",
 
   "admin_reports": "Denúncias",
-  "admin_reports_desc": "Pedidos de oração denunciados pelos obreiros",
+  "admin_reports_desc": "Pedidos de oração e comentários denunciados pelos obreiros",
   "admin_reports_pending": "{n, plural, =1{1 denúncia aguardando análise} other{{n} denúncias aguardando análise}}",
   "@admin_reports_pending": {
     "placeholders": {
@@ -593,5 +596,32 @@
       "name": { "type": "String" }
     }
   },
-  "admin_reports_resolved": "Denúncia resolvida."
+  "admin_reports_resolved": "Denúncia resolvida.",
+  "admin_reports_comment_on": "Comentário no pedido \"{title}\"",
+  "@admin_reports_comment_on": {
+    "placeholders": {
+      "title": { "type": "String" }
+    }
+  },
+  "admin_reports_delete_comment": "Excluir o comentário",
+  "admin_reports_delete_comment_confirm": "Excluir este comentário?",
+  "admin_reports_keep_comment": "Manter o comentário",
+  "admin_reports_remove_confirm_comment": "{name} perde o acesso ao app, e o comentário denunciado é excluído.",
+  "@admin_reports_remove_confirm_comment": {
+    "placeholders": {
+      "name": { "type": "String" }
+    }
+  },
+
+  "prayer_detail_title": "Oração",
+  "prayer_detail_not_found": "Esta oração não está mais disponível.",
+  "prayer_comments_section": "Comentários",
+  "prayer_comments_empty": "Nenhum comentário ainda.",
+  "prayer_comment_hint": "Escreva um comentário…",
+  "prayer_comment_send": "Enviar",
+  "prayer_comment_author_unknown": "Membro",
+  "prayer_comment_delete_confirm": "Excluir este comentário?",
+  "prayer_comment_report_title": "Por que você está denunciando este comentário?",
+  "prayer_comment_report_sent": "Denúncia enviada. Este comentário não aparece mais para você.",
+  "prayer_comment_report_already": "Você já denunciou este comentário."
 }

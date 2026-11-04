@@ -639,7 +639,7 @@ begin;
     $q$insert into public.content_reports (reporter_id, post_id, reason)
        values ('22222222-2222-2222-2222-222222222222',
                '44444444-4444-4444-4444-444444444444', 'spam')$q$,
-    '%content_reports_unique_idx%');
+    '%content_reports_post_unique_idx%');
   select test.expect_denied('denunciar em nome de outra pessoa',
     $q$insert into public.content_reports (reporter_id, post_id, reason)
        values ('33333333-3333-3333-3333-333333333333',
@@ -1120,6 +1120,138 @@ begin;
           and role = 'aluno' and is_approved$q$, 1);
   select test.expect_count('e nao ve o mural',
     'select count(*) from public.prayer_feed', 0);
+rollback;
+
+\echo ''
+\echo '=========== 19. Comentarios no mural ==========='
+-- Comentario do obreiro comum no proprio pedido, criado como superusuario
+-- antes de cada act_as.
+begin;
+  select test.act_as(:'gerente');
+  select test.expect_allowed('obreiro comenta no pedido de outro',
+    $q$insert into public.prayer_comments (post_id, author_id, body)
+       values ('44444444-4444-4444-4444-444444444444',
+               '22222222-2222-2222-2222-222222222222', 'Orando junto!')$q$);
+  select test.expect_denied('obreiro NAO comenta em nome de outro',
+    $q$insert into public.prayer_comments (post_id, author_id, body)
+       values ('44444444-4444-4444-4444-444444444444',
+               '33333333-3333-3333-3333-333333333333', 'falso')$q$);
+rollback;
+
+begin;
+  select test.act_as(:'aluno');
+  select test.expect_denied('aluno NAO comenta (fora do mural)',
+    $q$insert into public.prayer_comments (post_id, author_id, body)
+       values ('44444444-4444-4444-4444-444444444444',
+               '55555555-5555-5555-5555-555555555555', 'oi')$q$);
+rollback;
+
+begin;
+  insert into public.prayer_comments (id, post_id, author_id, body) values
+    ('66666666-6666-6666-6666-666666666666',
+     '44444444-4444-4444-4444-444444444444',
+     '33333333-3333-3333-3333-333333333333', 'Obrigado pelas oracoes');
+  select test.act_as(:'comum');
+  -- O outbox apaga com RETURNING; antes desta migration isto era 42501.
+  select test.expect_allowed('autor apaga o proprio comentario com RETURNING',
+    $q$update public.prayer_comments set deleted_at = now()
+        where id = '66666666-6666-6666-6666-666666666666' returning id$q$);
+rollback;
+
+begin;
+  insert into public.prayer_comments (id, post_id, author_id, body) values
+    ('66666666-6666-6666-6666-666666666666',
+     '44444444-4444-4444-4444-444444444444',
+     '33333333-3333-3333-3333-333333333333', 'Obrigado pelas oracoes');
+  select test.act_as(:'gerente');
+  select test.expect_rowcount('obreiro NAO apaga comentario alheio',
+    $q$update public.prayer_comments set deleted_at = now()
+        where id = '66666666-6666-6666-6666-666666666666'$q$, 0);
+  reset role;
+  select test.act_as(:'comum');
+  select test.expect_count('comentario continua vivo depois da tentativa',
+    $q$select count(*) from public.prayer_comments
+        where id = '66666666-6666-6666-6666-666666666666' and deleted_at is null$q$, 1);
+rollback;
+
+begin;
+  insert into public.prayer_comments (id, post_id, author_id, body) values
+    ('66666666-6666-6666-6666-666666666666',
+     '44444444-4444-4444-4444-444444444444',
+     '33333333-3333-3333-3333-333333333333', 'Obrigado pelas oracoes');
+  update public.profiles set role = 'admin'
+   where id = '22222222-2222-2222-2222-222222222222';
+  select test.act_as(:'gerente');
+  select test.expect_denied('admin NAO reescreve o comentario alheio',
+    $q$update public.prayer_comments set body = 'reescrito'
+        where id = '66666666-6666-6666-6666-666666666666' returning id$q$);
+  select test.expect_allowed('admin apaga comentario alheio com RETURNING',
+    $q$update public.prayer_comments set deleted_at = now()
+        where id = '66666666-6666-6666-6666-666666666666' returning id$q$);
+rollback;
+
+begin;
+  insert into public.prayer_comments (id, post_id, author_id, body) values
+    ('66666666-6666-6666-6666-666666666666',
+     '44444444-4444-4444-4444-444444444444',
+     '33333333-3333-3333-3333-333333333333', 'Texto original');
+  select test.act_as(:'gerente');
+  -- O post_id mandado e de proposito um id qualquer: o trigger o substitui
+  -- pelo post do comentario.
+  select test.expect_allowed('obreiro denuncia um comentario',
+    $q$insert into public.content_reports (reporter_id, post_id, comment_id, reason)
+       values ('22222222-2222-2222-2222-222222222222',
+               '00000000-0000-0000-0000-000000000000',
+               '66666666-6666-6666-6666-666666666666', 'offensive')$q$);
+  select test.expect_count('denuncia de comentario guarda a copia e o post certo',
+    $q$select count(*) from public.content_reports
+        where comment_id = '66666666-6666-6666-6666-666666666666'
+          and post_id = '44444444-4444-4444-4444-444444444444'
+          and comment_body = 'Texto original'
+          and comment_author_id = '33333333-3333-3333-3333-333333333333'$q$, 1);
+  select test.expect_allowed('o mesmo obreiro ainda denuncia o post',
+    $q$insert into public.content_reports (reporter_id, post_id, reason)
+       values ('22222222-2222-2222-2222-222222222222',
+               '44444444-4444-4444-4444-444444444444', 'spam')$q$);
+  select test.expect_error_like('segunda denuncia do mesmo comentario e recusada',
+    $q$insert into public.content_reports (reporter_id, post_id, comment_id, reason)
+       values ('22222222-2222-2222-2222-222222222222',
+               '44444444-4444-4444-4444-444444444444',
+               '66666666-6666-6666-6666-666666666666', 'spam')$q$,
+    '%content_reports_comment_unique_idx%');
+rollback;
+
+begin;
+  insert into public.prayer_comments (id, post_id, author_id, body, deleted_at) values
+    ('66666666-6666-6666-6666-666666666666',
+     '44444444-4444-4444-4444-444444444444',
+     '33333333-3333-3333-3333-333333333333', 'apagado', now());
+  select test.act_as(:'gerente');
+  select test.expect_error_like('nao se denuncia comentario apagado',
+    $q$insert into public.content_reports (reporter_id, post_id, comment_id, reason)
+       values ('22222222-2222-2222-2222-222222222222',
+               '44444444-4444-4444-4444-444444444444',
+               '66666666-6666-6666-6666-666666666666', 'other')$q$,
+    '%COMMENT_NOT_FOUND%');
+rollback;
+
+begin;
+  insert into public.prayer_comments (id, post_id, author_id, body) values
+    ('66666666-6666-6666-6666-666666666666',
+     '44444444-4444-4444-4444-444444444444',
+     '33333333-3333-3333-3333-333333333333', 'Texto original');
+  insert into public.content_reports (reporter_id, post_id, comment_id, reason)
+  values ('22222222-2222-2222-2222-222222222222',
+          '44444444-4444-4444-4444-444444444444',
+          '66666666-6666-6666-6666-666666666666', 'offensive');
+  select test.act_as(:'comum');
+  update public.prayer_comments set deleted_at = now()
+   where id = '66666666-6666-6666-6666-666666666666';
+  reset role;
+  select test.expect_count('apagar o comentario resolve a denuncia dele',
+    $q$select count(*) from public.content_reports
+        where comment_id = '66666666-6666-6666-6666-666666666666'
+          and resolved_at is null$q$, 0);
 rollback;
 
 \echo ''

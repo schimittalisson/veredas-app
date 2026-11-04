@@ -557,6 +557,14 @@ class ContentReportRows extends Table {
   TextColumn get postAuthorId => text().nullable()();
   BoolColumn get postIsAnonymous =>
       boolean().withDefault(const Constant(false))();
+
+  /// Preenchido só na denúncia de **comentário**. Nesse caso [postId] é o
+  /// post em que o comentário está (o servidor o tira do comentário), e os
+  /// campos `post*` dão contexto ao admin. Ver a migration
+  /// `20261104000100_prayer_comments.sql`.
+  TextColumn get commentId => text().nullable()();
+  TextColumn get commentBody => text().nullable()();
+  TextColumn get commentAuthorId => text().nullable()();
   DateTimeColumn get resolvedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();
   DateTimeColumn get updatedAt => dateTime()();

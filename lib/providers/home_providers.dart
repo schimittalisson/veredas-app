@@ -20,6 +20,17 @@ final pinnedAnnouncementProvider = Provider<AnnouncementRow?>((ref) {
   return announcements.where((a) => a.pinned).firstOrNull;
 });
 
+/// Um aviso pelo id, ou null se não está (ou deixou de estar) no cache.
+///
+/// Deriva da lista em vez de abrir um stream próprio: a lista já está viva
+/// por causa da tela Início, e a tela de detalhe passa a reagir à edição e à
+/// exclusão do aviso sem custo a mais.
+final announcementByIdProvider =
+    Provider.family<AnnouncementRow?, String>((ref, id) {
+  final announcements = ref.watch(announcementsProvider).value ?? const [];
+  return announcements.where((a) => a.id == id).firstOrNull;
+});
+
 /// Avisos não fixados (para a seção "Avisos anteriores"), limite 10.
 final recentAnnouncementsProvider = Provider<List<AnnouncementRow>>((ref) {
   final announcements = ref.watch(announcementsProvider).value ?? const [];

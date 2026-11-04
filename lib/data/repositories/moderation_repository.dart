@@ -6,7 +6,7 @@ import 'package:veredas/data/local/tables.dart' show hiddenAuthorId;
 import 'package:veredas/data/models/report_reason.dart';
 import 'package:veredas/data/repositories/outbox_helper.dart';
 
-/// Denúncia de pedido de oração e bloqueio de usuário (App Store, Guideline
+/// Denúncia de pedido de oração e de comentário, e bloqueio de usuário (App Store, Guideline
 /// 1.2). Escrita pela outbox, como o resto do app: denunciar e bloquear
 /// precisam valer na hora, mesmo sem sinal — o post some do feed no toque.
 class ModerationRepository {
@@ -18,7 +18,7 @@ class ModerationRepository {
   /// Denuncia um post. Devolve `false` se a pessoa já o tinha denunciado.
   ///
   /// A checagem local evita o 23505 do índice único
-  /// `content_reports_unique_idx`: sem ela, a segunda denúncia sairia
+  /// `content_reports_post_unique_idx`: sem ela, a segunda denúncia sairia
   /// otimista, voltaria como conflito e seria revertida com uma mensagem de
   /// erro para algo que não é erro.
   Future<bool> reportPost({
@@ -28,7 +28,10 @@ class ModerationRepository {
   }) async {
     final existing = await (_db.select(_db.contentReportRows)
           ..where(
-            (t) => t.postId.equals(postId) & t.reporterId.equals(reporterId),
+            (t) =>
+                t.postId.equals(postId) &
+                t.reporterId.equals(reporterId) &
+                t.commentId.isNull(),
           ))
         .getSingleOrNull();
     if (existing != null) return false;
@@ -64,6 +67,70 @@ class ModerationRepository {
                 postBody: Value(post?.body),
                 postAuthorId: Value(post?.authorId),
                 postIsAnonymous: Value(post?.isAnonymous ?? false),
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+      },
+    );
+    return true;
+  }
+
+  /// Denuncia um comentário. Devolve `false` se a pessoa já o tinha
+  /// denunciado — mesmo motivo de [reportPost], agora contra o índice
+  /// `content_reports_comment_unique_idx`.
+  ///
+  /// O `post_id` vai no payload porque a coluna é obrigatória, mas o servidor
+  /// o substitui pelo post do comentário (trigger `fill_report_snapshot`).
+  Future<bool> reportComment({
+    required String commentId,
+    required String reporterId,
+    required ReportReason reason,
+  }) async {
+    final existing = await (_db.select(_db.contentReportRows)
+          ..where(
+            (t) =>
+                t.commentId.equals(commentId) &
+                t.reporterId.equals(reporterId),
+          ))
+        .getSingleOrNull();
+    if (existing != null) return false;
+
+    final comment = await (_db.select(_db.prayerCommentRows)
+          ..where((t) => t.id.equals(commentId)))
+        .getSingleOrNull();
+    if (comment == null) return false;
+    final post = await (_db.select(_db.prayerFeedRows)
+          ..where((t) => t.id.equals(comment.postId)))
+        .getSingleOrNull();
+    final id = _uuid.v4();
+    final now = DateTime.now().toUtc();
+
+    await OutboxHelper.insert(
+      db: _db,
+      entity: 'content_reports',
+      rowId: id,
+      payload: {
+        'id': id,
+        'reporter_id': reporterId,
+        'post_id': comment.postId,
+        'comment_id': commentId,
+        'reason': reason.wire,
+      },
+      applyChange: () async {
+        await _db.into(_db.contentReportRows).insert(
+              ContentReportRowsCompanion.insert(
+                id: id,
+                reporterId: reporterId,
+                postId: comment.postId,
+                reason: reason.wire,
+                postTitle: Value(post?.title),
+                postBody: Value(post?.body),
+                postAuthorId: Value(post?.authorId),
+                postIsAnonymous: Value(post?.isAnonymous ?? false),
+                commentId: Value(commentId),
+                commentBody: Value(comment.body),
+                commentAuthorId: Value(comment.authorId),
                 createdAt: now,
                 updatedAt: now,
               ),

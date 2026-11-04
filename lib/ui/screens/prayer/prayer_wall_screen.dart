@@ -8,7 +8,6 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'package:veredas/core/theme/app_theme.dart';
 import 'package:veredas/core/theme/app_typography.dart';
 import 'package:veredas/data/local/app_database.dart';
-import 'package:veredas/data/models/report_reason.dart';
 import 'package:veredas/l10n/app_localizations.dart';
 import 'package:veredas/data/models/profile.dart';
 import 'package:veredas/providers/auth_providers.dart';
@@ -19,6 +18,7 @@ import 'package:veredas/ui/widgets/app_toast.dart';
 import 'package:veredas/ui/widgets/confirm_dialog.dart';
 import 'package:veredas/ui/widgets/empty_state.dart';
 import 'package:veredas/ui/widgets/pull_to_refresh.dart';
+import 'package:veredas/ui/widgets/report_reason_sheet.dart';
 
 /// Mural de Oração — quarta tab.
 ///
@@ -209,16 +209,21 @@ class _InlineComposer extends ConsumerWidget {
 // ---------------------------------------------------------------------------
 
 class PrayerCard extends ConsumerStatefulWidget {
-  const PrayerCard({required this.post, super.key});
+  const PrayerCard({required this.post, this.inDetail = false, super.key});
 
   final PrayerFeedRow post;
+
+  /// O cartão está no topo da tela de detalhe da oração. Lá o texto já abre
+  /// inteiro e o contador de comentários não leva a lugar nenhum — os
+  /// comentários estão logo abaixo.
+  final bool inDetail;
 
   @override
   ConsumerState<PrayerCard> createState() => _PrayerCardState();
 }
 
 class _PrayerCardState extends ConsumerState<PrayerCard> {
-  bool _expanded = false;
+  late bool _expanded = widget.inDetail;
 
   @override
   Widget build(BuildContext context) {
@@ -244,6 +249,9 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
 
     final inProgress =
         ref.watch(prayingToggleInProgressProvider).contains(post.id);
+    final commentCount = ref.watch(
+      commentCountsProvider.select((counts) => counts[post.id] ?? 0),
+    );
 
     // Cartão sem Material: um contêiner arredondado sobre o fundo agrupado,
     // que é como o iOS separa conteúdo em listas.
@@ -404,17 +412,32 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
                   ),
                 ),
                 const SizedBox(width: 12),
-                // Comentários.
-                Icon(
-                  CupertinoIcons.chat_bubble,
-                  size: 16,
-                  color: colors.secondaryLabel,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  l.prayer_comments(post.commentCount),
-                  style: AppTypography.caption.copyWith(
-                    color: colors.secondaryLabel,
+                // Comentários. Antes era só texto ("0 comentários") e não
+                // havia como comentar; agora abre o detalhe da oração.
+                CupertinoButton(
+                  padding: EdgeInsets.zero,
+                  minimumSize: Size.zero,
+                  onPressed: widget.inDetail
+                      ? null
+                      : () => context.push(
+                            '${Routes.oracaoDetalhe}?id=${post.id}',
+                          ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        CupertinoIcons.chat_bubble,
+                        size: 16,
+                        color: colors.secondaryLabel,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        l.prayer_comments(commentCount),
+                        style: AppTypography.caption.copyWith(
+                          color: colors.secondaryLabel,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -503,28 +526,9 @@ class _PrayerCardState extends ConsumerState<PrayerCard> {
   Future<void> _report() async {
     final l = AppLocalizations.of(context);
 
-    final reason = await showCupertinoModalPopup<ReportReason>(
-      context: context,
-      builder: (sheetContext) => CupertinoActionSheet(
-        title: Text(l.prayer_report_title),
-        message: Text(l.prayer_report_message),
-        actions: [
-          for (final r in ReportReason.values)
-            CupertinoActionSheetAction(
-              onPressed: () => Navigator.of(sheetContext).pop(r),
-              child: Text(switch (r) {
-                ReportReason.offensive => l.report_reason_offensive,
-                ReportReason.spam => l.report_reason_spam,
-                ReportReason.other => l.report_reason_other,
-              }),
-            ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.of(sheetContext).pop(),
-          isDefaultAction: true,
-          child: Text(l.action_cancel),
-        ),
-      ),
+    final reason = await showReportReasonSheet(
+      context,
+      title: l.prayer_report_title,
     );
     if (reason == null || !mounted) return;
 

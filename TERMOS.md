@@ -33,15 +33,15 @@ conteúdo ofensivo ou abusivo. É proibido publicar:
 - spam, propaganda ou conteúdo sem relação com a finalidade do mural;
 - qualquer conteúdo ilegal.
 
-Isso vale também para pedidos publicados como anônimos.
+Isso vale também para pedidos publicados como anônimos e para comentários.
 
 ## 4. Denúncia, bloqueio e moderação
 
-- **Denunciar:** em qualquer pedido de oração, toque em "⋯" e escolha
-  *Denunciar*. O pedido deixa de aparecer para você, e quem escreveu não fica
-  sabendo quem denunciou.
+- **Denunciar:** em qualquer pedido de oração ou comentário, toque em "⋯" e
+  escolha *Denunciar*. O conteúdo deixa de aparecer para você, e quem escreveu
+  não fica sabendo quem denunciou.
 - **Bloquear:** no mesmo menu, *Bloquear* faz com que você não veja mais os
-  pedidos daquela pessoa. Ela não é avisada. Para desfazer, toque no seu avatar
+  pedidos e comentários daquela pessoa. Ela não é avisada. Para desfazer, toque no seu avatar
   na tela Início e escolha *Usuários bloqueados*.
 - **Moderação:** a liderança da base analisa toda denúncia em **até 24 horas**.
   Conteúdo que viole estes termos é removido, e quem o publicou pode ter a
@@ -51,7 +51,8 @@ Isso vale também para pedidos publicados como anônimos.
 
 O que você publica continua sendo seu. Ao publicar, você autoriza que o
 conteúdo seja exibido aos demais obreiros aprovados da base, que é a única
-finalidade do app. Você pode editar ou excluir seus pedidos a qualquer momento.
+finalidade do app. Você pode editar ou excluir seus pedidos, e excluir seus comentários, a
+qualquer momento.
 
 ## 6. Exclusão da conta
 

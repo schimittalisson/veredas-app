@@ -181,6 +181,69 @@ class PrayerRepository {
     );
   }
 
+  // --- Prayer comments ------------------------------------------------------
+
+  /// Comenta num pedido. O comentário aparece na hora, inclusive sem sinal;
+  /// a outbox o envia quando houver conexão.
+  ///
+  /// [body] chega já aparado pela tela; o CHECK do servidor recusa vazio e
+  /// mais de 2000 caracteres.
+  Future<String> addComment({
+    required String postId,
+    required String authorId,
+    required String body,
+  }) async {
+    final id = _uuid.v4();
+    final now = DateTime.now().toUtc();
+
+    await OutboxHelper.insert(
+      db: _db,
+      entity: 'prayer_comments',
+      rowId: id,
+      payload: {
+        'id': id,
+        'post_id': postId,
+        // Validado pelo RLS (`author_id = auth.uid()`).
+        'author_id': authorId,
+        'body': body,
+      },
+      applyChange: () async {
+        await _db.into(_db.prayerCommentRows).insert(
+              PrayerCommentRow(
+                id: id,
+                postId: postId,
+                authorId: authorId,
+                body: body,
+                createdAt: now,
+                updatedAt: now,
+              ),
+            );
+      },
+    );
+    return id;
+  }
+
+  /// Apaga um comentário (soft delete no servidor). Do autor, ou do admin
+  /// moderando — a policy `prayer_comments_update` recusa os outros.
+  Future<void> deleteComment(String id) async {
+    await OutboxHelper.delete(
+      db: _db,
+      entity: 'prayer_comments',
+      rowId: id,
+      applyChange: () async {
+        await (_db.delete(_db.prayerCommentRows)
+              ..where((t) => t.id.equals(id)))
+            .go();
+      },
+      queryExisting: () async {
+        final row = await (_db.select(_db.prayerCommentRows)
+              ..where((t) => t.id.equals(id)))
+            .getSingleOrNull();
+        return row?.toJson();
+      },
+    );
+  }
+
   // --- Prayer interactions (toggle "estou orando") --------------------------
 
   /// Alterna o estado de "estou orando" num pedido.

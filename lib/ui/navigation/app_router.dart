@@ -27,8 +27,10 @@ import 'package:veredas/ui/screens/auth/nova_senha_screen.dart';
 import 'package:veredas/ui/screens/auth/splash_screen.dart';
 import 'package:veredas/ui/screens/documents/document_editor_screen.dart';
 import 'package:veredas/ui/screens/documents/documents_screen.dart';
+import 'package:veredas/ui/screens/home/announcement_detail_screen.dart';
 import 'package:veredas/ui/screens/home/announcement_editor_screen.dart';
 import 'package:veredas/ui/screens/home/home_screen.dart';
+import 'package:veredas/ui/screens/prayer/prayer_detail_screen.dart';
 import 'package:veredas/ui/screens/prayer/prayer_editor_screen.dart';
 import 'package:veredas/ui/screens/prayer/prayer_wall_screen.dart';
 import 'package:veredas/ui/screens/scales/scale_assignment_editor_screen.dart';
@@ -72,8 +74,10 @@ class Routes {
   // Rotas de editores (acima da NavigationBar, tela inteira).
   static const String avisoNovo = '/aviso/novo';
   static const String avisoEditar = '/aviso/editar';
+  static const String avisoDetalhe = '/aviso';
   static const String oracaoNovo = '/oracao/novo';
   static const String oracaoEditar = '/oracao/editar';
+  static const String oracaoDetalhe = '/oracao/detalhe';
   static const String eventoNovo = '/evento/novo';
   static const String eventoEditar = '/evento/editar';
   static const String slotNovo = '/cronograma/novo';
@@ -250,6 +254,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const AnnouncementEditorScreen(),
       ),
       GoRoute(
+        path: Routes.avisoDetalhe,
+        builder: (context, state) => AnnouncementDetailScreen(
+          announcementId: state.uri.queryParameters['id'] ?? '',
+        ),
+      ),
+      GoRoute(
         path: Routes.avisoEditar,
         builder: (context, state) => AnnouncementEditorScreen(
           announcementId: state.uri.queryParameters['id'],
@@ -258,6 +268,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.oracaoNovo,
         builder: (context, state) => const PrayerEditorScreen(),
+      ),
+      GoRoute(
+        path: Routes.oracaoDetalhe,
+        builder: (context, state) => PrayerDetailScreen(
+          postId: state.uri.queryParameters['id'] ?? '',
+        ),
       ),
       GoRoute(
         path: Routes.oracaoEditar,

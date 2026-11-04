@@ -494,9 +494,9 @@ Atualize esta seção ao concluir cada fase.
 - [x] Fase 5 — Tela Início — aviso fixado, redes sociais, dados da base,
       avisos anteriores. FAB só admin. Editor de avisos implementado
       (`announcement_editor_screen.dart`). Nome do autor denormalizado
-      (`authorName` em `AnnouncementRow`, exibido na UI). TODO: lista
-      completa de avisos (rota `/avisos`), editor de base_info
-      (`BaseDataScreen`).
+      (`authorName` em `AnnouncementRow`, exibido na UI). Detalhe do aviso
+      (`/aviso?id=`, `announcement_detail_screen.dart`) com editar/excluir
+      para admin. TODO: editor de base_info (`BaseDataScreen`).
 - [x] Fase 6 — Tela Agenda — abas Eventos (TableCalendar + lista do dia +
       próximos, `cached_network_image` para capas) e Cronograma (grade
       semanal proporcional + lista por dia). FAB só admin. Editores de
@@ -516,8 +516,9 @@ Atualize esta seção ao concluir cada fase.
       composer inline, PrayerCard (avatar, timeago, "estou orando" toggle
       otimista, badge "Respondido", popup Editar/Excluir/Marcar respondido),
       texto expansível (3 linhas + ver mais). FAB nova oração. Editor
-      implementado (`prayer_editor_screen.dart`). TODO: tela de detalhe,
-      paginação.
+      implementado (`prayer_editor_screen.dart`). Detalhe da oração com
+      comentários (`/oracao/detalhe?id=`, `prayer_detail_screen.dart`).
+      TODO: paginação.
 - [x] Fase 9 — Administração — AdminScreen (menu), MembrosScreen (lista com
       busca, pendentes no topo, popup Aprovar/Revogar/Promover/Rebaixar/
       Remover, proteção auto-rebaixamento), ConvitesScreen (lista + FAB criar
@@ -545,7 +546,10 @@ Atualize esta seção ao concluir cada fase.
 - [x] Pós-Fase 10 — ETED: papel `aluno` (tudo menos o mural), convite de
       aluno, cronograma da ETED na Agenda editado por líderes nomeados pelo
       admin. Migrations `20261004000100`/`20261004000200` (ver decisões no
-      fim). **Ainda não aplicadas no Supabase.**
+      fim). Aplicadas no Supabase.
+- [x] Pós-Fase 10 — Comentários no mural (com denúncia e bloqueio) e
+      detalhe do aviso. Migration `20261104000100_prayer_comments.sql`
+      (ver decisões no fim). Aplicada no Supabase.
 
 ### Decisões tomadas durante a execução
 
@@ -1315,6 +1319,7 @@ aja sobre as denúncias em 24 horas.
 1. **Só `prayer_posts` é conteúdo sujeito a isso.** `prayer_comments` existe
    no banco mas não tem tela, e os avisos são escritos por admin. Se os
    comentários ganharem tela, a denúncia ganha uma coluna `comment_id`.
+   (Ganharam — ver "Comentários no mural", mais abaixo.)
 2. **A denúncia guarda uma cópia do post, tirada pelo servidor.** O trigger
    `fill_report_snapshot` preenche `post_title`/`post_body`/`post_author_id`
    da linha real e ignora o que o app mandar. Sem cópia, o autor editaria o
@@ -1697,3 +1702,62 @@ existentes mantêm o que tinham.
    Efeito colateral: "anon NAO le o feed" passou a ser recusa por privilégio
    (`expect_denied`), não contagem zero, já que o grant do anon na view é
    revogado.
+
+#### Detalhe do aviso, e comentários no mural (pós-Fase 10)
+
+Dois bugs relatados depois de alguns dias de uso: tocar num aviso da lista
+"Avisos" não fazia nada (o texto aparecia cortado e o admin não tinha como
+editar um aviso não fixado, só excluir arrastando); e o cartão da oração
+mostrava "0 comentários" sem nenhum jeito de comentar.
+
+1. **Aviso: tela de detalhe, não o editor direto.** O toque abre
+   `/aviso?id=`, com o texto inteiro (selecionável, para copiar telefone ou
+   link) e, para o admin, Editar na barra e Excluir no fim. Abrir o editor
+   direto convidaria o admin a mudar o texto quando só queria ler. O aviso é
+   lido do stream do cache (`announcementByIdProvider`): voltar do editor já
+   mostra o texto novo, e um aviso excluído vira estado vazio.
+2. **Comentários: a tabela, as policies e o sync já existiam desde a Fase 1.**
+   Faltava a escrita (`PrayerRepository.addComment`/`deleteComment`, pela
+   outbox) e a tela (`/oracao/detalhe?id=`). O contador do cartão virou o
+   botão que abre o detalhe. Sem "Editar comentário": apagar e escrever de
+   novo cobre o caso.
+3. **Excluir comentário teria quebrado igual à exclusão de oração.** A policy
+   de SELECT filtrava `deleted_at is null` e o outbox apaga com
+   `update ... returning` — 42501 e rollback, o mesmo bug da migration
+   `20260930000200`. A migration nova deixa autor e admin lerem a lápide.
+4. **Admin apaga o comentário alheio, mas não o reescreve.** Trigger
+   `protect_prayer_comment_content`, no molde de `protect_prayer_post_content`.
+5. **Comentário é conteúdo de usuário (Guideline 1.2).** Todo comentário
+   alheio tem Denunciar e Bloquear no menu; os Termos de uso passaram a citar
+   comentários. `content_reports` ganhou `comment_id`, `comment_body` e
+   `comment_author_id`, preenchidos pelo trigger `fill_report_snapshot` a
+   partir da linha real. `post_id` continua obrigatório e é o post do
+   comentário (o trigger o reescreve), o que dá contexto ao admin. O índice
+   único virou dois parciais: com o antigo `(reporter_id, post_id)`, quem
+   denunciasse um comentário não poderia denunciar o post.
+6. **`watchReportedPostIds` filtra `comment_id is null`.** A denúncia de
+   comentário carrega o `post_id`; sem o filtro, denunciar um comentário
+   escondia a oração inteira. Há teste, confirmado falhando sem o filtro.
+7. **O bloqueio nos comentários é só no cliente**, de propósito
+   (`visibleCommentsProvider`). `user_blocks` é sincronizado, então o filtro já
+   acompanha a pessoa em outro aparelho — que é o que justificou o filtro duplo
+   no feed. Pôr o bloqueio na policy faria o admin que bloqueou alguém não
+   conseguir apagar um comentário dessa pessoa (o RETURNING reprovaria).
+8. **A contagem de comentários sai do cache** (`commentCountsProvider`), não
+   do `comment_count` da view: o da view só muda no próximo pull e conta os
+   comentários de quem a pessoa bloqueou.
+9. **O nome do autor do comentário vem do cache de perfis** (join no DAO). O
+   servidor não manda o nome. Comentário de membro removido aparece como
+   "Membro".
+10. **Cache: schemaVersion 8 → 9**, três colunas nulas em
+    `content_report_rows`. Sem marca d'água a apagar: `content_reports` é
+    `fullReplace`.
+11. **Ordem de implantação: a migration `20261104000100` vai para o Supabase
+    ANTES do build novo.** Sem ela, comentar funciona (as policies de INSERT
+    já existiam), mas excluir comentário volta 42501 e denunciar comentário
+    falha por coluna inexistente — as duas revertem com o banner de erro.
+    O contrário é seguro: o app antigo não lê as colunas novas.
+12. Coberto por 14 asserções no harness (§19), `test/sync/
+    prayer_comments_test.dart` (13 testes), `test/ui/
+    prayer_comments_screen_test.dart` (5) e `test/ui/
+    announcement_detail_test.dart` (3).

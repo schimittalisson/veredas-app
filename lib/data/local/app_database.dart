@@ -45,7 +45,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -147,6 +147,22 @@ class AppDatabase extends _$AppDatabase {
             await (delete(syncStates)
                   ..where((t) => t.entity.equals('weekly_slots')))
                 .go();
+          }
+
+          // v9 — denúncia de comentário. Colunas novas e nulas; as denúncias
+          // que já estão no cache são todas de post, que é o que o nulo diz.
+          // `content_reports` é `fullReplace`, então não há marca d'água a
+          // apagar: o próximo pull reescreve a tabela inteira.
+          if (from < 9 && to >= 9) {
+            await m.addColumn(contentReportRows, contentReportRows.commentId);
+            await m.addColumn(
+              contentReportRows,
+              contentReportRows.commentBody,
+            );
+            await m.addColumn(
+              contentReportRows,
+              contentReportRows.commentAuthorId,
+            );
           }
         },
         beforeOpen: (details) async {
