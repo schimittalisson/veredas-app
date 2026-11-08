@@ -53,8 +53,17 @@ O que muda com isso:
 Impressão digital do certificado, para conferir um APK sem ter o keystore:
 
 ```
-SHA-256: E2:6F:7C:A3:92:83:85:EB:A4:24:43:25:5D:8C:EB:FF:B1:40:68:46:C9:AA:F8:92:87:2C:52:13:11:95:F4:39
+SHA-256: 0C:EF:BD:68:A7:C0:94:80:A0:E5:FB:EF:E9:45:FA:97:E6:CD:A9:1E:D2:64:7F:5F:50:CC:D9:C9:4E:EA:90:EE
 ```
+
+> **A chave foi trocada em 07/11/2026, a partir da versão 1.1.0.** A original
+> (`SHA-256: E2:6F:7C:A3:…:95:F4:39`) só existia na máquina de
+> desenvolvimento antiga, sem backup, e se perdeu com ela — exatamente o caso
+> do item 2 acima. Quem tinha um APK assinado com ela teve de desinstalar e
+> instalar de novo. A chave nova tem cópia em
+> `~/Documentos/veredas-app-keys/` (`veredas-upload.jks` +
+> `android-key.properties`); **essa pasta também precisa de cópia fora desta
+> máquina** (gerenciador de senhas ou drive), senão a história se repete.
 
 ### 2.2 Backup da chave — como fazer
 

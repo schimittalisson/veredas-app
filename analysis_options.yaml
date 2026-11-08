@@ -5,6 +5,9 @@ analyzer:
     - "**/*.g.dart"
     - "**/*.freezed.dart"
     - "lib/l10n/**"
+    - build/**
+    - android/**
+    - ios/**
   errors:
     # Ruído do freezed/json_serializable: as anotações são aplicadas ao
     # construtor factory, que o analyzer considera alvo inválido. É a única
